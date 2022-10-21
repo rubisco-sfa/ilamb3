@@ -1,3 +1,3 @@
 """A library of functions."""
 
-__all__ = ["dset"]
+__all__ = ["dataset", "compare","score"]

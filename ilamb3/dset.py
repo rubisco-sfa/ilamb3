@@ -4,6 +4,21 @@ import numpy as np
 import xarray as xr
 
 
+def get_time_name(dset: xr.Dataset) -> str:
+    """times"""
+    possible_names = ["time"]
+    time_name = set(dset.dims).intersection(possible_names)
+    if not time_name:
+        # pylint: disable=consider-using-f-string
+        raise KeyError(
+            "Time dimension not found: dataset dims [%s] not in [%s]"
+            % (",".join(dset.dims), ",".join(possible_names))
+        )
+    if len(time_name) > 1:
+        raise ValueError(f"Unsure which dimension {time_name} is time")
+    return time_name.pop()
+
+
 def get_latitude_name(dset: xr.Dataset) -> str:
     """latitudes"""
     possible_names = ["lat", "latitude", "Latitude", "y"]
@@ -34,12 +49,42 @@ def get_longitude_name(dset: xr.Dataset) -> str:
     return lon_name.pop()
 
 
-def add_cell_measures(dset: xr.Dataset) -> None:
-    """In order to integrate (area weighted sums), we need the cell measures. If
-    they are not part of the dataset already, compute them and add to the
-    dataset."""
-    if "cell_measures" in dset:
-        return
+def time_extent(dset: xr.Dataset):
+    """Find the beginning and ending of this dataset, preferring the
+    time bounds if present."""
+    if "time" not in dset.dims:
+        raise KeyError("The 'time' dimension is not part of this dataset")
+    time = dset["time"]
+    if "bounds" in time.attrs:
+        if time.attrs["bounds"] in dset:
+            time = dset[time.attrs["bounds"]]
+    return time.min(), time.max()
+
+
+def compute_time_measures(dset: xr.Dataset) -> xr.DataArray:
+    """In order to integrate in time, we need the time measures."""
+    time = dset["time"]
+    timeb_name = time.attrs["bounds"] if "bounds" in time.attrs else None
+    # we prefer to compute your time lengths from the time bounds if they are part of the dataset
+    if timeb_name is not None and timeb_name in dset:
+        delt = dset[timeb_name]
+        nbnd = delt.dims[-1]
+        delt = delt.diff(nbnd).squeeze()
+        delt *= 1e-9 / 86400  # [ns] to [d]
+        measure = delt.astype("float")
+    else:
+        # FIX
+        if time.size == 1:
+            raise ValueError(
+                "Cannot estimate time measures from single value times with no time bounds"
+            )
+        delt = float(time.diff(dim="time").mean()) * 1e-9 / 3600 / 24
+        measure = dset["time"].copy(data=[delt] * dset["time"].size)
+    return measure
+
+
+def compute_cell_measures(dset: xr.Dataset) -> xr.DataArray:
+    """In order to integrate (area weighted sums), we need the cell measures."""
     earth_radius = 6.371e6  # [m]
     lat_name = get_latitude_name(dset)
     lon_name = get_longitude_name(dset)
@@ -60,8 +105,7 @@ def add_cell_measures(dset: xr.Dataset) -> None:
         other_dims = delx.dims[-1]
         delx = earth_radius * delx.diff(other_dims).squeeze()
         dely = earth_radius * dely.diff(other_dims).squeeze()
-        dset["cell_measures"] = dely * delx
-        return
+        return dely * delx
     # ...and if they aren't, we assume the lat/lon we have is a cell centroid
     # and compute the area.
     lon = lon.values
@@ -90,38 +134,36 @@ def add_cell_measures(dset: xr.Dataset) -> None:
     dely = xr.DataArray(
         data=np.abs(dely), dims=[lat_name], coords={lat_name: dset[lat_name]}
     )
-    dset["cell_measures"] = dely * delx
+    return dely * delx
 
 
 def coarsen_dataset(dset: xr.Dataset, res: float = 0.5) -> xr.Dataset:
     """Coarsens the source dataset to the target resolution while conserving the overall integral"""
-    add_cell_measures(dset)
     lat_name = get_latitude_name(dset)
     lon_name = get_longitude_name(dset)
     fine_per_coarse = int(
         round(res / np.abs(dset[lat_name].diff(lat_name).mean().values))
     )
-
     # To spatially coarsen this dataset we will use the xarray 'coarsen'
     # functionality. However, if we want the area weighted sums to be the same,
     # we need to integrate over the coarse cells and then divide through by the
     # new areas. We also need to keep track of nan's to apply a mask to the
     # coarsened dataset.
+    if "cell_measures" not in dset:
+        dset["cell_measures"] = compute_cell_measures(dset)
     nll = (
         # pylint: disable=singleton-comparison
         (dset.isnull() == False)
         .all(dim=set(dset.dims) - set([lat_name, lon_name]))
         .coarsen({"lat": fine_per_coarse, "lon": fine_per_coarse}, boundary="pad")
     ).sum()
-
     dset_coarse = (
         (dset.drop("cell_measures") * dset["cell_measures"])
         .coarsen({"lat": fine_per_coarse, "lon": fine_per_coarse}, boundary="pad")
         .sum()
     )
-
-    add_cell_measures(dset_coarse)
-    dset_coarse = dset_coarse.drop("cell_measures") / dset_coarse["cell_measures"]
-    add_cell_measures(dset_coarse)
+    cell_measures = compute_cell_measures(dset_coarse)
+    dset_coarse = dset_coarse / cell_measures
+    dset_coarse["cell_measures"] = cell_measures
     dset_coarse = xr.where(nll == 0, np.nan, dset_coarse)
     return dset_coarse
