@@ -1,7 +1,10 @@
 """Dataset functions for ILAMB"""
 
+from typing import Union
+
 import numpy as np
 import xarray as xr
+from xarray.core.weighted import DataArrayWeighted
 
 
 def get_time_name(dset: xr.Dataset) -> str:
@@ -22,7 +25,7 @@ def get_time_name(dset: xr.Dataset) -> str:
 def get_latitude_name(dset: xr.Dataset) -> str:
     """latitudes"""
     possible_names = ["lat", "latitude", "Latitude", "y"]
-    lat_name = set(dset.dims).intersection(possible_names)
+    lat_name = set(dset.dims).union(dset.coords).intersection(possible_names)
     if not lat_name:
         # pylint: disable=consider-using-f-string
         raise KeyError(
@@ -37,7 +40,7 @@ def get_latitude_name(dset: xr.Dataset) -> str:
 def get_longitude_name(dset: xr.Dataset) -> str:
     """longitudes"""
     possible_names = ["lon", "longitude", "Longitude", "x"]
-    lon_name = set(dset.dims).intersection(possible_names)
+    lon_name = set(dset.dims).union(dset.coords).intersection(possible_names)
     if not lon_name:
         # pylint: disable=consider-using-f-string
         raise KeyError(
@@ -61,25 +64,44 @@ def time_extent(dset: xr.Dataset):
     return time.min(), time.max()
 
 
-def compute_time_measures(dset: xr.Dataset) -> xr.DataArray:
-    """In order to integrate in time, we need the time measures."""
-    time = dset["time"]
-    timeb_name = time.attrs["bounds"] if "bounds" in time.attrs else None
-    # we prefer to compute your time lengths from the time bounds if they are part of the dataset
-    if timeb_name is not None and timeb_name in dset:
-        delt = dset[timeb_name]
-        nbnd = delt.dims[-1]
-        delt = delt.diff(nbnd).squeeze()
-        delt *= 1e-9 / 86400  # [ns] to [d]
-        measure = delt.astype("float")
-    else:
-        # FIX
+def compute_time_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray:
+    """Compute the length of each time interval.
+
+    In order to integrate in time, we need the time measures. While this
+    function is written for greatest flexibility, the most accurate time
+    measures will be computed when a dataset is passed in where the 'bounds' on
+    the 'time' dimension are labeled and part of the dataset."""
+
+    def _measure1d(time):
         if time.size == 1:
             raise ValueError(
                 "Cannot estimate time measures from single value times with no time bounds"
             )
-        delt = float(time.diff(dim="time").mean()) * 1e-9 / 3600 / 24
-        measure = dset["time"].copy(data=[delt] * dset["time"].size)
+        delt = time.diff(dim="time").to_numpy().astype(float) * 1e-9 / 3600 / 24
+        delt = np.hstack([delt[0], delt, delt[-1]])
+        msr = time.copy(data=0.5 * (delt[:-1] + delt[1:]))
+        msr.attrs["units"] = "d"
+        msr = msr.pint.quantify()
+        return msr
+
+    time = dset["time"]
+    timeb_name = time.attrs["bounds"] if "bounds" in time.attrs else None
+
+    # if you passed in a dataarray, we have to estimate measures
+    if isinstance(dset, xr.DataArray):
+        return _measure1d(time)
+    # if there are no bounds on time or they aren't in the dataset, we have to
+    # estimate measures
+    if timeb_name is None or timeb_name not in dset:
+        return _measure1d(time)
+    # compute from the bounds
+    delt = dset[timeb_name]
+    nbnd = delt.dims[-1]
+    delt = delt.diff(nbnd).squeeze()
+    delt *= 1e-9 / 86400  # [ns] to [d]
+    measure = delt.astype("float")
+    measure.attrs["units"] = "d"
+    measure = measure.pint.quantify()
     return measure
 
 
@@ -105,7 +127,10 @@ def compute_cell_measures(dset: xr.Dataset) -> xr.DataArray:
         other_dims = delx.dims[-1]
         delx = earth_radius * delx.diff(other_dims).squeeze()
         dely = earth_radius * dely.diff(other_dims).squeeze()
-        return dely * delx
+        msr = dely * delx
+        msr.attrs["units"] = "m2"
+        msr = msr.pint.quantify()
+        return msr
     # ...and if they aren't, we assume the lat/lon we have is a cell centroid
     # and compute the area.
     lon = lon.values
@@ -134,7 +159,10 @@ def compute_cell_measures(dset: xr.Dataset) -> xr.DataArray:
     dely = xr.DataArray(
         data=np.abs(dely), dims=[lat_name], coords={lat_name: dset[lat_name]}
     )
-    return dely * delx
+    msr = dely * delx
+    msr.attrs["units"] = "m2"
+    msr = msr.pint.quantify()
+    return msr
 
 
 def coarsen_dataset(dset: xr.Dataset, res: float = 0.5) -> xr.Dataset:
@@ -167,3 +195,101 @@ def coarsen_dataset(dset: xr.Dataset, res: float = 0.5) -> xr.Dataset:
     dset_coarse["cell_measures"] = cell_measures
     dset_coarse = xr.where(nll == 0, np.nan, dset_coarse)
     return dset_coarse
+
+
+def move_coordinates(dset: xr.Dataset, varname: str) -> xr.Dataset:
+    """Move coordinates from the dataset to the dataarray as appropriate.
+
+    When reading in site data, the data site dimension is a scalar integer and
+    usually there are one-dimensional arrays of the size of the number of data
+    sites that contain lat/lon and other supplementary information. Find these
+    and pass them as coordinates of the variable data array. This will enable
+    logic internally to choose when a variable is spatial (lat/lon are
+    dimensions) and when it is sites (lat/lon are coordinates only)."""
+    var = dset[varname]
+    candidate_dims = [d for d in var.dims if d not in dset]
+    coords = {
+        key: dset[key]
+        for key in dset
+        if (
+            key != varname
+            and dset[key].ndim == 1
+            and dset[key].dims[0] in candidate_dims
+        )
+    }
+    dset = dset.drop(coords.keys())
+    dset[varname] = dset[varname].assign_coords(coords)
+    return dset
+
+
+def integrate_time(
+    dset: Union[xr.Dataset, xr.DataArray], varname: str = None, mean: bool = False
+):
+    """Integrate a variable in time."""
+    if isinstance(dset, xr.Dataset):
+        var = dset[varname]
+        msr = (
+            dset["time_measures"]
+            if "time_measures" in dset
+            else compute_time_measures(dset)
+        )
+    else:
+        var = dset
+        msr = compute_time_measures(dset)
+    if "time" not in var.dims:
+        raise ValueError(f"No 'time' dimension in variable:\n{var}")
+    var = var.pint.quantify()
+    dsw = DataArrayWeighted(var, msr)
+    if mean:
+        return dsw.mean(dim="time")
+    return dsw.sum(dim="time")
+
+
+def std_time(dset: xr.Dataset, varname: str = None):
+    """Return the standard deviation of a variable in time."""
+    if isinstance(dset, xr.Dataset):
+        var = dset[varname]
+        msr = (
+            dset["time_measures"]
+            if "time_measures" in dset
+            else compute_time_measures(dset)
+        )
+    else:
+        var = dset
+        msr = compute_time_measures(dset)
+    if "time" not in var.dims:
+        raise ValueError(f"No 'time' dimension in variable:\n{var}")
+    var = var.pint.quantify()
+    dsw = DataArrayWeighted(var, msr)
+    return dsw.std(dim="time")
+
+
+def integrate_space(dset: xr.Dataset, varname: str = None, mean: bool = False):
+    """Integrate a variable in space."""
+    if isinstance(dset, xr.Dataset):
+        var = dset[varname]
+        msr = (
+            dset["cell_measures"]
+            if "cell_measures" in dset
+            else compute_cell_measures(dset)
+        )
+    else:
+        var = dset
+        msr = compute_cell_measures(dset)
+    if not set(["lat", "lon"]).issubset(var.dims):
+        raise ValueError(f"No ['lat','lon'] dimension in variable:\n{var}")
+    # As of 2022.11.0, weighted sums drop units from pint if the weights are
+    # over *all* the dimensions of the dataarray. Will do some pint gymnastics
+    # to avoid the issue.
+    var = var.pint.dequantify()
+    msr = msr.pint.dequantify()
+    dsw = DataArrayWeighted(var, msr)
+    if mean:
+        dsw = dsw.mean(dim=["lat", "lon"])
+        dsw.attrs["units"] = var.attrs["units"]
+        dsw = dsw.pint.quantify()
+        return dsw
+    dsw = dsw.sum(dim=["lat", "lon"])
+    dsw.attrs["units"] = f"({var.attrs['units']})*({msr.attrs['units']})"
+    dsw = dsw.pint.quantify()
+    return dsw
