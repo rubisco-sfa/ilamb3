@@ -74,9 +74,8 @@ def compute_time_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray
 
     def _measure1d(time):
         if time.size == 1:
-            raise ValueError(
-                "Cannot estimate time measures from single value times with no time bounds"
-            )
+            msg = "Cannot estimate time measures from single value without bounds"
+            raise ValueError(msg)
         delt = time.diff(dim="time").to_numpy().astype(float) * 1e-9 / 3600 / 24
         delt = np.hstack([delt[0], delt, delt[-1]])
         msr = time.copy(data=0.5 * (delt[:-1] + delt[1:]))
@@ -166,9 +165,10 @@ def compute_cell_measures(dset: xr.Dataset) -> xr.DataArray:
 
 
 def coarsen_dataset(dset: xr.Dataset, res: float = 0.5) -> xr.Dataset:
-    """Coarsens the source dataset to the target resolution while conserving the overall integral"""
+    """Coarsens the source dataset to the target resolution while conserving the
+    overall integral"""
     lat_name = get_latitude_name(dset)
-    lon_name = get_longitude_name(dset)
+    get_longitude_name(dset)
     fine_per_coarse = int(
         round(res / np.abs(dset[lat_name].diff(lat_name).mean().values))
     )
@@ -179,12 +179,13 @@ def coarsen_dataset(dset: xr.Dataset, res: float = 0.5) -> xr.Dataset:
     # coarsened dataset.
     if "cell_measures" not in dset:
         dset["cell_measures"] = compute_cell_measures(dset)
-    nll = (
-        # pylint: disable=singleton-comparison
-        (dset.isnull() == False)
-        .all(dim=set(dset.dims) - set([lat_name, lon_name]))
-        .coarsen({"lat": fine_per_coarse, "lon": fine_per_coarse}, boundary="pad")
-    ).sum()
+        nll = (
+            dset.notnull()
+            .any(dim="time")
+            .coarsen({"lat": fine_per_coarse, "lon": fine_per_coarse}, boundary="pad")
+            .sum()
+            .astype(int)
+        )
     dset_coarse = (
         (dset.drop("cell_measures") * dset["cell_measures"])
         .coarsen({"lat": fine_per_coarse, "lon": fine_per_coarse}, boundary="pad")
