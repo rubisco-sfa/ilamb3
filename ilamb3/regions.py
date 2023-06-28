@@ -58,7 +58,7 @@ class Regions:
                 )
             if len(ids) > 1:
                 raise ValueError(
-                    f"Which 2d array of integers to use as regions in {netcdf}: {','.join(ids)}"
+                    f"Amiguous integer array for regions in {netcdf}: {','.join(ids)}"
                 )
             ids = ids[0]
         labels = list(dsr[dsr[ids].attrs["labels"]].to_numpy())
@@ -113,12 +113,11 @@ class Regions:
         mask = self.get_mask(label, var)
         if (mask == 0).sum() == 0:
             return False
-        rvar = xr.where(mask, np.nan, var)
+        _ = xr.where(mask, np.nan, var)  # broken
         return True
 
 
 if "global" not in Regions().regions:
-
     # Populate some regions
     r = Regions()
     src = "ILAMB internal"
