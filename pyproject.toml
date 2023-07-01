@@ -7,4 +7,8 @@ name = "ilamb3"
 version = "0.1"
 dependencies = [
     "xarray",
+    "pint-xarray",
+    "cf-xarray",
+    "numpy",
+    "pandas",
 ]
