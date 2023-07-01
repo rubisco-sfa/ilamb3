@@ -1,6 +1,4 @@
 """Functions for preparing datasets for comparison."""
-
-
 import datetime
 import warnings
 from typing import Tuple
@@ -8,8 +6,7 @@ from typing import Tuple
 import numpy as np
 import xarray as xr
 
-# pylint: disable=no-name-in-module
-from . import dataset as dset
+from ilamb3 import dataset as dset
 
 
 def nest_spatial_grids(*args):
