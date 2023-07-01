@@ -1,14 +1,5 @@
+# https://snarky.ca/what-the-heck-is-pyproject-toml/
+
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
-
-[project]
-name = "ilamb3"
-version = "0.1"
-dependencies = [
-    "xarray",
-    "pint-xarray",
-    "cf-xarray",
-    "numpy",
-    "pandas",
-]
