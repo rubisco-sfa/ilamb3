@@ -4,7 +4,7 @@ defining additional regions by lat/lon bounds or by a mask specified by a
 netCDF4 file. A set of regions used in the Global Fire Emissions Database (GFED)
 is included by default."""
 import os
-from typing import List, Tuple, Union
+from typing import Union
 
 import numpy as np
 import xarray as xr
@@ -27,8 +27,8 @@ class Regions:
         self,
         label: str,
         name: str,
-        lats: Tuple[float],
-        lons: Tuple[float],
+        lats: tuple[float],
+        lons: tuple[float],
         source: str = "user-provided latlon bounds",
     ):
         """Add a region by lat/lon bounds."""
@@ -38,7 +38,7 @@ class Regions:
         Regions._regions[label] = [rtype, name, lats, lons]
         Regions._sources[label] = source
 
-    def add_netcdf(self, netcdf: Union[str, xr.Dataset]) -> List[str]:
+    def add_netcdf(self, netcdf: Union[str, xr.Dataset]) -> list[str]:
         """Add regions found in a netCDF file and returns a list of the labels
         found."""
         rtype = 1

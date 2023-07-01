@@ -1,6 +1,6 @@
 """Dataset functions for ILAMB"""
 
-from typing import Literal, Tuple, Union
+from typing import Literal, Union
 
 import numpy as np
 import xarray as xr
@@ -42,7 +42,7 @@ def get_dim_name(
 
 def get_time_extent(
     dset: Union[xr.Dataset, xr.DataArray]
-) -> Tuple[xr.DataArray, xr.DataArray]:
+) -> tuple[xr.DataArray, xr.DataArray]:
     """Return the time extent of the dataset/dataarray.
 
     The function will prefer the values in the 'bounds' array if present.

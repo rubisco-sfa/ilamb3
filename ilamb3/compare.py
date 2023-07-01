@@ -1,7 +1,6 @@
 """Functions for preparing datasets for comparison."""
 import datetime
 import warnings
-from typing import Tuple
 
 import numpy as np
 import xarray as xr
@@ -48,7 +47,7 @@ def is_spatially_aligned(dsa: xr.Dataset, dsb: xr.Dataset) -> bool:
 
 def pick_grid_aligned(
     ref0: xr.Dataset, com0: xr.Dataset, ref: xr.Dataset = None, com: xr.Dataset = None
-) -> Tuple[xr.Dataset, xr.Dataset]:
+) -> tuple[xr.Dataset, xr.Dataset]:
     """Pick variables for ref and com such that they are grid aligned without
     recomputing if not needed."""
     if is_spatially_aligned(ref0, com0):
@@ -59,7 +58,7 @@ def pick_grid_aligned(
     return nest_spatial_grids(ref0, com0)
 
 
-def trim_time(dsa: xr.Dataset, dsb: xr.Dataset) -> Tuple[xr.Dataset, xr.Dataset]:
+def trim_time(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]:
     """When comparing dsb to dsa, we need the maximal amount of temporal
     overlap."""
     if "time" not in dsa.dims:
@@ -77,7 +76,7 @@ def trim_time(dsa: xr.Dataset, dsb: xr.Dataset) -> Tuple[xr.Dataset, xr.Dataset]
     return dsa, dsb
 
 
-def adjust_lon(dsa: xr.Dataset, dsb: xr.Dataset) -> Tuple[xr.Dataset, xr.Dataset]:
+def adjust_lon(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]:
     """When comparing dsb to dsa, we need their longitudes uniformly in
     [-180,180) or [0,360)."""
     alon_name = dset.get_longitude_name(dsa)
@@ -95,7 +94,7 @@ def adjust_lon(dsa: xr.Dataset, dsb: xr.Dataset) -> Tuple[xr.Dataset, xr.Dataset
     return dsa, dsb
 
 
-def make_comparable(ref: xr.Dataset, com: xr.Dataset) -> Tuple[xr.Dataset, xr.Dataset]:
+def make_comparable(ref: xr.Dataset, com: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]:
     """."""
     ref, com = trim_time(ref, com)
     ref = ref.pint.quantify()
