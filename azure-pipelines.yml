@@ -1,0 +1,26 @@
+
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+strategy:
+  matrix:
+    Python:
+      python.version: '3.9'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '$(python.version)'
+  displayName: 'Use Python $(python.version)'
+
+- script: |
+    python -m pip install --upgrade pip
+    python -m pip install pytest pytest-cov
+    python -m pip install .
+  displayName: 'Install ilamb3'
+
+- script: |
+    pytest --cov
+  displayName: 'Run tests'
