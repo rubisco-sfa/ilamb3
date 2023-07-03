@@ -1,8 +1,7 @@
-"""This class holds a list of all regions currently registered in the ILAMB
-system via a static property of the class. It also comes with methods for
-defining additional regions by lat/lon bounds or by a mask specified by a
-netCDF4 file. A set of regions used in the Global Fire Emissions Database (GFED)
-is included by default."""
+"""This class holds a list of all regions registered in the ILAMB
+system via a static property of the class. It also comes with methods for defining
+additional regions by lat/lon bounds or by a mask specified by a netCDF4 file. A set of
+regions used in the Global Fire Emissions Database (GFED) is included by default."""
 import os
 from typing import Union
 
@@ -10,6 +9,36 @@ import numpy as np
 import xarray as xr
 
 from . import dataset as dset
+
+
+def restrict_to_bbox(
+    var: Union[xr.Dataset, xr.DataArray],
+    lat_name: str,
+    lon_name: str,
+    lat0: float,
+    latf: float,
+    lon0: float,
+    lonf: float,
+):
+    """Return the dataset selected to the nearest bounding box.
+
+    This is awkward because as of `v2023.6.0`, the `method` keyword cannot be used in
+    slices. Note that this routine will sort the dimensions because slicing does not
+    work well on unsorted indices.
+
+    """
+    var = var.sortby(list(var.dims))
+    var = var.sel(
+        lat=slice(
+            var[lat_name].sel({lat_name: lat0}, method="nearest"),
+            var[lat_name].sel({lat_name: latf}, method="nearest"),
+        ),
+        lon=slice(
+            var[lon_name].sel({lon_name: lon0}, method="nearest"),
+            var[lon_name].sel({lon_name: lonf}, method="nearest"),
+        ),
+    )
+    return var
 
 
 class Regions:
@@ -20,7 +49,7 @@ class Regions:
 
     @property
     def regions(self):
-        """Returns a list of region identifiers."""
+        """Return a list of region identifiers."""
         return Regions._regions.keys()
 
     def add_latlon_bounds(
@@ -30,8 +59,24 @@ class Regions:
         lats: tuple[float],
         lons: tuple[float],
         source: str = "user-provided latlon bounds",
-    ):
-        """Add a region by lat/lon bounds."""
+    ) -> None:
+        """Add a region by lat/lon bounds.
+
+        Parameters
+        ----------
+        label
+            The label by which the region will be known in the ilamb system. Note that
+            this will overwrite any current region known by this label.
+        name
+            The region text displayed in the ilamb output.
+        lats
+            The lower and upper latitude bounds [-90,90] defining the region.
+        lons
+            The lower and upper longitude bounds [-180,180] defining the region.
+        source
+            An optional text description for the source of these regions.
+
+        """
         assert len(lats) == 2
         assert len(lons) == 2
         rtype = 0
@@ -39,8 +84,23 @@ class Regions:
         Regions._sources[label] = source
 
     def add_netcdf(self, netcdf: Union[str, xr.Dataset]) -> list[str]:
-        """Add regions found in a netCDF file and returns a list of the labels
-        found."""
+        """Add regions found in a netCDF file or dataset.
+
+        Region formatting guidelines can be found
+        [here](https://www.ilamb.org/doc/custom_regions.html).
+
+        Parameters
+        ----------
+        netcdf
+            The filename or dataset which contain the regions.
+
+        Returns
+        -------
+        labels
+            The list of region labels added to the ilamb system as a result of this
+            function call.
+
+        """
         rtype = 1
         if isinstance(netcdf, str):
             dsr = xr.open_dataset(netcdf)
@@ -71,98 +131,79 @@ class Regions:
             )
         return labels
 
-    def get_name(self, label: str):
-        """Given the region label, return the full name."""
+    def get_name(self, label: str) -> str:
+        """Return the region name given its label."""
         return Regions._regions[label][1]
 
     def get_source(self, label: str):
-        """Given the region label, return the source."""
+        """Return the source of the region given its label."""
         return Regions._sources[label]
 
-    def get_mask(self, label: str, var: xr.DataArray) -> xr.DataArray:
+    def restrict_to_region(
+        self,
+        var: Union[xr.Dataset, xr.DataArray],
+        label: str,
+    ) -> Union[xr.Dataset, xr.DataArray]:
         """Given the region label and a variable, return a mask."""
         rdata = Regions._regions[label]
         rtype = rdata[0]
-        lat = var[dset.get_latitude_name(var)]
-        lon = var[dset.get_longitude_name(var)]
+        lat_name = dset.get_dim_name(var, "lat")
+        lon_name = dset.get_dim_name(var, "lon")
         if rtype == 0:
-            rtype, _, rlat, rlon = rdata
-            out = xr.where(
-                (lat >= rlat[0])
-                * (lat <= rlat[1])
-                * (lon >= rlon[0])
-                * (lon <= rlon[1]),
-                False,
-                True,
+            _, _, rlat, rlon = rdata
+            out = restrict_to_bbox(
+                var, lat_name, lon_name, rlat[0], rlat[1], rlon[0], rlon[1]
             )
             return out
         if rtype == 1:
-            rtype, _, dar = rdata
-            out = dar.interp(lat=lat, lon=lon, method="nearest") == 0
+            _, _, dar = rdata
+            out = xr.where(
+                dar.interp(
+                    {lat_name: var[lat_name], lon_name: var[lon_name]}, method="nearest"
+                ),
+                var,
+                np.nan,
+            )
+            rlat_name = dset.get_dim_name(dar, "lat")
+            rlon_name = dset.get_dim_name(dar, "lon")
+            out = restrict_to_bbox(
+                out,
+                dar[rlat_name].min(),
+                dar[rlat_name].max(),
+                dar[rlon_name].min(),
+                dar[rlon_name].max(),
+            )
             return out
         raise ValueError(f"Region type #{rtype} not recognized")
 
-    def restrict_variable(self, label: str, var: xr.DataArray) -> xr.DataArray:
-        """Given the region label and a variable, return the variable with nan's
-        outside of the region."""
-        mask = self.get_mask(label, var)
-        return xr.where(mask, np.nan, var)
 
-    def has_data(self, label: str, var: xr.DataArray) -> bool:
-        """Checks if the variable has data on the given region."""
-        mask = self.get_mask(label, var)
-        if (mask == 0).sum() == 0:
-            return False
-        _ = xr.where(mask, np.nan, var)  # broken
-        return True
-
-
-if "global" not in Regions().regions:
-    # Populate some regions
+# If no regions have been registered, then add these
+if len(Regions().regions) == 0:
     r = Regions()
-    src = "ILAMB internal"
-    r.add_latlon_bounds("global", "Globe", (-89.999, 89.999), (-179.999, 179.999), src)
-    r.add_latlon_bounds(
-        "globe", "Global - All", (-89.999, 89.999), (-179.999, 179.999), src
+    regions = """
+    bona, Boreal North America             , 50, 80,-170, -60
+    tena, Temperate North America          , 30, 50,-125, -66
+    ceam, Central America                  , 10, 30,-115, -80
+    nhsa, Northern Hemisphere South America,  0, 13, -80, -50
+    shsa, Southern Hemisphere South America,-60,  0, -80, -33
+    euro, Europe                           , 35, 70, -10,  30
+    mide, Middle East                      , 20, 40, -10,  60
+    nhaf, Northern Hemisphere Africa       ,  0, 20, -20,  45
+    shaf, Southern Hemisphere Africa       ,-35,  0,  10,  45
+    boas, Boreal Asia                      , 55, 70,  30, 180
+    ceas, Central Asia                     , 30, 55,  30, 143
+    seas, Southeast Asia                   ,  5, 30,  65, 120
+    eqas, Equatorial Asia                  ,-10, 10, 100, 150
+    aust, Australia                        ,-41,-11, 112, 154
+    """.strip().split(
+        "\n"
     )
-
-    # GFED regions
-    src = "Global Fire Emissions Database (GFED)"
-    r.add_latlon_bounds(
-        "bona", "Boreal North America", (49.75, 79.75), (-170.25, -60.25), src
-    )
-    r.add_latlon_bounds(
-        "tena", "Temperate North America", (30.25, 49.75), (-125.25, -66.25), src
-    )
-    r.add_latlon_bounds(
-        "ceam", "Central America", (9.75, 30.25), (-115.25, -80.25), src
-    )
-    r.add_latlon_bounds(
-        "nhsa",
-        "Northern Hemisphere South America",
-        (0.25, 12.75),
-        (-80.25, -50.25),
-        src,
-    )
-    r.add_latlon_bounds(
-        "shsa",
-        "Southern Hemisphere South America",
-        (-59.75, 0.25),
-        (-80.25, -33.25),
-        src,
-    )
-    r.add_latlon_bounds("euro", "Europe", (35.25, 70.25), (-10.25, 30.25), src)
-    r.add_latlon_bounds("mide", "Middle East", (20.25, 40.25), (-10.25, 60.25), src)
-    r.add_latlon_bounds(
-        "nhaf", "Northern Hemisphere Africa", (0.25, 20.25), (-20.25, 45.25), src
-    )
-    r.add_latlon_bounds(
-        "shaf", "Southern Hemisphere Africa", (-34.75, 0.25), (10.25, 45.25), src
-    )
-    r.add_latlon_bounds("boas", "Boreal Asia", (54.75, 70.25), (30.25, 179.75), src)
-    r.add_latlon_bounds("ceas", "Central Asia", (30.25, 54.75), (30.25, 142.58), src)
-    r.add_latlon_bounds("seas", "Southeast Asia", (5.25, 30.25), (65.25, 120.25), src)
-    r.add_latlon_bounds(
-        "eqas", "Equatorial Asia", (-10.25, 10.25), (99.75, 150.25), src
-    )
-    r.add_latlon_bounds("aust", "Australia", (-41.25, -10.50), (112.00, 154.00), src)
+    for line in regions:
+        lbl, name, lat0, latf, lon0, lonf = line.split(",")
+        r.add_latlon_bounds(
+            lbl.strip(),
+            name.strip(),
+            [float(lat0), float(latf)],
+            [float(lon0), float(lonf)],
+            "Global Fire Emissions Database (GFED)",
+        )
