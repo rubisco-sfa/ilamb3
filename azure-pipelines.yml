@@ -47,6 +47,6 @@ steps:
   displayName: 'Install ilamb3'
 
 - script: |
-    python -m pip install pytest pytest-cov
+    python -m pip install pytest pytest-cov intake aiohttp
     pytest --cov=ilamb3 -W ignore::RuntimeWarning
   displayName: 'Run tests'
