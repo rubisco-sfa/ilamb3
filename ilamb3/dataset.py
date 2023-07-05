@@ -32,6 +32,7 @@ def get_dim_name(
         "time": ["time"],
         "lat": ["lat", "latitude", "Latitude", "y"],
         "lon": ["lon", "longitude", "Longitude", "x"],
+        "depth": ["depth"],
     }
     possible_names = dim_names[dim]
     dim_name = set(dset.dims).intersection(possible_names)

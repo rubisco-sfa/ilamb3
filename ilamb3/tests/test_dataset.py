@@ -26,7 +26,7 @@ def generate_test_dset(seed: int = 1):
 
 def test_integrate():
     ds = generate_test_dset()
-    da = dset.integrate_space(dset.integrate_time(ds["da"]))
+    da = dset.integrate_space(dset.integrate_time(ds, "da"))
     da = da.pint.to("Pg")
     assert np.isclose(da.pint.dequantify(), 31.53474998108379)
     da = dset.integrate_time(dset.integrate_space(ds, "da", region="euro"))
@@ -46,3 +46,13 @@ def test_std():
     da = dset.std_time(ds["da"])
     da = da.sum()
     assert np.isclose(da.pint.dequantify(), 4.343761009115869e-08)
+
+
+def test_basic():
+    ds = generate_test_dset()
+    try:
+        dset.get_dim_name(ds, "depth")  # not in our dimensions
+    except Exception as exc:
+        assert isinstance(exc, KeyError)
+    t0, tf = dset.get_time_extent(ds)
+    assert t0 == ds["time"].isel(time=0)
