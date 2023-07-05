@@ -168,6 +168,8 @@ class Regions:
             rlon_name = dset.get_dim_name(dar, "lon")
             out = restrict_to_bbox(
                 out,
+                lat_name,
+                lon_name,
                 dar[rlat_name].min(),
                 dar[rlat_name].max(),
                 dar[rlon_name].min(),

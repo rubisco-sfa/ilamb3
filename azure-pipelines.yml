@@ -48,5 +48,5 @@ steps:
 
 - script: |
     python -m pip install pytest pytest-cov
-    pytest --cov=ilamb3
+    pytest --cov=ilamb3 -W ignore::RuntimeWarning
   displayName: 'Run tests'

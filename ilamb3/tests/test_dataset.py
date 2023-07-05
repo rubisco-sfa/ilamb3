@@ -29,6 +29,9 @@ def test_integrate():
     da = dset.integrate_space(dset.integrate_time(ds["da"]))
     da = da.pint.to("Pg")
     assert np.isclose(da.pint.dequantify(), 31.53474998108379)
+    da = dset.integrate_time(dset.integrate_space(ds, "da", region="euro"))
+    da = da.pint.to("Pg")
+    assert np.isclose(da.pint.dequantify(), 8.370451774151613)
 
 
 def test_mean():

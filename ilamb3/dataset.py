@@ -5,6 +5,8 @@ from typing import Literal, Union
 import numpy as np
 import xarray as xr
 
+from ilamb3.regions import Regions
+
 
 def get_dim_name(
     dset: Union[xr.Dataset, xr.DataArray], dim: str = Literal["time", "lat", "lon"]
@@ -295,7 +297,12 @@ def std_time(dset: Union[xr.Dataset, xr.DataArray], varname: str = None):
     return var.weighted(msr).std(dim=time_name)
 
 
-def integrate_space(dset: xr.Dataset, varname: str = None, mean: bool = False):
+def integrate_space(
+    dset: xr.Dataset,
+    varname: str = None,
+    region: Union[None, str] = None,
+    mean: bool = False,
+):
     """Return the space integral or mean of the dataset.
 
     Parameters
@@ -304,6 +311,9 @@ def integrate_space(dset: xr.Dataset, varname: str = None, mean: bool = False):
         The input dataset/dataarray.
     varname
         The variable to integrate, must be given if a dataset is passed in.
+    region
+        The region label, one of `ilamb3.Regions.regions` or `None` to indicate that the
+        whole spatial domain should be used.
     mean
         Enable to divide the integral by the integral of the measures, returning the
         mean in a functional sense.
@@ -325,6 +335,9 @@ def integrate_space(dset: xr.Dataset, varname: str = None, mean: bool = False):
     dimension at a time.
 
     """
+    if region is not None:
+        regions = Regions()
+        dset = regions.restrict_to_region(dset, region)
     space = [get_dim_name(dset, "lat"), get_dim_name(dset, "lon")]
     if isinstance(dset, xr.Dataset):
         var = dset[varname]
