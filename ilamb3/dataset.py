@@ -9,7 +9,7 @@ from ilamb3.regions import Regions
 
 
 def get_dim_name(
-    dset: Union[xr.Dataset, xr.DataArray], dim: str = Literal["time", "lat", "lon"]
+    dset: Union[xr.Dataset, xr.DataArray], dim: Literal["time", "lat", "lon"]
 ) -> str:
     """Return the name of the `dim` dimension from the dataset.
 
@@ -37,10 +37,10 @@ def get_dim_name(
     possible_names = dim_names[dim]
     dim_name = set(dset.dims).intersection(possible_names)
     if len(dim_name) != 1:
-        msg = f"{dim} dimension not found: [{','.join(dset.dims)}] "
+        msg = f"{dim} dimension not found: {dset.dims}] "
         msg += f"not in [{','.join(possible_names)}]"
         raise KeyError(msg)
-    return dim_name.pop()
+    return str(dim_name.pop())
 
 
 def get_time_extent(
@@ -267,7 +267,7 @@ def integrate_time(
     return var.weighted(msr).sum(dim=time_name)
 
 
-def std_time(dset: Union[xr.Dataset, xr.DataArray], varname: str = None):
+def std_time(dset: Union[xr.Dataset, xr.DataArray], varname: Union[str, None] = None):
     """Return the standard deviation of a variable in time.
 
     Parameters
@@ -299,8 +299,8 @@ def std_time(dset: Union[xr.Dataset, xr.DataArray], varname: str = None):
 
 
 def integrate_space(
-    dset: xr.Dataset,
-    varname: str = None,
+    dset: Union[xr.DataArray, xr.Dataset],
+    varname: str,
     region: Union[None, str] = None,
     mean: bool = False,
 ):
@@ -340,17 +340,14 @@ def integrate_space(
         regions = Regions()
         dset = regions.restrict_to_region(dset, region)
     space = [get_dim_name(dset, "lat"), get_dim_name(dset, "lon")]
-    if isinstance(dset, xr.Dataset):
-        var = dset[varname]
-        msr = (
-            dset["cell_measures"]
-            if "cell_measures" in dset
-            else compute_cell_measures(dset)
-        )
-    else:
-        var = dset
-        msr = compute_cell_measures(dset)
-    var = var.pint.quantify()
+    if not isinstance(dset, xr.Dataset):
+        dset = dset.to_dataset()
+    var = dset[varname]
+    msr = (
+        dset["cell_measures"]
+        if "cell_measures" in dset
+        else compute_cell_measures(dset)
+    )
     # As of v2023.6.0, weighted sums drop units from pint if the weights are
     # over *all* the dimensions of the dataarray. Will do some pint gymnastics
     # to avoid the issue.
