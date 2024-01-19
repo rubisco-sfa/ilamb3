@@ -56,8 +56,8 @@ class Regions:
         self,
         label: str,
         name: str,
-        lats: tuple[float],
-        lons: tuple[float],
+        lats: list[float],
+        lons: list[float],
         source: str = "user-provided latlon bounds",
     ) -> None:
         """Add a region by lat/lon bounds.
@@ -110,7 +110,9 @@ class Regions:
             ids = "ids"
         else:
             ids = [
-                v for v in dsr.data_vars if dsr[v].ndim == 2 and dsr[v].dtype == np.int
+                v
+                for v in dsr.data_vars
+                if dsr[v].ndim == 2 and dsr[v].dtype == np.integer
             ]
             if len(ids) == 0:
                 raise ValueError(
@@ -118,7 +120,7 @@ class Regions:
                 )
             if len(ids) > 1:
                 raise ValueError(
-                    f"Amiguous integer array for regions in {netcdf}: {','.join(ids)}"
+                    f"Amiguous integer array for regions in {netcdf}: {ids}"
                 )
             ids = ids[0]
         labels = list(dsr[dsr[ids].attrs["labels"]].to_numpy())
@@ -142,9 +144,11 @@ class Regions:
     def restrict_to_region(
         self,
         var: Union[xr.Dataset, xr.DataArray],
-        label: str,
+        label: Union[str, None],
     ) -> Union[xr.Dataset, xr.DataArray]:
         """Given the region label and a variable, return a mask."""
+        if label is None:
+            return var
         rdata = Regions._regions[label]
         rtype = rdata[0]
         lat_name = dset.get_dim_name(var, "lat")

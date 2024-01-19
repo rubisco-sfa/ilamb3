@@ -131,7 +131,7 @@ def compute_cell_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray
         dely = np.sin(dset[latb_name] * np.pi / 180)
         other_dims = delx.dims[-1]
         delx = earth_radius * delx.diff(other_dims).squeeze()
-        dely = earth_radius * dely.diff(other_dims).squeeze()
+        dely = earth_radius * dely.diff(other_dims).squeeze()  # type: ignore
         msr = dely * delx
         msr.attrs["units"] = "m2"
         msr = msr.pint.quantify()
@@ -187,7 +187,7 @@ def coarsen_dataset(dset: xr.Dataset, res: float = 0.5) -> xr.Dataset:
     lat_name = get_dim_name(dset, "lat")
     lon_name = get_dim_name(dset, "lon")
     fine_per_coarse = int(
-        round(res / np.abs(dset[lat_name].diff(lat_name).mean().values))
+        round(res / np.abs(dset[lat_name].diff(lat_name).mean().values))  # type: ignore
     )
     # To spatially coarsen this dataset we will use the xarray 'coarsen'
     # functionality. However, if we want the area weighted sums to be the same,
@@ -196,17 +196,17 @@ def coarsen_dataset(dset: xr.Dataset, res: float = 0.5) -> xr.Dataset:
     # coarsened dataset.
     if "cell_measures" not in dset:
         dset["cell_measures"] = compute_cell_measures(dset)
-        nll = (
-            dset.notnull()
-            .any(dim=[d for d in dset.dims if d not in [lat_name, lon_name]])
-            .coarsen({"lat": fine_per_coarse, "lon": fine_per_coarse}, boundary="pad")
-            .sum()
-            .astype(int)
-        )
+    nll = (
+        dset.notnull()
+        .any(dim=[d for d in dset.dims if d not in [lat_name, lon_name]])
+        .coarsen({"lat": fine_per_coarse, "lon": fine_per_coarse}, boundary="pad")
+        .sum()  # type: ignore
+        .astype(int)
+    )
     dset_coarse = (
         (dset.drop("cell_measures") * dset["cell_measures"])
         .coarsen({"lat": fine_per_coarse, "lon": fine_per_coarse}, boundary="pad")
-        .sum()
+        .sum()  # type: ignore
     )
     cell_measures = compute_cell_measures(dset_coarse)
     dset_coarse = dset_coarse / cell_measures
@@ -216,7 +216,9 @@ def coarsen_dataset(dset: xr.Dataset, res: float = 0.5) -> xr.Dataset:
 
 
 def integrate_time(
-    dset: Union[xr.Dataset, xr.DataArray], varname: str = None, mean: bool = False
+    dset: Union[xr.Dataset, xr.DataArray],
+    varname: Union[str, None] = None,
+    mean: bool = False,
 ) -> xr.DataArray:
     """Return the time integral or mean of the dataset.
 

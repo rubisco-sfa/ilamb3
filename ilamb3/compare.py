@@ -137,8 +137,8 @@ def trim_time(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]
     at0, atf = dset.get_time_extent(dsa)
     bt0, btf = dset.get_time_extent(dsb)
     tol = datetime.timedelta(days=1)  # add some padding
-    tm0 = max(at0, bt0) - tol
-    tmf = min(atf, btf) + tol
+    tm0 = max(at0, bt0) - tol  # type: ignore
+    tmf = min(atf, btf) + tol  # type: ignore
     dsa = dsa.sel(time=slice(tm0, tmf))
     dsb = dsb.sel(time=slice(tm0, tmf))
     return dsa, dsb
