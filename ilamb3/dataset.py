@@ -442,3 +442,17 @@ def integrate_depth(
     if mean:
         return var.weighted(msr).mean(dim="depth")
     return var.weighted(msr).sum(dim="depth")
+
+
+def convert(
+    dset: Union[xr.Dataset, xr.DataArray],
+    unit: str,
+    varname: Union[str, None] = None,
+) -> Union[xr.Dataset, xr.DataArray]:
+    """Convert the units of the dataarray."""
+    dset = dset.pint.quantify()
+    if isinstance(dset, xr.DataArray):
+        return dset.pint.to(unit)
+    assert varname is not None
+    dset[varname] = dset[varname].pint.to(unit)
+    return dset

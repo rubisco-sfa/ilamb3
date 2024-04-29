@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import xarray as xr
-from pint import application_registry as ureg  # shouldn't need this
 
 from ilamb3 import dataset as dset
 
@@ -27,17 +26,17 @@ def generate_test_dset(seed: int = 1):
 def test_integrate():
     ds = generate_test_dset()
     da = dset.integrate_space(dset.integrate_time(ds, "da"), "da")
-    da = da.pint.to("Pg")
+    da = dset.convert(da, "Pg")
     assert np.isclose(da.pint.dequantify(), 31.53474998108379)
     da = dset.integrate_time(dset.integrate_space(ds, "da", region="euro"), "da")
-    da = da.pint.to("Pg")
+    da = dset.convert(da, "Pg")
     assert np.isclose(da.pint.dequantify(), 8.370451774151613)
 
 
 def test_mean():
     ds = generate_test_dset()
     da = dset.integrate_space(dset.integrate_time(ds["da"], mean=True), "da", mean=True)
-    da = da.pint.to(ureg.Unit("g m-2 d-1"))
+    da = dset.convert(da, "g m-2 d-1")
     assert np.isclose(da.pint.dequantify(), 0.4121668497188348)
 
 

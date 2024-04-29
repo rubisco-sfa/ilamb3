@@ -175,14 +175,12 @@ def make_comparable(
     ref: xr.Dataset, com: xr.Dataset, varname: str
 ) -> tuple[xr.Dataset, xr.Dataset]:
     """."""
-
     # trim away time
     ref, com = trim_time(ref, com)
 
     # convert units
     ref = ref.pint.quantify()
-    com = com.pint.quantify()
-    com[varname] = com[varname].pint.to(ref[varname].pint.units)
+    com = dset.convert(com, ref[varname].pint.units, varname=varname)
 
     # ensure longitudes are uniform
     ref, com = adjust_lon(ref, com)

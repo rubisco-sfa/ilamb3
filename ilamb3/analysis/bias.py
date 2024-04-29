@@ -24,7 +24,7 @@ class bias_collier2018(ILAMBAnalysis):
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
         # Initialize
         analysis_name = "Bias"
-        varname = self.req_variables
+        varname = self.req_variables[0]
         ref, com = cmp.make_comparable(ref, com, varname)
 
         # Temporal means across the time period
