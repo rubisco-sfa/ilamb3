@@ -1,8 +1,9 @@
 """Functions for use in scoring methods using regional quantiles."""
 
 import pandas as pd
+import xarray as xr
 
-from ilamb3.exceptions import MissingRegion
+from ilamb3.exceptions import MissingRegion, NoDatabaseEntry
 from ilamb3.regions import Regions
 
 
@@ -21,12 +22,14 @@ def create_quantile_map(
     quantile_variable: str,
     quantile_type: str,
     quantile_threshold: int,
-):
+) -> xr.DataArray:
     # query the database
     q = f"(quantile=={quantile_threshold})"
     q += f" & (type=='{quantile_type}')"
     q += f" & (variable=='{quantile_variable}')"
     q = dbase.query(q)
+    if not len(q):
+        raise NoDatabaseEntry
 
     # build a map
     scalar_map = Regions().region_scalars_to_map(

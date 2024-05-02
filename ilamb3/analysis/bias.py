@@ -31,6 +31,8 @@ class bias(ILAMBAnalysis):
         # Initialize
         analysis_name = "Bias"
         varname = self.req_variable
+        if use_uncertainty and "bounds" not in ref[varname].attrs:
+            use_uncertainty = False
 
         # Checks on the database if it is being used
         if method == "RegionalQuantiles":
@@ -39,6 +41,7 @@ class bias(ILAMBAnalysis):
                 quantile_map = create_quantile_map(
                     quantile_dbase, varname, "bias", quantile_threshold
                 )
+                dset.convert(quantile_map, ref[varname].pint.units)
             except NoDatabaseEntry:
                 # fallback if the variable/type/quantile is not in the database
                 method = "Collier2018"
@@ -54,7 +57,7 @@ class bias(ILAMBAnalysis):
 
         # Get the reference data uncertainty
         uncert = xr.zeros_like(ref_mean)
-        if use_uncertainty and "bounds" in ref[varname].attrs:
+        if use_uncertainty:
             uncert = ref[ref[varname].attrs["bounds"]]
             uncert.attrs["units"] = ref[varname].pint.units
             uncert = (
@@ -95,7 +98,7 @@ class bias(ILAMBAnalysis):
 
         # Build output datasets
         ref_out = {"mean": ref_mean}
-        if use_uncertainty and "bounds" in ref[varname].attrs:
+        if use_uncertainty:
             ref_out["uncert"] = uncert
         ref_out = xr.Dataset(ref_out)
         com_out = xr.Dataset(dict(bias=bias, bias_score=score))
