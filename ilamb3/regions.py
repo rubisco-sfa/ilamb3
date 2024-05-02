@@ -2,13 +2,44 @@
 system via a static property of the class. It also comes with methods for defining
 additional regions by lat/lon bounds or by a mask specified by a netCDF4 file. A set of
 regions used in the Global Fire Emissions Database (GFED) is included by default."""
+
 import os
-from typing import Union
+from typing import Literal, Union
 
 import numpy as np
 import xarray as xr
 
-from . import dataset as dset
+
+def get_dim_name(
+    dset: Union[xr.Dataset, xr.DataArray], dim: Literal["time", "lat", "lon"]
+) -> str:
+    """Return the name of the `dim` dimension from the dataset.
+
+    Parameters
+    ----------
+    dset
+        The input dataset/dataarray.
+    dim
+        The dimension to find in the dataset/dataarray
+
+    Note
+    ----
+    Duplicate of function in ilamb3.database to avoid circular import.
+
+    """
+    dim_names = {
+        "time": ["time"],
+        "lat": ["lat", "latitude", "Latitude", "y"],
+        "lon": ["lon", "longitude", "Longitude", "x"],
+        "depth": ["depth"],
+    }
+    possible_names = dim_names[dim]
+    dim_name = set(dset.dims).intersection(possible_names)
+    if len(dim_name) != 1:
+        msg = f"{dim} dimension not found: {dset.dims}] "
+        msg += f"not in [{','.join(possible_names)}]"
+        raise KeyError(msg)
+    return str(dim_name.pop())
 
 
 def restrict_to_bbox(
@@ -29,14 +60,16 @@ def restrict_to_bbox(
     """
     var = var.sortby(list(var.dims))
     var = var.sel(
-        lat=slice(
-            var[lat_name].sel({lat_name: lat0}, method="nearest"),
-            var[lat_name].sel({lat_name: latf}, method="nearest"),
-        ),
-        lon=slice(
-            var[lon_name].sel({lon_name: lon0}, method="nearest"),
-            var[lon_name].sel({lon_name: lonf}, method="nearest"),
-        ),
+        {
+            lat_name: slice(
+                var[lat_name].sel({lat_name: lat0}, method="nearest"),
+                var[lat_name].sel({lat_name: latf}, method="nearest"),
+            ),
+            lon_name: slice(
+                var[lon_name].sel({lon_name: lon0}, method="nearest"),
+                var[lon_name].sel({lon_name: lonf}, method="nearest"),
+            ),
+        }
     )
     return var
 
@@ -151,8 +184,8 @@ class Regions:
             return var
         rdata = Regions._regions[label]
         rtype = rdata[0]
-        lat_name = dset.get_dim_name(var, "lat")
-        lon_name = dset.get_dim_name(var, "lon")
+        lat_name = get_dim_name(var, "lat")
+        lon_name = get_dim_name(var, "lon")
         if rtype == 0:
             _, _, rlat, rlon = rdata
             out = restrict_to_bbox(
@@ -161,26 +194,42 @@ class Regions:
             return out
         if rtype == 1:
             _, _, dar = rdata
+            rlat_name = get_dim_name(dar, "lat")
+            rlon_name = get_dim_name(dar, "lon")
+            dar = dar.rename({rlat_name: lat_name, rlon_name: lon_name})
             out = xr.where(
                 dar.interp(
-                    {lat_name: var[lat_name], lon_name: var[lon_name]}, method="nearest"
+                    {lat_name: var[lat_name], lon_name: var[lon_name]},
+                    method="nearest",
                 ),
                 var,
                 np.nan,
             )
-            rlat_name = dset.get_dim_name(dar, "lat")
-            rlon_name = dset.get_dim_name(dar, "lon")
             out = restrict_to_bbox(
                 out,
                 lat_name,
                 lon_name,
-                dar[rlat_name].min(),
-                dar[rlat_name].max(),
-                dar[rlon_name].min(),
-                dar[rlon_name].max(),
+                dar[lat_name].min(),
+                dar[lat_name].max(),
+                dar[lon_name].min(),
+                dar[lon_name].max(),
             )
             return out
         raise ValueError(f"Region type #{rtype} not recognized")
+
+    def region_scalars_to_map(self, scalars: dict[str, float]) -> xr.DataArray:
+        da = xr.concat(
+            [
+                xr.where(Regions._regions[r][2] == 0, np.nan, 1) * val
+                for r, val in scalars.items()
+                if Regions._regions[r][0] == 1
+            ],
+            dim="region",
+        )
+        mask = da.isnull().all(dim="region")
+        da = da.sum(dim="region")
+        da = xr.where(mask, np.nan, da)
+        return da
 
 
 # If no regions have been registered, then add these

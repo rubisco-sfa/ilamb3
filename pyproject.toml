@@ -53,11 +53,19 @@ requires = [
 packages = ["ilamb3"]
 
 [tool.setuptools_scm]
-fallback_version = "9999"
+version_scheme = "no-guess-dev"
+local_scheme = "node-and-date"
+fallback_version = "0.0.0"
+write_to = "ilamb3/_version.py"
+write_to_template = '__version__ = "{version}"'
+
+[tool.pytest.ini_options]
+console_output_style = "count"
+addopts = "--cov=ilamb3 --cov-report=xml --verbose"
 
 [tool.coverage.run]
 omit = [
-  "*/ilamb3/test/*",
+  "*/ilamb3/tests/*"
 ]
 source = ["ilamb3"]
 

@@ -15,3 +15,11 @@ class VarNotInModel(ILAMBException):
 
 class TemporalOverlapIssue(ILAMBException):
     """This variable does not have the correct temporal overal to be comparable."""
+
+
+class MissingRegion(ILAMBException):
+    """You are trying to use a region that is not registered."""
+
+
+class NoDatabaseEntry(ILAMBException):
+    """The quantile database does not contain that which you are searching."""

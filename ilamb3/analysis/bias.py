@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Literal, Union
 
 import numpy as np
 import pandas as pd
@@ -7,33 +7,61 @@ import xarray as xr
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis
+from ilamb3.analysis.quantiles import check_quantile_database, create_quantile_map
+from ilamb3.exceptions import NoDatabaseEntry
 
 
-class bias_collier2018(ILAMBAnalysis):
-    def __init__(self, required_variables: str):
-        self.req_variables = required_variables
+class bias(ILAMBAnalysis):
+    def __init__(self, required_variable: str):
+        self.req_variable = required_variable
 
     def required_variables(self) -> list[str]:
-        return [self.req_variables]
+        return [self.req_variable]
 
     def __call__(
         self,
         ref: xr.Dataset,
         com: xr.Dataset,
+        method: Literal["Collier2018", "RegionalQuantiles"] = "Collier2018",
         regions: list[Union[str, None]] = [None],
+        use_uncertainty: bool = True,
+        quantile_dbase: Union[pd.DataFrame, None] = None,
+        quantile_threshold: int = 70,
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
         # Initialize
         analysis_name = "Bias"
-        varname = self.req_variables[0]
-        ref, com = cmp.make_comparable(ref, com, varname)
+        varname = self.req_variable
+
+        # Checks on the database if it is being used
+        if method == "RegionalQuantiles":
+            check_quantile_database(quantile_dbase)
+            try:
+                quantile_map = create_quantile_map(
+                    quantile_dbase, varname, "bias", quantile_threshold
+                )
+            except NoDatabaseEntry:
+                # fallback if the variable/type/quantile is not in the database
+                method = "Collier2018"
 
         # Temporal means across the time period
+        ref, com = cmp.make_comparable(ref, com, varname)
         ref_mean = (
             dset.integrate_time(ref, varname, mean=True) if "time" in ref.dims else ref
         )
         com_mean = (
             dset.integrate_time(com, varname, mean=True) if "time" in com.dims else com
         )
+
+        # Get the reference data uncertainty
+        uncert = xr.zeros_like(ref_mean)
+        if use_uncertainty and "bounds" in ref[varname].attrs:
+            uncert = ref[ref[varname].attrs["bounds"]]
+            uncert.attrs["units"] = ref[varname].pint.units
+            uncert = (
+                dset.integrate_time(uncert, mean=True)
+                if "time" in uncert.dims
+                else uncert
+            )
 
         # If temporal information is available, we normalize the error by the
         # standard deviation of the reference. If not, we revert to the traditional
@@ -43,13 +71,39 @@ class bias_collier2018(ILAMBAnalysis):
             norm = dset.std_time(ref, varname)
 
         # Nest the grids for comparison, we postpend composite grid variables with "_"
-        ref_, com_, norm_ = cmp.nest_spatial_grids(ref_mean, com_mean, norm)
+        ref_, com_, norm_, uncert_ = cmp.nest_spatial_grids(
+            ref_mean, com_mean, norm, uncert
+        )
+
+        # Compute score by different methods
         bias = com_ - ref_
-        score = np.exp(-np.abs(bias) / norm_)
+        if method == "Collier2018":
+            score = np.exp(-(np.abs(bias) - uncert_).clip(0) / norm_)
+        elif method == "RegionalQuantiles":
+            quantile_map = quantile_map.pint.dequantify()
+            norm = quantile_map.interp(
+                lat=bias["lat"], lon=bias["lon"], method="nearest"
+            )
+            norm = norm.pint.quantify()
+            score = (1 - (np.abs(bias) - uncert_).clip(0) / norm).clip(0, 1)
+        else:
+            msg = (
+                "The method used to score the bias must be 'Collier2018' or "
+                f"'RegionalQuantiles' but found {method=}"
+            )
+            raise ValueError(msg)
 
         # Build output datasets
-        ref_out = ref_mean.to_dataset(name="mean")
-        com_out = xr.Dataset({"bias": bias, "bias_score": score})
+        ref_out = {"mean": ref_mean}
+        if use_uncertainty and "bounds" in ref[varname].attrs:
+            ref_out["uncert"] = uncert
+        ref_out = xr.Dataset(ref_out)
+        com_out = xr.Dataset(dict(bias=bias, bias_score=score))
+        lat_name = dset.get_dim_name(com_mean, "lat")
+        lon_name = dset.get_dim_name(com_mean, "lon")
+        com_out["mean"] = com_mean.rename(
+            {lat_name: f"{lat_name}_", lon_name: f"{lon_name}_"}
+        )
 
         # Compute scalars over all regions
         dfs = []
@@ -94,7 +148,7 @@ class bias_collier2018(ILAMBAnalysis):
                     analysis_name,
                     "Bias Score",
                     "score",
-                    f"{bias_scalar_score.pint.units:~cf}",
+                    "1",
                     float(bias_scalar_score.pint.dequantify()),
                 ]
             )
@@ -112,4 +166,5 @@ class bias_collier2018(ILAMBAnalysis):
                 "value",
             ],
         )
+        dfs.attrs = dict(method=method)
         return dfs, ref_out, com_out
