@@ -9,6 +9,14 @@ data products, and then present the results in a hierarchical set of webpages.
 Please see [ilamb.org](https://www.ilamb.org) where we have details about the
 datasets we use, the results we catalog, and the methods we employ.
 
+This package is being developed and not currently listed in PyPI or conda-forge. You may install it directly from this repository:
+
+```bash
+pip install git+https://github.com/rubisco-sfa/ilamb3
+```
+
+Eventually this package will replace the current [ILAMB](https://github.com/rubisco-sfa/ILAMB). Consult the [documentation](https://ilamb3.readthedocs.io/) for more information on current status and to see what is functional.
+
 ## Funding
 
 This research was performed for the *Reducing Uncertainties in

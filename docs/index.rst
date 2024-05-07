@@ -16,7 +16,12 @@ As we develop we will update this list of design principles which guide ilamb3 d
 1. The ILAMB analysis methods should be more modular and operate on xarray datasets. Our original implementation made adding datasets easy, but the analysis itself was quite challenging to expand. It is our goal to make adding an analysis method more simple and our basic object be the xarray dataset which the user is more likely to understand.
 2. The user should be able to import individual analysis functions and run locally in their scripts and notebooks.
 
+Installation
+------------
 
+This package is being developed and not currently listed in PyPI or conda-forge. You may install it directly from the github repository::
+
+  pip install git+https://github.com/rubisco-sfa/ilamb3
 
 .. toctree::
    :maxdepth: 2
