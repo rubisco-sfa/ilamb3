@@ -29,6 +29,7 @@ dependencies = [
   "pint-xarray",
   "cf-xarray",
   "pandas",
+  "intake",
 ]
 
 [project.optional-dependencies]

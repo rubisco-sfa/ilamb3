@@ -1,6 +1,7 @@
 """Analysis functions used in ILAMB."""
 
 from abc import ABC, abstractmethod
+from typing import Union
 
 import pandas as pd
 import xarray as xr
@@ -16,7 +17,7 @@ class ILAMBAnalysis(ABC):
     # This is so we can pass models your function and query which variables are to be
     # used.
     @abstractmethod
-    def required_variables(self) -> list[str]:
+    def required_variables(self) -> Union[list[str], dict[str, list[str]]]:
         raise NotImplementedError()
 
     # The work of your analysis must accept a reference and comparison dataset. The user

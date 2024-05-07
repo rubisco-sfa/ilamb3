@@ -172,7 +172,7 @@ class Relationship:
         return score
 
 
-class relationship(ILAMBAnalysis):
+class relationship_analysis(ILAMBAnalysis):
     def __init__(self, dep_variable: str, ind_variable: str):
         self.dep_variable = dep_variable
         self.ind_variable = ind_variable

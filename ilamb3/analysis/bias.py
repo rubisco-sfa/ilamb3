@@ -11,7 +11,7 @@ from ilamb3.analysis.quantiles import check_quantile_database, create_quantile_m
 from ilamb3.exceptions import NoDatabaseEntry
 
 
-class bias(ILAMBAnalysis):
+class bias_analysis(ILAMBAnalysis):
     def __init__(self, required_variable: str):
         self.req_variable = required_variable
 
@@ -28,6 +28,34 @@ class bias(ILAMBAnalysis):
         quantile_dbase: Union[pd.DataFrame, None] = None,
         quantile_threshold: int = 70,
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
+        """Apply the ILAMB bias methodology on the given datasets.
+
+        Parameters
+        ----------
+        ref, com
+            The reference and comparison dataset.
+        method
+            The name of the scoring methodology to use.
+        regions
+            A list of region labels over which to apply the analysis.
+        use_uncertainty
+            Enable to utilize uncertainty information from the reference product if
+            present.
+        quantile_dbase
+            If using `method='RegionalQuantiles'`, the dataframe containing the regional
+            quantiles to be used to score the datasets.
+        quantile_threshold
+            If using `method='RegionalQuantiles'`, the threshold values to use from the
+            `quantile_dbase`.
+
+        Returns
+        -------
+        df
+            A dataframe with scalar and score information from the comparison.
+        ref_out, com_out
+            A dataset containing grided information resulting from the reference and
+            comparison.
+        """
         # Initialize
         analysis_name = "Bias"
         varname = self.req_variable
