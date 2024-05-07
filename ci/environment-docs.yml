@@ -1,0 +1,19 @@
+name: ilamb3-doc
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - furo
+  - numpydoc
+  - numpy
+  - xarray
+  - pint-xarray
+  - cf-xarray
+  - pandas
+  - intake
+  - pip
+  - pip:
+      - myst_nb
+      - sphinx_autosummary_accessors
+      - sphinx_copybutton
+      - -e ..

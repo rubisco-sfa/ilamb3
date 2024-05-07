@@ -1,0 +1,14 @@
+name: ilamb3-dev
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python>=3.9
+  - numpy
+  - xarray
+  - pint-xarray
+  - cf-xarray
+  - pandas
+  - intake
+  - pytest
+  - pytest-cov
