@@ -23,8 +23,8 @@ As we develop we will update this list of design principles which guide ilamb3 d
    :hidden:
    :caption: I want to...
 
-   analysis
    jupyter
+   analysis
 
 .. toctree::
    :maxdepth: 2
