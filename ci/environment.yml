@@ -11,6 +11,7 @@ dependencies:
   - pandas
   - intake
   - intake-xarray
+  - scipy
   - pytest
   - pytest-cov
   - requests
