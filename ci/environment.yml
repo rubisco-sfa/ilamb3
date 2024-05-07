@@ -7,8 +7,13 @@ dependencies:
   - numpy
   - xarray
   - pint-xarray
-  - cf-xarray
+  - cf_xarray
   - pandas
   - intake
+  - intake-xarray
+  - scipy
   - pytest
   - pytest-cov
+  - requests
+  - aiohttp
+  - jinja2
