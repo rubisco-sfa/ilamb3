@@ -92,8 +92,8 @@ html_theme_options = dict(
 )
 
 html_context = {
-    "github_user": "xarray-contrib",
-    "github_repo": "cf-xarray",
+    "github_user": "nocollier",
+    "github_repo": "ilamb3",
     "github_version": "main",
     "doc_path": "doc",
 }

@@ -7,7 +7,7 @@ dependencies:
   - numpy
   - xarray
   - pint-xarray
-  - cf-xarray
+  - cf_xarray
   - pandas
   - intake
   - pytest
