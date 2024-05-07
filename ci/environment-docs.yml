@@ -12,6 +12,11 @@ dependencies:
   - pandas
   - intake
   - matplotlib
+  - intake-xarray
+  - scipy
+  - requests
+  - aiohttp
+  - jinja2
   - pip
   - pip:
       - myst_nb
