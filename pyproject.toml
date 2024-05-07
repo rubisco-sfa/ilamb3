@@ -41,7 +41,7 @@ dev = [
 ]
 
 [project.urls]
-source-code = "https://github.com/nocollier/ilamb3"
+source-code = "https://github.com/rubisco-sfa/ilamb3"
 
 [build-system]
 build-backend = "setuptools.build_meta"

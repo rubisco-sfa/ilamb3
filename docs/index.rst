@@ -38,8 +38,8 @@ As we develop we will update this list of design principles which guide ilamb3 d
    :hidden:
    :caption: Communicate
 
-   GitHub repository <https://github.com/nocollier/ilamb3>
-   Bugs or Suggestions <https://github.com/nocollier/ilamb3/issues>
+   GitHub repository <https://github.com/rubisco-sfa/ilamb3>
+   Bugs or Suggestions <https://github.com/rubisco-sfa/ilamb3/issues>
 
 .. _xarray: https://docs.xarray.dev/en/stable/
 .. _CF: https://cfconventions.org/

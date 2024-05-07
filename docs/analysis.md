@@ -11,7 +11,7 @@ kernelspec:
 
 In `ilamb3`, the analyses are being rewritten to function on `xarray` datasets. If you have some analysis function that takes in two datasets (and possibly other arguments) and does something to evaluate or analze performance, then you can adapt it for use in the `ilamb3` system.
 
-You will need to understand a little bit of more advanced python. ILAMB analysis functions are implemented to derive from an [abstract base class](https://docs.python.org/3/glossary.html#term-abstract-base-class). An abstract base class (ABC) in python is the way we define the structure of an object that can be used in other parts of the ILAMB system. This means that in order for your analysis to be compatible in the ILAMB system, you need to write a class that derives from our base class [ILAMBAnalysis](https://github.com/nocollier/ilamb3/blob/main/ilamb3/analysis/base.py). If you follow that link, you will find the class and functions that you will need to implement in your analysis. We will also explain them here.
+You will need to understand a little bit of more advanced python. ILAMB analysis functions are implemented to derive from an [abstract base class](https://docs.python.org/3/glossary.html#term-abstract-base-class). An abstract base class (ABC) in python is the way we define the structure of an object that can be used in other parts of the ILAMB system. This means that in order for your analysis to be compatible in the ILAMB system, you need to write a class that derives from our base class [ILAMBAnalysis](https://github.com/rubisco-sfa/ilamb3/blob/main/ilamb3/analysis/base.py). If you follow that link, you will find the class and functions that you will need to implement in your analysis. We will also explain them here.
 
 ## The ILAMBAnalysis Base Class
 
@@ -42,7 +42,7 @@ class MyAnalysis(ILAMBAnalysis):
 
 ### `required_variables()`
 
-ILAMB uses this function to query model results for which variables will be used in this analysis. If you inspect the function as shown in the base [class](https://github.com/nocollier/ilamb3/blob/main/ilamb3/analysis/base.py#L19), you will see that this function accepts no arguments and returns either a list of strings (the variable names) or a dictionary of lists of strings.
+ILAMB uses this function to query model results for which variables will be used in this analysis. If you inspect the function as shown in the base [class](https://github.com/rubisco-sfa/ilamb3/blob/main/ilamb3/analysis/base.py#L19), you will see that this function accepts no arguments and returns either a list of strings (the variable names) or a dictionary of lists of strings.
 
 - If you choose to return a list of strings, ILAMB will interpret this as variables that are needed from a `historical`-like experiment. Technically, this means that ILAMB will simply query the model for variables with no information what experiment was intended. This is the traditional function of ILAMB--to compare model output run over the contemporary era to reference data.
 - However, if your analysis requires variables from multiple experiments, you will want to to include lists in a dictionary whose keys are the experiment names to be used. This preserves ILAMB's original function while also opening the door for perturbation-style experiments.

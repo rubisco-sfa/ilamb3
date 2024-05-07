@@ -30,8 +30,8 @@ extensions = [
 ]
 
 extlinks = {
-    "issue": ("https://github.com/nocollier/ilamb3/issues%s", "GH#%s"),
-    "pr": ("https://github.com/nocollier/ilamb3/pull/%s", "GH#%s"),
+    "issue": ("https://github.com/rubisco-sfa/ilamb3/issues%s", "GH#%s"),
+    "pr": ("https://github.com/rubisco-sfa/ilamb3/pull/%s", "GH#%s"),
 }
 
 # Add any paths that contain templates here, relative to this directory.
