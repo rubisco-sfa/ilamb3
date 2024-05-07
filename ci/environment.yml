@@ -12,3 +12,5 @@ dependencies:
   - intake
   - pytest
   - pytest-cov
+  - requests
+  - aiohttp
