@@ -10,6 +10,7 @@ dependencies:
   - cf_xarray
   - pandas
   - intake
+  - intake-xarray
   - pytest
   - pytest-cov
   - requests
