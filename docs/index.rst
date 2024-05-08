@@ -36,6 +36,7 @@ This package is being developed and not currently listed in PyPI or conda-forge.
    :hidden:
    :caption: Methods
 
+   prelim
    bias
 
 .. toctree::
