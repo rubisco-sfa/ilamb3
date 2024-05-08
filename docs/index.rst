@@ -4,7 +4,7 @@ Documentation for ilamb3
 
 A rewrite of ILAMB has been a long time in the works. The ecosystem of scientific python libraries has changed dramatically since we first wrote ILAMB. Much of the software we wrote to understand the `CF`_ conventions is now more completely and elegantly handled by `xarray`_ and related packages.
 
-Originally we wrote ILAMB to function like a replacement to the diagnostic packages that modeling centers run. However, since then we have seen an increased demand from users to also run parts ILAMB analyses in their own scripts and notebooks. As this was not a use case for which we originally designed, it was quite difficult and we ended up writing a lot of custom code to meet users' needs.
+Originally we wrote ILAMB to function like a replacement to the diagnostic packages that modeling centers run--a holistic analysis over large amounts of model output. However, since then we have seen an increased demand from users to also run parts ILAMB analyses in their own scripts and notebooks. As this was not a use case for which we originally designed, it was quite difficult and we ended up writing a lot of custom code to meet users' needs.
 
 We are building the new ILAMB from the bottom up, documenting and releasing as we go. This is in part because a full rewrite is a lot of work and this strategy allow users to work with what we have completed. It also is a way for us to communicate with potential users to help hone the package design as we go. Eventually the goal is that this package will replace the current `ILAMB`_ package.
 

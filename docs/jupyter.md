@@ -52,6 +52,8 @@ df["source"] = df["source"].apply(lambda c: "XuSaatchi" if c == "Reference" else
 df
 ```
 
+You may also notice that the bias does not seem to agree with the difference in mean values. This is a nuance in the ILAMB methodology that can cause confusion. The mean values returned are presented on their original grids. We found that model centers would complain if our analysis did not present the same numeric value that they produced with their in-house scripts. However the bias presented is only over the portion of the globe that both sources contain data. In the case of biomass here, there is great variance in land representation especially in highly vegetated areas around the islands in the tropics. This leads to a seemingly large difference in mean values and the bias reported.
+
 ## Gridded Output
 
 In addition to the scalar information you will also obtain two datasets with other output that ILAMB will render as plots in the html output pages. You may do what you will with this information. The first of these is the reference intermediate output.
