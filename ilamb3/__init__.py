@@ -2,9 +2,11 @@
 
 # import these packages so that units via pint will be possible once anything
 # from ilamb is imported.
-import pint_xarray  # noqa: F401
+import pint_xarray  # noqa
 import xarray as xr
 from cf_xarray.units import units
+
+from ilamb3._version import __version__  # noqa
 
 # additional units that pint/cf-xarray does not handle
 units.define("Mg = 1e6 * g")
