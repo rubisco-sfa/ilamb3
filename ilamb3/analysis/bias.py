@@ -24,6 +24,7 @@ class bias_analysis(ILAMBAnalysis):
         com: xr.Dataset,
         method: Literal["Collier2018", "RegionalQuantiles"] = "Collier2018",
         regions: list[Union[str, None]] = [None],
+        mass_weighting: bool = False,
         use_uncertainty: bool = True,
         quantile_dbase: Union[pd.DataFrame, None] = None,
         quantile_threshold: int = 70,
@@ -38,6 +39,9 @@ class bias_analysis(ILAMBAnalysis):
             The name of the scoring methodology to use.
         regions
             A list of region labels over which to apply the analysis.
+        mass_weighting
+            Enable to weight the score map integrals by the temporal mean of the
+            reference dataset.
         use_uncertainty
             Enable to utilize uncertainty information from the reference product if
             present.
@@ -73,6 +77,10 @@ class bias_analysis(ILAMBAnalysis):
             except NoDatabaseEntry:
                 # fallback if the variable/type/quantile is not in the database
                 method = "Collier2018"
+
+        # Never mass weight if regional quantiles are used
+        if method == "RegionalQuantiles":
+            mass_weighting = False
 
         # Temporal means across the time period
         ref, com = cmp.make_comparable(ref, com, varname)
@@ -170,7 +178,11 @@ class bias_analysis(ILAMBAnalysis):
             )
             # Bias Score
             bias_scalar_score = dset.integrate_space(
-                com_out, "bias_score", region=region, mean=True
+                com_out,
+                "bias_score",
+                region=region,
+                mean=True,
+                weight=ref_ if mass_weighting else None,
             )
             dfs.append(
                 [

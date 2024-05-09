@@ -305,6 +305,7 @@ def integrate_space(
     varname: str,
     region: Union[None, str] = None,
     mean: bool = False,
+    weight: Union[xr.DataArray, None] = None,
 ):
     """Return the space integral or mean of the dataset.
 
@@ -320,6 +321,8 @@ def integrate_space(
     mean
         Enable to divide the integral by the integral of the measures, returning the
         mean in a functional sense.
+    weight
+        Optional weight for the spatial integral. Used when mass weighting.
 
     Returns
     -------
@@ -355,6 +358,8 @@ def integrate_space(
     # to avoid the issue.
     var = var.pint.dequantify()
     msr = msr.pint.dequantify()
+    if weight is not None:
+        msr *= weight
     out = var.weighted(msr)
     if mean:
         out = out.mean(dim=space)
