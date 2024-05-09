@@ -73,7 +73,7 @@ If, for example, we were writing a more specific analysis function which require
 
 ### `__call__()`
 
-If you are new to python classes, you may find these methods with double underscores (so-called *dunder methods*) strange. Python uses these for special function names so that they are highly unlikely to class with any name that you may choose in your own codes. The [`__call__`](https://www.geeksforgeeks.org/__call__-in-python/) method can be used to call your class as if it were a function. This is where you will put the guts of your analysis. Here we will present the function in its entirety with more explanation below.
+If you are new to python classes, you may find these methods with double underscores (so-called *dunder methods*) strange. Python uses these for special function names so that they are highly unlikely to clash with any name that you may choose in your own codes. The [`__call__`](https://www.geeksforgeeks.org/__call__-in-python/) method can be used to call your class as if it were a function. This is where you will put the guts of your analysis. Here we will present the function in its entirety with more explanation below.
 
 ```{code-cell}
 :tags: [skip-execution]
@@ -128,7 +128,7 @@ If you are new to python classes, you may find these methods with double undersc
         return df, xr.Dataset(), xr.Dataset()
 ```
 
-The `__call__()` function itself requires two arguments at minimum: the reference and comparison `xarray` datasets. However, we provide unlimited flexibility for your analysis needs in the way of open ended keyword arguments (`**kwargs`). In this case our analysis is simple and therefore we do not need to specify additional keywords.
+The `__call__()` function itself requires two arguments at minimum: the reference and comparison `xarray` datasets. However, we provide unlimited flexibility for your analysis needs in the way of open-ended keyword arguments (`**kwargs`). In this case our analysis is simple and therefore we do not need to specify additional keywords.
 
 Then we take the arithmetic mean of the input datasets. We note again here that this is for simplicity of this demonstration. In a serious analysis you should be taking area-weighted means and considering trimming time and space to the maximal overlap in each dataset.
 

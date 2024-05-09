@@ -33,8 +33,11 @@ ds_esacci = cat["biomass | ESACCI"].read()
 Now that this data is loaded into memory as xarray datasets, we can initialize an ILAMB bias analysis.
 
 ```{code-cell}
-bias = bias_analysis("biomass")
-df, out_xusaatchi, out_esacci = bias(ds_xusaatchi, ds_esacci)
+analysis = bias_analysis("biomass")
+```
+
+```{code-cell}
+df, out_xusaatchi, out_esacci = analysis(ds_xusaatchi, ds_esacci)
 ```
 
 ## Scalar Output
