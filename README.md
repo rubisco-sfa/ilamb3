@@ -26,3 +26,10 @@ and Global Climate Modeling (RGCM) Program in the Climate and
 Environmental Sciences Division (CESD) of the Biological and
 Environmental Research (BER) Program in the U.S. Department of Energy
 Office of Science.
+
+[ci-badge]: https://github.com/rubisco-sfa/ilamb3/actions/workflows/ci.yml/badge.svg?branch=main
+[ci-link]: https://github.com/rubisco-sfa/ilamb3/actions/workflows/ci.yml
+[rtd-badge]: https://readthedocs.org/projects/ilamb3/badge/?version=latest
+[rtd-link]: https://ilamb3.readthedocs.io/en/latest/?badge=latest
+[codecov-badge]: https://img.shields.io/codecov/c/github/rubisco-sfa/ilamb3.svg?logo=codecov
+[codecov-link]: https://codecov.io/gh/rubisco-sfa/ilamb3
