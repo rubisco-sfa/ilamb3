@@ -62,7 +62,7 @@ def nest_spatial_grids(*args):
         for dim_name in [lat_name, lon_name]:
             dim = iarg[dim_name]
             try:
-                iarg = iarg.drop(dim.attrs["bounds"])
+                iarg = iarg.drop_vars(dim.attrs["bounds"])
             except Exception:
                 pass
         out.append(iarg)
@@ -70,7 +70,13 @@ def nest_spatial_grids(*args):
 
 
 def is_spatially_aligned(dsa: xr.Dataset, dsb: xr.Dataset) -> bool:
-    """Are the lats and lons of dsa and dsb close to each other?"""
+    """Check that the lats and lons of dsa and dsb close to each other.
+
+    Parameters
+    ----------
+    dsa, dsb
+        The datasets to compare.
+    """
     alat_name = dset.get_dim_name(dsa, "lat")
     blat_name = dset.get_dim_name(dsb, "lat")
     alon_name = dset.get_dim_name(dsa, "lon")
@@ -129,8 +135,7 @@ def pick_grid_aligned(
 
 
 def trim_time(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]:
-    """When comparing dsb to dsa, we need the maximal amount of temporal
-    overlap."""
+    """Return the datasets trimmed to maximal temporal overlap."""
     if "time" not in dsa.dims:
         return dsa, dsb
     if "time" not in dsb.dims:
@@ -174,7 +179,7 @@ def adjust_lon(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset
 def make_comparable(
     ref: xr.Dataset, com: xr.Dataset, varname: str
 ) -> tuple[xr.Dataset, xr.Dataset]:
-    """."""
+    """Return the datasets in a form where they are comparable."""
     # trim away time
     ref, com = trim_time(ref, com)
 
