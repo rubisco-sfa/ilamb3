@@ -2,6 +2,10 @@
 
 *Experimental version under development*
 
+[![Continuous Integration][ci-badge]][ci-link]
+[![Documentation Status][rtd-badge]][rtd-link]
+[![Code Coverage Status][codecov-badge]][codecov-link]
+
 # ILAMB - International Land Model Benchmarking
 
 The python package designed to help confront earth system models with reference
