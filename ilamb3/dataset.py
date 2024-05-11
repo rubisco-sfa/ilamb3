@@ -1,4 +1,4 @@
-"""Dataset functions for ILAMB"""
+"""Functions which operate on datasets/dataarrays."""
 
 from typing import Any, Literal, Union
 
@@ -20,8 +20,8 @@ def get_dim_name(
     dim
         The dimension to find in the dataset/dataarray
 
-    Note
-    ----
+    Notes
+    -----
     This function is meant to handle the problem that not all data calls the dimensions
     the same things ('lat', 'Lat', 'latitude', etc). We could replace this with
     cf-xarray functionality. My concern is that we want this to work even if the
@@ -69,8 +69,8 @@ def get_time_extent(
 def compute_time_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray:
     """Return the length of each time interval.
 
-    Note
-    ----
+    Notes
+    -----
     In order to integrate in time, we need the time measures. While this function is
     written for greatest flexibility, the most accurate time measures will be computed
     when a dataset is passed in where the 'bounds' on the 'time' dimension are labeled
@@ -106,8 +106,8 @@ def compute_time_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray
 def compute_cell_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray:
     """Return the area of each cell.
 
-    Note
-    ----
+    Notes
+    -----
     It would be better to get these from the model data itself, but they are not always
     provided, particularly in reference data.
 
@@ -182,7 +182,6 @@ def coarsen_dataset(dset: xr.Dataset, res: float = 0.5) -> xr.Dataset:
         The input dataset.
     res
         The target resolution in degrees.
-
     """
     lat_name = get_dim_name(dset, "lat")
     lon_name = get_dim_name(dset, "lon")
@@ -204,7 +203,7 @@ def coarsen_dataset(dset: xr.Dataset, res: float = 0.5) -> xr.Dataset:
         .astype(int)
     )
     dset_coarse = (
-        (dset.drop("cell_measures") * dset["cell_measures"])
+        (dset.drop_vars("cell_measures") * dset["cell_measures"])
         .coarsen({"lat": fine_per_coarse, "lon": fine_per_coarse}, boundary="pad")
         .sum()  # type: ignore
     )
@@ -237,8 +236,8 @@ def integrate_time(
     integral
         The integral or mean.
 
-    Note
-    ----
+    Notes
+    -----
     This interface is useful in our analysis as many times we want to report the total
     of a quantity (total mass of carbon) and other times we want the mean value (e.g.
     temperature). This allows the analysis code to read the same where a flag can be
@@ -306,7 +305,7 @@ def integrate_space(
     region: Union[None, str] = None,
     mean: bool = False,
     weight: Union[xr.DataArray, None] = None,
-):
+) -> xr.DataArray:
     """Return the space integral or mean of the dataset.
 
     Parameters
@@ -329,8 +328,8 @@ def integrate_space(
     integral
         The integral or mean.
 
-    Note
-    ----
+    Notes
+    -----
     This interface is useful in our analysis as many times we want to report the total
     of a quantity (total mass of carbon) and other times we want the mean value (e.g.
     temperature). This allows the analysis code to read the same where a flag can be
@@ -359,7 +358,8 @@ def integrate_space(
     var = var.pint.dequantify()
     msr = msr.pint.dequantify()
     if weight is not None:
-        msr *= weight
+        assert isinstance(weight, xr.DataArray)
+        msr = msr * weight.pint.dequantify()
     out = var.weighted(msr)
     if mean:
         out = out.mean(dim=space)
@@ -370,11 +370,22 @@ def integrate_space(
     return out.pint.quantify()
 
 
-def sel(dset: xr.Dataset, coord: str, cmin: Any, cmax: Any):
+def sel(dset: xr.Dataset, coord: str, cmin: Any, cmax: Any) -> xr.Dataset:
     """Return a selection of the dataset.
 
-    Note
-    ----
+    Parameters
+    ----------
+    dset
+        The input dataset.
+    coord
+        The coordinate to slice.
+    cmin
+        The minimum coordinate value.
+    cmax
+        The maximum coordinate value.
+
+    Notes
+    -----
     The behavior of xarray.sel does not work for us here. We want to pick a slice of the
     dataset but where the value lies in between the coord bounds. Then we clip the min
     and max to be the limits of the slice.
@@ -425,7 +436,18 @@ def integrate_depth(
     varname: Union[str, None] = None,
     mean: bool = False,
 ) -> xr.DataArray:
-    """Return the depth integral or mean of the dataset."""
+    """Return the depth integral or mean of the dataset.
+
+    Parameters
+    ----------
+    dset
+        The dataset of dataarray to integrate.
+    varname
+        If dset is a dataset, the variable name to integrate.
+    mean
+        Enable to take a depth mean.
+
+    """
     if isinstance(dset, xr.DataArray):
         varname = dset.name
         dset = dset.to_dataset(name=varname)
@@ -454,7 +476,18 @@ def convert(
     unit: str,
     varname: Union[str, None] = None,
 ) -> Union[xr.Dataset, xr.DataArray]:
-    """Convert the units of the dataarray."""
+    """Convert the units of the dataarray.
+
+    Parameters
+    ----------
+    dset
+        The dataset (specify varname) or dataarray who units you wish to convert.
+    unit
+        The unit to which we will convert.
+    varname
+        If dset is a dataset, give the variable name to convert.
+
+    """
     dset = dset.pint.quantify()
     if isinstance(dset, xr.DataArray):
         return dset.pint.to(unit)
