@@ -358,7 +358,8 @@ def integrate_space(
     var = var.pint.dequantify()
     msr = msr.pint.dequantify()
     if weight is not None:
-        msr *= weight
+        assert isinstance(weight, xr.DataArray)
+        msr = msr * weight.pint.dequantify()
     out = var.weighted(msr)
     if mean:
         out = out.mean(dim=space)
