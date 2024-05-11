@@ -133,16 +133,16 @@ class bias_analysis(ILAMBAnalysis):
             raise ValueError(msg)
 
         # Build output datasets
-        ref_out = {"mean": ref_mean}
+        ref_out = ref_mean.rename_vars({varname: "mean"})
         if use_uncertainty:
             ref_out["uncert"] = uncert
-        ref_out = xr.Dataset(ref_out)
-        com_out = xr.Dataset(dict(bias=bias, bias_score=score))
+        com_out = bias.rename_vars({varname: "bias"})
+        com_out["bias_score"] = score[varname]
         lat_name = dset.get_dim_name(com_mean, "lat")
         lon_name = dset.get_dim_name(com_mean, "lon")
-        com_out["mean"] = com_mean.rename(
+        com_out["mean"] = com_mean.rename_dims(
             {lat_name: f"{lat_name}_", lon_name: f"{lon_name}_"}
-        )
+        )[varname]
 
         # Compute scalars over all regions
         dfs = []
@@ -182,7 +182,7 @@ class bias_analysis(ILAMBAnalysis):
                 "bias_score",
                 region=region,
                 mean=True,
-                weight=ref_ if mass_weighting else None,
+                weight=ref_[varname] if mass_weighting else None,
             )
             dfs.append(
                 [
