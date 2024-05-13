@@ -135,10 +135,18 @@ def test_sel():
 
 
 def test_scale_water():
-    ds = generate_test_dset()
-    da = ds["da"]
+    da = xr.DataArray(1.0)
     da.attrs["units"] = "kg m-2 s-1"
     da = da.pint.quantify()
-    val0 = da.mean().values
     da = dset.scale_by_water_density(da, "mm d-1")
-    assert np.allclose(da.mean().values, val0 / 998.2071)
+    assert np.allclose(da.values, 1 / 998.2071)
+    da = xr.DataArray(1.0)
+    da.attrs["units"] = "mm d-1"
+    da = da.pint.quantify()
+    da = dset.scale_by_water_density(da, "kg m-2 s-1")
+    assert np.allclose(da.values, 998.2071)
+    da = xr.DataArray(1.0)
+    da.attrs["units"] = "kg m-2"
+    da = da.pint.quantify()
+    da = dset.scale_by_water_density(da, "mm d-1")
+    assert np.allclose(da.values, 1)
