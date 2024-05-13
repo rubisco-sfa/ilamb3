@@ -1,4 +1,4 @@
-"""Functions which operate on datasets/dataarrays."""
+"""Convenience functions which operate on datasets."""
 
 from typing import Any, Literal, Union
 
@@ -11,14 +11,20 @@ from ilamb3.regions import Regions
 def get_dim_name(
     dset: Union[xr.Dataset, xr.DataArray], dim: Literal["time", "lat", "lon"]
 ) -> str:
-    """Return the name of the `dim` dimension from the dataset.
+    """
+    Return the name of the `dim` dimension from the dataset.
 
     Parameters
     ----------
-    dset
+    dset : xr.Dataset or xr.DataArray
         The input dataset/dataarray.
-    dim
-        The dimension to find in the dataset/dataarray
+    dim : str, one of {`time`, `lat`, `lon`}
+        The dimension to find in the dataset/dataarray.
+
+    Returns
+    -------
+    str
+        The name of the dimension.
 
     Notes
     -----
@@ -26,7 +32,6 @@ def get_dim_name(
     the same things ('lat', 'Lat', 'latitude', etc). We could replace this with
     cf-xarray functionality. My concern is that we want this to work even if the
     datasets are not CF-compliant (e.g. raw CESM model output).
-
     """
     dim_names = {
         "time": ["time"],
@@ -46,17 +51,22 @@ def get_dim_name(
 def get_time_extent(
     dset: Union[xr.Dataset, xr.DataArray]
 ) -> tuple[xr.DataArray, xr.DataArray]:
-    """Return the time extent of the dataset/dataarray.
+    """
+    Return the time extent of the dataset/dataarray.
 
-    The function will prefer the values in the 'bounds' array if present.
+    Parameters
+    ----------
+    dset : xr.Dataset or xr.DataArray
+        The input dataset.
 
     Returns
     -------
-    tmin
-        The minimum time.
-    tmax
-        The maxmimum time.
+    tuple of xr.DataArray
+        The minimum and maximum time.
 
+    Notes
+    -----
+    The function will prefer the values in the 'bounds' array if present.
     """
     time_name = get_dim_name(dset, "time")
     time = dset[time_name]
@@ -67,7 +77,18 @@ def get_time_extent(
 
 
 def compute_time_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray:
-    """Return the length of each time interval.
+    """
+    Return the length of each time interval.
+
+    Parameters
+    ----------
+    dset : xr.Dataset or xr.DataArray
+        The input dataset.
+
+    Returns
+    -------
+    xr.DataArray
+        The time measures, the length of the time intervals.
 
     Notes
     -----
@@ -75,7 +96,6 @@ def compute_time_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray
     written for greatest flexibility, the most accurate time measures will be computed
     when a dataset is passed in where the 'bounds' on the 'time' dimension are labeled
     and part of the dataset.
-
     """
 
     def _measure1d(time):
@@ -104,13 +124,23 @@ def compute_time_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray
 
 
 def compute_cell_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray:
-    """Return the area of each cell.
+    """
+    Return the area of each spatial cell.
+
+    Parameters
+    ----------
+    dset : xr.Dataset or xr.DataArray
+        The input dataset.
+
+    Returns
+    -------
+    xr.DataArray
+        The cell areas.
 
     Notes
     -----
     It would be better to get these from the model data itself, but they are not always
     provided, particularly in reference data.
-
     """
     earth_radius = 6.371e6  # [m]
     lat_name = get_dim_name(dset, "lat")
@@ -171,17 +201,25 @@ def compute_cell_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray
 
 
 def coarsen_dataset(dset: xr.Dataset, res: float = 0.5) -> xr.Dataset:
-    """Return the mass-conversing spatially coarsened dataset.
-
-    Coarsens the source dataset to the target resolution while conserving the
-    overall integral and apply masks where all values are nan.
+    """
+    Return the mass-conversing spatially coarsened dataset.
 
     Parameters
     ----------
-    dset
+    dset : xr.Dataset
         The input dataset.
-    res
+    res : float, optional
         The target resolution in degrees.
+
+    Returns
+    -------
+    xr.Dataset
+        The coarsened dataset.
+
+    Notes
+    -----
+    Coarsens the source dataset to the target resolution while conserving the
+    overall integral and apply masks where all values are nan.
     """
     lat_name = get_dim_name(dset, "lat")
     lon_name = get_dim_name(dset, "lon")
@@ -219,15 +257,16 @@ def integrate_time(
     varname: Union[str, None] = None,
     mean: bool = False,
 ) -> xr.DataArray:
-    """Return the time integral or mean of the dataset.
+    """
+    Return the time integral or mean of the dataset.
 
     Parameters
     ----------
-    dset
+    dset : xr.Dataset or xr.DataArray
         The input dataset/dataarray.
-    varname
+    varname : str, optional
         The variable to integrate, must be given if a dataset is passed in.
-    mean
+    mean : bool, optional
         Enable to divide the integral by the integral of the measures, returning the
         mean in a functional sense.
 
@@ -241,14 +280,11 @@ def integrate_time(
     This interface is useful in our analysis as many times we want to report the total
     of a quantity (total mass of carbon) and other times we want the mean value (e.g.
     temperature). This allows the analysis code to read the same where a flag can be
-    passed to change the behavior.
-
-    We could consider replacing with xarray.integrate. However, as of `v2023.6.0`, this
-    does not handle the `pint` units correctly, and can only be done in a single
-    dimension at a time, leaving the spatial analog to be hand coded. It also uses
-    trapezoidal rule which should return the same integration, but could have small
-    differences depending on how endpoints are interpretted.
-
+    passed to change the behavior. We could consider replacing with xarray.integrate.
+    However, as of `v2023.6.0`, this does not handle the `pint` units correctly, and can
+    only be done in a single dimension at a time, leaving the spatial analog to be hand
+    coded. It also uses trapezoidal rule which should return the same integration, but
+    could have small differences depending on how endpoints are interpretted.
     """
     time_name = get_dim_name(dset, "time")
     if isinstance(dset, xr.Dataset):
@@ -268,21 +304,23 @@ def integrate_time(
     return var.weighted(msr).sum(dim=time_name)
 
 
-def std_time(dset: Union[xr.Dataset, xr.DataArray], varname: Union[str, None] = None):
-    """Return the standard deviation of a variable in time.
+def std_time(
+    dset: Union[xr.Dataset, xr.DataArray], varname: Union[str, None] = None
+) -> xr.DataArray:
+    """
+    Return the standard deviation of a variable in time.
 
     Parameters
     ----------
-    dset
+    dset : xr.Dataset or xr.DataArray
         The input dataset/dataarray.
-    varname
+    varname : str, optional
         The variable, must be given if a dataset is passed in.
 
     Returns
     -------
-    std
+    xr.DataArray
         The weighted standard deviation.
-
     """
     time_name = get_dim_name(dset, "time")
     if isinstance(dset, xr.Dataset):
@@ -306,26 +344,27 @@ def integrate_space(
     mean: bool = False,
     weight: Union[xr.DataArray, None] = None,
 ) -> xr.DataArray:
-    """Return the space integral or mean of the dataset.
+    """
+    Return the space integral or mean of the dataset.
 
     Parameters
     ----------
-    dset
+    dset : xr.Dataset or xr.DataArray
         The input dataset/dataarray.
-    varname
+    varname : str, optional
         The variable to integrate, must be given if a dataset is passed in.
-    region
+    region : str, optional
         The region label, one of `ilamb3.Regions.regions` or `None` to indicate that the
         whole spatial domain should be used.
-    mean
+    mean : bool, optional
         Enable to divide the integral by the integral of the measures, returning the
         mean in a functional sense.
-    weight
+    weight : xr.DataArray, optional
         Optional weight for the spatial integral. Used when mass weighting.
 
     Returns
     -------
-    integral
+    xr.Dataset
         The integral or mean.
 
     Notes
@@ -333,12 +372,9 @@ def integrate_space(
     This interface is useful in our analysis as many times we want to report the total
     of a quantity (total mass of carbon) and other times we want the mean value (e.g.
     temperature). This allows the analysis code to read the same where a flag can be
-    passed to change the behavior.
-
-    We could consider replacing with xarray.integrate. However, as of `v2023.6.0`, this
-    does not handle the `pint` units correctly, and can only be done in a single
-    dimension at a time.
-
+    passed to change the behavior. We could consider replacing with xarray.integrate.
+    However, as of `v2023.6.0`, this does not handle the `pint` units correctly, and can
+    only be done in a single dimension at a time.
     """
     if region is not None:
         regions = Regions()
@@ -371,18 +407,24 @@ def integrate_space(
 
 
 def sel(dset: xr.Dataset, coord: str, cmin: Any, cmax: Any) -> xr.Dataset:
-    """Return a selection of the dataset.
+    """
+    Return a selection of the dataset.
 
     Parameters
     ----------
-    dset
+    dset : xr.Dataset
         The input dataset.
-    coord
+    coord : str
         The coordinate to slice.
-    cmin
+    cmin :  Any
         The minimum coordinate value.
-    cmax
+    cmax : Any
         The maximum coordinate value.
+
+    Returns
+    -------
+    xr.Dataset
+        The selected dataset.
 
     Notes
     -----
@@ -436,17 +478,22 @@ def integrate_depth(
     varname: Union[str, None] = None,
     mean: bool = False,
 ) -> xr.DataArray:
-    """Return the depth integral or mean of the dataset.
+    """
+    Return the depth integral or mean of the dataset.
 
     Parameters
     ----------
-    dset
+    dset : xr.Dataset or xr.DataArray
         The dataset of dataarray to integrate.
-    varname
+    varname : str, optional
         If dset is a dataset, the variable name to integrate.
-    mean
+    mean : bool, optional
         Enable to take a depth mean.
 
+    Returns
+    -------
+    xr.DataArray
+        The depth integral or sum.
     """
     if isinstance(dset, xr.DataArray):
         varname = dset.name
@@ -476,17 +523,22 @@ def convert(
     unit: str,
     varname: Union[str, None] = None,
 ) -> Union[xr.Dataset, xr.DataArray]:
-    """Convert the units of the dataarray.
+    """
+    Convert the units of the dataarray.
 
     Parameters
     ----------
-    dset
+    dset : xr.Dataset or xr.DataArray
         The dataset (specify varname) or dataarray who units you wish to convert.
-    unit
+    unit : str
         The unit to which we will convert.
-    varname
+    varname : str, optional
         If dset is a dataset, give the variable name to convert.
 
+    Returns
+    -------
+    xr.Dataset or xr.DataArray
+        The converted dataset.
     """
     dset = dset.pint.quantify()
     if isinstance(dset, xr.DataArray):
