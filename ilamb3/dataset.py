@@ -518,6 +518,39 @@ def integrate_depth(
     return var.weighted(msr).sum(dim="depth")
 
 
+def scale_by_water_density(da: xr.DataArray, target: str) -> xr.DataArray:
+    """Conditionally scale the dataarray by density if needed in the conversion.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        The pint quantified input data array.
+    target : str
+        The target conversion unit as a string.
+
+    Returns
+    -------
+    xr.DataArray
+        The potentially water density scaled data array.
+
+    Notes
+    -----
+    Most modeled hydrologic quantities tend to be output as a mass flux rate. However, a
+    linear speed is often the preferred unit. For example a conversion such as `kg m-2
+    s-1` to `mm d-1`. This is possible if scaled by the density of water which we do
+    here conditionally if needed. Used by our `convert()` routine.
+    """
+    ureg = da.pint.registry
+    water_density = 998.2071 * ureg.kilogram / ureg.meter**3
+    src = 1.0 * da.pint.units
+    tar = ureg(target)
+    if src.check("[mass] / [length]**2 / [time]") and tar.check("[length] / [time]"):
+        return da / water_density
+    if tar.check("[mass] / [length]**2 / [time]") and src.check("[length] / [time]"):
+        return da * water_density
+    return da
+
+
 def convert(
     dset: Union[xr.Dataset, xr.DataArray],
     unit: str,
@@ -542,7 +575,13 @@ def convert(
     """
     dset = dset.pint.quantify()
     if isinstance(dset, xr.DataArray):
-        return dset.pint.to(unit)
-    assert varname is not None
-    dset[varname] = dset[varname].pint.to(unit)
+        da = dset
+    else:
+        assert varname is not None
+        da = dset[varname]
+    da = scale_by_water_density(da, unit)
+    da = da.pint.to(unit)
+    if isinstance(dset, xr.DataArray):
+        return da
+    dset[varname] = da
     return dset

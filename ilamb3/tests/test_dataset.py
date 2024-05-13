@@ -132,3 +132,13 @@ def test_sel():
     dlat = ds["lat_bounds"].diff(dim="bounds").values
     assert dlat.size == 1
     assert np.allclose(dlat[0, 0], 45)
+
+
+def test_scale_water():
+    ds = generate_test_dset()
+    da = ds["da"]
+    da.attrs["units"] = "kg m-2 s-1"
+    da = da.pint.quantify()
+    val0 = da.mean().values
+    da = dset.scale_by_water_density(da, "mm d-1")
+    assert np.allclose(da.mean().values, val0 / 998.2071)
