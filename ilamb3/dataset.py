@@ -5,11 +5,13 @@ from typing import Any, Literal, Union
 import numpy as np
 import xarray as xr
 
+from ilamb3.exceptions import NoSiteDimension
 from ilamb3.regions import Regions
 
 
 def get_dim_name(
-    dset: Union[xr.Dataset, xr.DataArray], dim: Literal["time", "lat", "lon"]
+    dset: Union[xr.Dataset, xr.DataArray],
+    dim: Literal["time", "lat", "lon", "depth", "site"],
 ) -> str:
     """
     Return the name of the `dim` dimension from the dataset.
@@ -18,7 +20,7 @@ def get_dim_name(
     ----------
     dset : xr.Dataset or xr.DataArray
         The input dataset/dataarray.
-    dim : str, one of {`time`, `lat`, `lon`}
+    dim : str, one of {`time`, `lat`, `lon`, `depth`, `site`}
         The dimension to find in the dataset/dataarray.
 
     Returns
@@ -39,6 +41,21 @@ def get_dim_name(
         "lon": ["lon", "longitude", "Longitude", "x"],
         "depth": ["depth"],
     }
+    # Assumption: the 'site' dimension is what is left over after all others are removed
+    if dim == "site":
+        try:
+            get_dim_name(dset, "lat")
+            get_dim_name(dset, "lon")
+            raise NoSiteDimension("Dataset/dataarray is spatial")
+        except KeyError:
+            pass
+        possible_names = list(
+            set(dset.dims) - set([d for _, dims in dim_names.items() for d in dims])
+        )
+        if len(possible_names) == 1:
+            return possible_names[0]
+        msg = f"Ambiguity in locating a site dimension, found: [{possible_names}]"
+        raise NoSiteDimension(msg)
     possible_names = dim_names[dim]
     dim_name = set(dset.dims).intersection(possible_names)
     if len(dim_name) != 1:

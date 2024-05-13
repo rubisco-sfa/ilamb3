@@ -7,6 +7,7 @@ import numpy as np
 import xarray as xr
 
 from ilamb3 import dataset as dset
+from ilamb3.exceptions import NoSiteDimension
 
 
 def nest_spatial_grids(*args):
@@ -183,10 +184,71 @@ def make_comparable(
     # trim away time
     ref, com = trim_time(ref, com)
 
-    # convert units
+    # ensure longitudes are uniform
+    ref, com = adjust_lon(ref, com)
+
+    # pick just the sites
+    try:
+        com = extract_sites(ref, com, varname)
+    except NoSiteDimension:
+        pass
+
+    # convert units, will read in memory so do this last
     ref = ref.pint.quantify()
     com = dset.convert(com, ref[varname].pint.units, varname=varname)
 
-    # ensure longitudes are uniform
-    ref, com = adjust_lon(ref, com)
     return ref, com
+
+
+def extract_sites(
+    ds_site: xr.Dataset, ds_spatial: xr.Dataset, varname: str
+) -> xr.Dataset:
+    """
+    Extract the `ds_site` lat/lons from `ds_spatial choosing the nearest site.
+
+    Parameters
+    ----------
+    ds_site : xr.Dataset
+        The dataset which contains sites.
+    ds_spatial : xr.Dataset
+        The dataset from which we will make the extraction.
+    varname : str
+        The name of the variable of interest.
+
+    Returns
+    -------
+    xr.Dataset
+        `ds_spatial` at the sites defined in `da_site`.
+    """
+    # If this throws an exception, this isn't a site data array
+    dset.get_dim_name(ds_site[varname], "site")
+
+    # Get the lat/lon dim names
+    lat_site = [dim for dim in ["lat", "latitude", "Latitude", "y"] if dim in ds_site]
+    lon_site = [dim for dim in ["lon", "longitude", "Longitude", "x"] if dim in ds_site]
+    assert len(lat_site) == 1
+    assert len(lon_site) == 1
+    lat_site = lat_site[0]
+    lon_site = lon_site[0]
+    lat_spatial = dset.get_dim_name(ds_spatial, "lat")
+    lon_spatial = dset.get_dim_name(ds_spatial, "lon")
+
+    # Store the mean model resolution
+    model_res = np.sqrt(
+        ds_spatial[lon_spatial].diff(dim=lon_spatial).mean() ** 2
+        + ds_spatial[lat_spatial].diff(dim=lat_spatial).mean() ** 2
+    )
+
+    # Choose the spatial grid to the nearest site
+    ds_spatial = ds_spatial.sel(
+        {lat_spatial: ds_site[lat_site], lon_spatial: ds_site[lon_site]},
+        method="nearest",
+    )
+
+    # Check that these sites are 'close enough'
+    dist = np.sqrt(
+        (ds_site[lat_site] - ds_spatial[lat_spatial]) ** 2
+        + (ds_site[lon_site] - ds_spatial[lon_spatial]) ** 2
+    )
+    assert (dist < model_res).all()
+    return ds_spatial
