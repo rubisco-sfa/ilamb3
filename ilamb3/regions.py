@@ -1,7 +1,4 @@
-"""This class holds a list of all regions registered in the ILAMB
-system via a static property of the class. It also comes with methods for defining
-additional regions by lat/lon bounds or by a mask specified by a netCDF4 file. A set of
-regions used in the Global Fire Emissions Database (GFED) is included by default."""
+"""Region definitions for use in the ILAMB system."""
 
 import os
 from typing import Literal, Union
