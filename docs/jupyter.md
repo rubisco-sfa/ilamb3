@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from ilamb3.analysis import bias_analysis
 ```
 
-ILAMB analysis functions are available in the `ilamb3.analysis` package. You can import just this package and browser the member functions to see what is available. In this example, we will run the ILAMB bias methodology and so we import only this function. The ILAMB analysis functions have be redesigned to take as inputs two xarray datasets, a reference and a comparison. In this example, we will load two of our biomass reference data products and use the ILAMB bias methodology to compare them.
+ILAMB analysis functions are available in the `ilamb3.analysis` package. You can import just this package and browse the member functions to see what is available. In this example, we will run the ILAMB bias methodology and so we import only this function. The ILAMB analysis functions have been redesigned to take as inputs two xarray datasets, a reference and a comparison. In this example, we will load two of our biomass reference data products and use the ILAMB bias methodology to compare them.
 
 ILAMB reference datasets are available through an [intake](https://github.com/intake/intake) catalog. To use it, you only need to install the `intake` package and then add the following call to `open_catalog()`. We will use the catalog to load the biomass products from [Xu & Saatchi, 2021](https://zenodo.org/records/4161694) and [ESACCI](https://climate.esa.int/en/projects/biomass/).
 
