@@ -186,7 +186,7 @@ class bias_analysis(ILAMBAnalysis):
                 "bias_score",
                 region=region,
                 mean=True,
-                weight=ref_[varname] if mass_weighting else None,
+                weight=ref_ if mass_weighting else None,
             )
             dfs.append(
                 [
