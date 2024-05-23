@@ -154,6 +154,12 @@ def trim_time(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]
 def adjust_lon(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]:
     """When comparing dsb to dsa, we need their longitudes uniformly in
     [-180,180) or [0,360)."""
+    try:
+        dset.get_lon_span(dsa)
+        dset.get_lon_span(dsb)
+    except ValueError:
+        return dsa, dsb
+
     alon_name = dset.get_dim_name(dsa, "lon")
     blon_name = dset.get_dim_name(dsb, "lon")
     if alon_name is None or blon_name is None:
