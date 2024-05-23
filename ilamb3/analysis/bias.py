@@ -85,10 +85,14 @@ class bias_analysis(ILAMBAnalysis):
         # Temporal means across the time period
         ref, com = cmp.make_comparable(ref, com, varname)
         ref_mean = (
-            dset.integrate_time(ref, varname, mean=True) if "time" in ref.dims else ref
+            dset.integrate_time(ref, varname, mean=True)
+            if "time" in ref[varname].dims
+            else ref[varname]
         )
         com_mean = (
-            dset.integrate_time(com, varname, mean=True) if "time" in com.dims else com
+            dset.integrate_time(com, varname, mean=True)
+            if "time" in com[varname].dims
+            else com[varname]
         )
 
         # Get the reference data uncertainty
@@ -133,16 +137,16 @@ class bias_analysis(ILAMBAnalysis):
             raise ValueError(msg)
 
         # Build output datasets
-        ref_out = ref_mean.rename_vars({varname: "mean"})
+        ref_out = ref_mean.to_dataset(name="mean")
         if use_uncertainty:
             ref_out["uncert"] = uncert
-        com_out = bias.rename_vars({varname: "bias"})
-        com_out["bias_score"] = score[varname]
+        com_out = bias.to_dataset(name="bias")
+        com_out["bias_score"] = score
         lat_name = dset.get_dim_name(com_mean, "lat")
         lon_name = dset.get_dim_name(com_mean, "lon")
-        com_out["mean"] = com_mean.rename_dims(
+        com_out["mean"] = com_mean.rename(
             {lat_name: f"{lat_name}_", lon_name: f"{lon_name}_"}
-        )[varname]
+        )
 
         # Compute scalars over all regions
         dfs = []
