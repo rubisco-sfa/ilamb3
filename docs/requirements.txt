@@ -3,3 +3,4 @@ sphinx_autosummary_accessors
 numpydoc
 myst_nb
 sphinx_copybutton
+sphinx_autodoc_typehints
