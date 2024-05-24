@@ -33,7 +33,7 @@ def get_dim_name(
     This function is meant to handle the problem that not all data calls the dimensions
     the same things ('lat', 'Lat', 'latitude', etc). We could replace this with
     cf-xarray functionality. My concern is that we want this to work even if the
-    datasets are not CF-compliant (e.g. raw CESM model output).
+    datasets are not CF-compliant (e.g. raw model output).
     """
     dim_names = {
         "time": ["time"],
@@ -54,7 +54,7 @@ def get_dim_name(
         )
         if len(possible_names) == 1:
             return possible_names[0]
-        msg = f"Ambiguity in locating a site dimension, found: [{possible_names}]"
+        msg = f"Ambiguity in locating a site dimension, found: {possible_names}"
         raise NoSiteDimension(msg)
     possible_names = dim_names[dim]
     dim_name = set(dset.dims).intersection(possible_names)

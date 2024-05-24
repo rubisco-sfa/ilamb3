@@ -24,8 +24,9 @@ class bias_analysis(ILAMBAnalysis):
         com: xr.Dataset,
         method: Literal["Collier2018", "RegionalQuantiles"] = "Collier2018",
         regions: list[Union[str, None]] = [None],
-        mass_weighting: bool = False,
         use_uncertainty: bool = True,
+        spatial_sum: bool = False,
+        mass_weighting: bool = False,
         quantile_dbase: Union[pd.DataFrame, None] = None,
         quantile_threshold: int = 70,
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
@@ -39,12 +40,16 @@ class bias_analysis(ILAMBAnalysis):
             The name of the scoring methodology to use.
         regions
             A list of region labels over which to apply the analysis.
-        mass_weighting
-            Enable to weight the score map integrals by the temporal mean of the
-            reference dataset.
         use_uncertainty
             Enable to utilize uncertainty information from the reference product if
             present.
+        spatial_sum
+            Enable to report a spatial sum in the period mean as opposed to a spatial
+            mean. This is often preferred in carbon variables where the total global
+            carbon is of interest.
+        mass_weighting
+            Enable to weight the score map integrals by the temporal mean of the
+            reference dataset.
         quantile_dbase
             If using `method='RegionalQuantiles'`, the dataframe containing the regional
             quantiles to be used to score the datasets.
@@ -153,7 +158,9 @@ class bias_analysis(ILAMBAnalysis):
         for region in regions:
             # Period mean
             for src, var in zip(["Reference", "Comparison"], [ref_mean, com_mean]):
-                var = dset.integrate_space(var, varname, region=region, mean=True)
+                var = dset.integrate_space(
+                    var, varname, region=region, mean=not spatial_sum
+                )
                 dfs.append(
                     [
                         src,
