@@ -23,3 +23,7 @@ class MissingRegion(ILAMBException):
 
 class NoDatabaseEntry(ILAMBException):
     """The quantile database does not contain that which you are searching."""
+
+
+class NoSiteDimension(ILAMBException):
+    """The dataset/dataarray does not contain a clear site dimension."""

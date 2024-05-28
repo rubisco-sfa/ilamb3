@@ -1,6 +1,5 @@
 """Functions for preparing datasets for comparison."""
 
-import datetime
 from typing import Union
 
 import numpy as np
@@ -136,25 +135,35 @@ def pick_grid_aligned(
 
 def trim_time(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]:
     """Return the datasets trimmed to maximal temporal overlap."""
-    if "time" not in dsa.dims:
-        return dsa, dsb
-    if "time" not in dsb.dims:
-        return dsa, dsb
-    at0, atf = dset.get_time_extent(dsa)
-    bt0, btf = dset.get_time_extent(dsb)
-    tol = datetime.timedelta(days=1)  # add some padding
-    tm0 = max(at0, bt0) - tol  # type: ignore
-    tmf = min(atf, btf) + tol  # type: ignore
-    dsa = dsa.sel(time=slice(tm0, tmf))
-    dsb = dsb.sel(time=slice(tm0, tmf))
+
+    def _to_tuple(da: xr.DataArray) -> tuple[int]:
+        if da.size != 1:
+            raise ValueError("Single element conversions only")
+        return (int(da.dt.year), int(da.dt.month), int(da.dt.day))
+
+    # Get the time extents in the original calendars
+    ta0, taf = dset.get_time_extent(dsa)
+    tb0, tbf = dset.get_time_extent(dsb)
+
+    # Convert to a date tuple (year, month, day) and find the maximal overlap
+    tmin = max(_to_tuple(ta0), _to_tuple(tb0))
+    tmax = min(_to_tuple(taf), _to_tuple(tbf))
+
+    # Recast back into native calendar objects and select
+    dsa = dsa.sel(
+        {"time": slice(ta0.item().__class__(*tmin), taf.item().__class__(*tmax))}
+    )
+    dsb = dsb.sel(
+        {"time": slice(tb0.item().__class__(*tmin), tbf.item().__class__(*tmax))}
+    )
     return dsa, dsb
 
 
 def adjust_lon(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]:
     """When comparing dsb to dsa, we need their longitudes uniformly in
     [-180,180) or [0,360)."""
-    alon_name = dset.get_dim_name(dsa, "lon")
-    blon_name = dset.get_dim_name(dsb, "lon")
+    alon_name = dset.get_coord_name(dsa, "lon")
+    blon_name = dset.get_coord_name(dsb, "lon")
     if alon_name is None or blon_name is None:
         return dsa, dsb
     a360 = (dsa[alon_name].min() >= 0) * (dsa[alon_name].max() <= 360)
@@ -180,13 +189,72 @@ def make_comparable(
     ref: xr.Dataset, com: xr.Dataset, varname: str
 ) -> tuple[xr.Dataset, xr.Dataset]:
     """Return the datasets in a form where they are comparable."""
-    # trim away time
-    ref, com = trim_time(ref, com)
 
-    # convert units
-    ref = ref.pint.quantify()
-    com = dset.convert(com, ref[varname].pint.units, varname=varname)
+    # trim away time
+    try:
+        ref, com = trim_time(ref, com)
+    except KeyError:
+        pass  # no time dimension
 
     # ensure longitudes are uniform
     ref, com = adjust_lon(ref, com)
+
+    # pick just the sites
+    if dset.is_site(ref[varname]):
+        com = extract_sites(ref, com, varname)
+
+    # convert units, will read in memory so do this last
+    ref = ref.pint.quantify()
+    com = dset.convert(com, ref[varname].pint.units, varname=varname)
+
     return ref, com
+
+
+def extract_sites(
+    ds_site: xr.Dataset, ds_spatial: xr.Dataset, varname: str
+) -> xr.Dataset:
+    """
+    Extract the `ds_site` lat/lons from `ds_spatial choosing the nearest site.
+
+    Parameters
+    ----------
+    ds_site : xr.Dataset
+        The dataset which contains sites.
+    ds_spatial : xr.Dataset
+        The dataset from which we will make the extraction.
+    varname : str
+        The name of the variable of interest.
+
+    Returns
+    -------
+    xr.Dataset
+        `ds_spatial` at the sites defined in `da_site`.
+    """
+    # If this throws an exception, this isn't a site data array
+    dset.get_dim_name(ds_site[varname], "site")
+
+    # Get the lat/lon dim names
+    lat_site = dset.get_coord_name(ds_site, "lat")
+    lon_site = dset.get_coord_name(ds_site, "lon")
+    lat_spatial = dset.get_dim_name(ds_spatial, "lat")
+    lon_spatial = dset.get_dim_name(ds_spatial, "lon")
+
+    # Store the mean model resolution
+    model_res = np.sqrt(
+        ds_spatial[lon_spatial].diff(dim=lon_spatial).mean() ** 2
+        + ds_spatial[lat_spatial].diff(dim=lat_spatial).mean() ** 2
+    )
+
+    # Choose the spatial grid to the nearest site
+    ds_spatial = ds_spatial.sel(
+        {lat_spatial: ds_site[lat_site], lon_spatial: ds_site[lon_site]},
+        method="nearest",
+    )
+
+    # Check that these sites are 'close enough'
+    dist = np.sqrt(
+        (ds_site[lat_site] - ds_spatial[lat_spatial]) ** 2
+        + (ds_site[lon_site] - ds_spatial[lon_spatial]) ** 2
+    )
+    assert (dist < model_res).all()
+    return ds_spatial

@@ -24,8 +24,9 @@ class bias_analysis(ILAMBAnalysis):
         com: xr.Dataset,
         method: Literal["Collier2018", "RegionalQuantiles"] = "Collier2018",
         regions: list[Union[str, None]] = [None],
-        mass_weighting: bool = False,
         use_uncertainty: bool = True,
+        spatial_sum: bool = False,
+        mass_weighting: bool = False,
         quantile_dbase: Union[pd.DataFrame, None] = None,
         quantile_threshold: int = 70,
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
@@ -39,12 +40,16 @@ class bias_analysis(ILAMBAnalysis):
             The name of the scoring methodology to use.
         regions
             A list of region labels over which to apply the analysis.
-        mass_weighting
-            Enable to weight the score map integrals by the temporal mean of the
-            reference dataset.
         use_uncertainty
             Enable to utilize uncertainty information from the reference product if
             present.
+        spatial_sum
+            Enable to report a spatial sum in the period mean as opposed to a spatial
+            mean. This is often preferred in carbon variables where the total global
+            carbon is of interest.
+        mass_weighting
+            Enable to weight the score map integrals by the temporal mean of the
+            reference dataset.
         quantile_dbase
             If using `method='RegionalQuantiles'`, the dataframe containing the regional
             quantiles to be used to score the datasets.
@@ -114,9 +119,17 @@ class bias_analysis(ILAMBAnalysis):
             norm = dset.std_time(ref, varname)
 
         # Nest the grids for comparison, we postpend composite grid variables with "_"
-        ref_, com_, norm_, uncert_ = cmp.nest_spatial_grids(
-            ref_mean, com_mean, norm, uncert
-        )
+        if dset.is_spatial(ref) and dset.is_spatial(com):
+            ref_, com_, norm_, uncert_ = cmp.nest_spatial_grids(
+                ref_mean, com_mean, norm, uncert
+            )
+        elif dset.is_site(ref) and dset.is_site(com):
+            ref_ = ref_mean
+            com_ = com_mean
+            norm_ = norm
+            uncert_ = uncert
+        else:
+            raise ValueError("Reference and comparison not uniformly site/spatial.")
 
         # Compute score by different methods
         bias = com_ - ref_
@@ -142,18 +155,44 @@ class bias_analysis(ILAMBAnalysis):
             ref_out["uncert"] = uncert
         com_out = bias.to_dataset(name="bias")
         com_out["bias_score"] = score
-        lat_name = dset.get_dim_name(com_mean, "lat")
-        lon_name = dset.get_dim_name(com_mean, "lon")
-        com_out["mean"] = com_mean.rename(
-            {lat_name: f"{lat_name}_", lon_name: f"{lon_name}_"}
-        )
+        try:
+            lat_name = dset.get_dim_name(com_mean, "lat")
+            lon_name = dset.get_dim_name(com_mean, "lon")
+            com_mean = com_mean.rename(
+                {lat_name: f"{lat_name}_", lon_name: f"{lon_name}_"}
+            )
+        except KeyError:
+            pass
+        com_out["mean"] = com_mean
+
+        # Function for finding a spatial/site mean/sum
+        def _scalar(var, varname, region, mean=True, weight=False):
+            da = var
+            if isinstance(var, xr.Dataset):
+                da = var[varname]
+            if dset.is_spatial(da):
+                da = dset.integrate_space(
+                    da,
+                    varname,
+                    region=region,
+                    mean=mean,
+                    weight=ref_ if (mass_weighting and weight) else None,
+                )
+            elif dset.is_site(da):
+                site_dim = dset.get_dim_name(da, "site")
+                da = da.pint.dequantify()
+                da = da.mean(dim=site_dim)
+                da = da.pint.quantify()
+            else:
+                raise ValueError(f"Input is neither spatial nor site: {da}")
+            return da
 
         # Compute scalars over all regions
         dfs = []
         for region in regions:
             # Period mean
             for src, var in zip(["Reference", "Comparison"], [ref_mean, com_mean]):
-                var = dset.integrate_space(var, varname, region=region, mean=True)
+                var = _scalar(var, varname, region, not spatial_sum)
                 dfs.append(
                     [
                         src,
@@ -166,9 +205,7 @@ class bias_analysis(ILAMBAnalysis):
                     ]
                 )
             # Bias
-            bias_scalar = dset.integrate_space(
-                com_out, "bias", region=region, mean=True
-            )
+            bias_scalar = _scalar(com_out, "bias", region, True)
             dfs.append(
                 [
                     "Comparison",
@@ -181,13 +218,7 @@ class bias_analysis(ILAMBAnalysis):
                 ]
             )
             # Bias Score
-            bias_scalar_score = dset.integrate_space(
-                com_out,
-                "bias_score",
-                region=region,
-                mean=True,
-                weight=ref_ if mass_weighting else None,
-            )
+            bias_scalar_score = _scalar(com_out, "bias_score", region, True, True)
             dfs.append(
                 [
                     "Comparison",

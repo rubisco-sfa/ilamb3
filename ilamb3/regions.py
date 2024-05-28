@@ -1,7 +1,4 @@
-"""This class holds a list of all regions registered in the ILAMB
-system via a static property of the class. It also comes with methods for defining
-additional regions by lat/lon bounds or by a mask specified by a netCDF4 file. A set of
-regions used in the Global Fire Emissions Database (GFED) is included by default."""
+"""Region definitions for use in the ILAMB system."""
 
 import os
 from typing import Literal, Union
@@ -218,17 +215,46 @@ class Regions:
         raise ValueError(f"Region type #{rtype} not recognized")
 
     def region_scalars_to_map(self, scalars: dict[str, float]) -> xr.DataArray:
-        da = xr.concat(
-            [
+        # check that regions are part of our system
+        diff = set(scalars) - set(Regions._regions)
+        if diff:
+            raise ValueError(
+                f"Keys in the scalar dictionary aren't registered regions: {diff}"
+            )
+        # make sure all regions come from the same source (and therefore grid)
+        sources = [Regions._sources[r] for r in scalars]
+        assert all([src == sources[0] for src in sources])
+        # build up region map depending on region type
+        rtype = [Regions._regions[r][0] for r in scalars][0]
+        if rtype == 0:
+            da = xr.DataArray(
+                data=np.ones((180, 360)) * np.nan,
+                dims=["lat", "lon"],
+                coords=dict(
+                    lat=np.linspace(-89.5, 89.5, 180),
+                    lon=np.linspace(-179.5, 179.5, 360),
+                ),
+            )
+            for r, val in scalars.items():
+                da = xr.where(
+                    (da["lat"] > Regions._regions[r][2][0])
+                    & (da["lat"] <= Regions._regions[r][2][1])
+                    & (da["lon"] > Regions._regions[r][3][0])
+                    & (da["lon"] <= Regions._regions[r][3][1]),
+                    val,
+                    da,
+                )
+        elif rtype == 1:
+            da = [
                 xr.where(Regions._regions[r][2] == 0, np.nan, 1) * val
                 for r, val in scalars.items()
-                if Regions._regions[r][0] == 1
-            ],
-            dim="region",
-        )
-        mask = da.isnull().all(dim="region")
-        da = da.sum(dim="region")
-        da = xr.where(mask, np.nan, da)
+            ]
+            da = xr.concat(da, dim="region")
+            mask = da.isnull().all(dim="region")
+            da = da.sum(dim="region")
+            da = xr.where(mask, np.nan, da)
+        else:
+            raise NotImplementedError("Region type not implemented.")
         return da
 
 
