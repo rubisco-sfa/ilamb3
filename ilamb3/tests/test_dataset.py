@@ -42,6 +42,26 @@ def generate_test_dset_with_depth(seed: int = 1):
     return ds
 
 
+def generate_test_site_dset(seed: int = 1):
+    rs = np.random.RandomState(seed)
+    lat = xr.DataArray(data=[-67.5, -22.5, 22.5, 67.5], dims=["site"])
+    lon = xr.DataArray(data=[-135.0, -45.0, 45.0, 135.0], dims=["site"])
+    time = pd.date_range(start="2000-01-15", periods=5, freq="30D")
+    ds = xr.Dataset(
+        data_vars={
+            "da": xr.DataArray(
+                rs.rand(len(time), lat.size) * 1e-8,
+                coords={"time": time},
+                dims=["time", "site"],
+            ),
+        }
+    )
+    ds["da"] = ds["da"].assign_coords({"lat": lat, "lon": lon})
+    ds["da"].attrs["units"] = "kg m-2 s-1"
+    ds["da"].attrs["coordinates"] = "lat lon"
+    return ds
+
+
 def test_get_dim_name():
     ds = generate_test_dset()
     lon_name = dset.get_dim_name(ds, "lon")
@@ -150,3 +170,12 @@ def test_scale_water():
     da = da.pint.quantify()
     da = dset.scale_by_water_density(da, "mm d-1")
     assert np.allclose(da.values, 1)
+
+
+def test_is_spatial_or_site():
+    ds = generate_test_dset()
+    assert dset.is_spatial(ds)
+    assert not dset.is_site(ds)
+    ds = generate_test_site_dset()
+    assert not dset.is_spatial(ds)
+    assert dset.is_site(ds)

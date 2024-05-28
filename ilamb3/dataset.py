@@ -59,10 +59,103 @@ def get_dim_name(
     possible_names = dim_names[dim]
     dim_name = set(dset.dims).intersection(possible_names)
     if len(dim_name) != 1:
-        msg = f"{dim} dimension not found: {dset.dims}] "
+        msg = f"{dim} dimension not found: {dset.dims} "
         msg += f"not in [{','.join(possible_names)}]"
         raise KeyError(msg)
     return str(dim_name.pop())
+
+
+def get_coord_name(
+    dset: Union[xr.Dataset, xr.DataArray],
+    coord: Literal["lat", "lon"],
+) -> str:
+    """
+    Return the name of the `coord` coordinate from the dataset.
+
+    Parameters
+    ----------
+    dset : xr.Dataset or xr.DataArray
+        The input dataset/dataarray.
+    coord : str, one of {`lat`, `lon`}
+        The coordinate to find in the dataset/dataarray.
+
+    Returns
+    -------
+    str
+        The name of the coordinate.
+
+    See Also
+    --------
+    get_dim_name
+    """
+    coord_names = {
+        "lat": ["lat", "latitude", "Latitude", "y"],
+        "lon": ["lon", "longitude", "Longitude", "x"],
+    }
+    possible_names = coord_names[coord]
+    coord_name = set(dset.coords).intersection(possible_names)
+    if len(coord_name) != 1:
+        msg = f"{coord} coordinate not found: {dset.coords} "
+        msg += f"not in [{','.join(possible_names)}]"
+        raise KeyError(msg)
+    return str(coord_name.pop())
+
+
+def is_spatial(da: xr.DataArray) -> bool:
+    """
+    Return if the dataarray is spatial.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        The input dataarray.
+
+    Returns
+    -------
+    bool
+        True if latitude and longitude dimensions are present, False otherwise.
+    """
+    try:
+        get_dim_name(da, "lat")
+        get_dim_name(da, "lon")
+        return True
+    except KeyError:
+        pass
+    return False
+
+
+def is_site(da: xr.DataArray) -> bool:
+    """
+    Return if the dataarray is a collection of sites.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        The input dataarray.
+
+    Returns
+    -------
+    bool
+        True if sites, False otherwise.
+    """
+    try:
+        dim_lat = get_dim_name(da, "lat")
+        dim_lon = get_dim_name(da, "lon")
+    except KeyError:
+        dim_lat = dim_lon = None
+    try:
+        coord_lat = get_coord_name(da, "lat")
+        coord_lon = get_coord_name(da, "lon")
+    except KeyError:
+        return False
+    if (
+        dim_lat is None
+        and coord_lat is not None
+        and dim_lon is None
+        and coord_lon is not None
+    ):
+        return True
+    return False
 
 
 def get_lon_span(ds: xr.Dataset) -> tuple[float, float]:

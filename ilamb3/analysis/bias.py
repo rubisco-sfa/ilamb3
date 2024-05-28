@@ -153,14 +153,32 @@ class bias_analysis(ILAMBAnalysis):
             {lat_name: f"{lat_name}_", lon_name: f"{lon_name}_"}
         )
 
+        # Function for finding a spatial/site mean/sum
+        def _scalar(var, varname, region, mean=True, weight=False):
+            da = var
+            if isinstance(var, xr.Dataset):
+                da = var[varname]
+            if dset.is_spatial(da):
+                da = dset.integrate_space(
+                    da,
+                    varname,
+                    region=region,
+                    mean=mean,
+                    weight=ref_ if (mass_weighting and weight) else None,
+                )
+            elif dset.is_site(da):
+                site_dim = dset.get_dim_name(da, "site")
+                da = da.mean(dim=site_dim)
+            else:
+                raise ValueError(f"Input is neither spatial nor site: {da}")
+            return da
+
         # Compute scalars over all regions
         dfs = []
         for region in regions:
             # Period mean
             for src, var in zip(["Reference", "Comparison"], [ref_mean, com_mean]):
-                var = dset.integrate_space(
-                    var, varname, region=region, mean=not spatial_sum
-                )
+                var = _scalar(var, varname, region, not spatial_sum)
                 dfs.append(
                     [
                         src,
@@ -173,9 +191,7 @@ class bias_analysis(ILAMBAnalysis):
                     ]
                 )
             # Bias
-            bias_scalar = dset.integrate_space(
-                com_out, "bias", region=region, mean=True
-            )
+            bias_scalar = _scalar(com_out, "bias", region, True)
             dfs.append(
                 [
                     "Comparison",
@@ -188,13 +204,7 @@ class bias_analysis(ILAMBAnalysis):
                 ]
             )
             # Bias Score
-            bias_scalar_score = dset.integrate_space(
-                com_out,
-                "bias_score",
-                region=region,
-                mean=True,
-                weight=ref_ if mass_weighting else None,
-            )
+            bias_scalar_score = _scalar(com_out, "bias_score", region, True, True)
             dfs.append(
                 [
                     "Comparison",

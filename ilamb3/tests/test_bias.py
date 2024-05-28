@@ -5,6 +5,7 @@ import pytest
 from ilamb3.analysis import bias_analysis
 from ilamb3.regions import Regions
 from ilamb3.tests.test_compare import generate_test_dset
+from ilamb3.tests.test_dataset import generate_test_site_dset
 
 
 def gen_quantile_dbase():
@@ -51,6 +52,17 @@ def test_bias_collier2018(use_uncertainty: bool, mass_weighting: bool, score: fl
     print(df.iloc[0].value)
     assert len(df) == 1
     assert np.allclose(df.iloc[0].value, score)
+
+
+def test_bias_site_collier2018():
+    ref = generate_test_site_dset().mean(dim="time")
+    com = generate_test_dset(nlat=10, nlon=20)
+    analysis = bias_analysis("da")
+    df, _, _ = analysis(ref, com)
+    df = df[df["type"] == "score"]
+    print(df.iloc[0].value)
+    assert len(df) == 1
+    assert np.allclose(df.iloc[0].value, 0)
 
 
 @pytest.mark.skip("incomplete")
