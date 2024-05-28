@@ -1,13 +1,11 @@
 """Functions for preparing datasets for comparison."""
 
-import datetime
 from typing import Union
 
 import numpy as np
 import xarray as xr
 
 from ilamb3 import dataset as dset
-from ilamb3.exceptions import NoSiteDimension
 
 
 def nest_spatial_grids(*args):
@@ -137,31 +135,35 @@ def pick_grid_aligned(
 
 def trim_time(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]:
     """Return the datasets trimmed to maximal temporal overlap."""
-    if "time" not in dsa.dims:
-        return dsa, dsb
-    if "time" not in dsb.dims:
-        return dsa, dsb
-    at0, atf = dset.get_time_extent(dsa)
-    bt0, btf = dset.get_time_extent(dsb)
-    tol = datetime.timedelta(days=1)  # add some padding
-    tm0 = max(at0, bt0) - tol  # type: ignore
-    tmf = min(atf, btf) + tol  # type: ignore
-    dsa = dsa.sel(time=slice(tm0, tmf))
-    dsb = dsb.sel(time=slice(tm0, tmf))
+
+    def _to_tuple(da: xr.DataArray) -> tuple[int]:
+        if da.size != 1:
+            raise ValueError("Single element conversions only")
+        return (int(da.dt.year), int(da.dt.month), int(da.dt.day))
+
+    # Get the time extents in the original calendars
+    ta0, taf = dset.get_time_extent(dsa)
+    tb0, tbf = dset.get_time_extent(dsb)
+
+    # Convert to a date tuple (year, month, day) and find the maximal overlap
+    tmin = max(_to_tuple(ta0), _to_tuple(tb0))
+    tmax = min(_to_tuple(taf), _to_tuple(tbf))
+
+    # Recast back into native calendar objects and select
+    dsa = dsa.sel(
+        {"time": slice(ta0.item().__class__(*tmin), taf.item().__class__(*tmax))}
+    )
+    dsb = dsb.sel(
+        {"time": slice(tb0.item().__class__(*tmin), tbf.item().__class__(*tmax))}
+    )
     return dsa, dsb
 
 
 def adjust_lon(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]:
     """When comparing dsb to dsa, we need their longitudes uniformly in
     [-180,180) or [0,360)."""
-    try:
-        dset.get_lon_span(dsa)
-        dset.get_lon_span(dsb)
-    except ValueError:
-        return dsa, dsb
-
-    alon_name = dset.get_dim_name(dsa, "lon")
-    blon_name = dset.get_dim_name(dsb, "lon")
+    alon_name = dset.get_coord_name(dsa, "lon")
+    blon_name = dset.get_coord_name(dsb, "lon")
     if alon_name is None or blon_name is None:
         return dsa, dsb
     a360 = (dsa[alon_name].min() >= 0) * (dsa[alon_name].max() <= 360)
@@ -187,17 +189,19 @@ def make_comparable(
     ref: xr.Dataset, com: xr.Dataset, varname: str
 ) -> tuple[xr.Dataset, xr.Dataset]:
     """Return the datasets in a form where they are comparable."""
+
     # trim away time
-    ref, com = trim_time(ref, com)
+    try:
+        ref, com = trim_time(ref, com)
+    except KeyError:
+        pass  # no time dimension
 
     # ensure longitudes are uniform
     ref, com = adjust_lon(ref, com)
 
     # pick just the sites
-    try:
+    if dset.is_site(ref[varname]):
         com = extract_sites(ref, com, varname)
-    except NoSiteDimension:
-        pass
 
     # convert units, will read in memory so do this last
     ref = ref.pint.quantify()
@@ -230,12 +234,8 @@ def extract_sites(
     dset.get_dim_name(ds_site[varname], "site")
 
     # Get the lat/lon dim names
-    lat_site = [dim for dim in ["lat", "latitude", "Latitude", "y"] if dim in ds_site]
-    lon_site = [dim for dim in ["lon", "longitude", "Longitude", "x"] if dim in ds_site]
-    assert len(lat_site) == 1
-    assert len(lon_site) == 1
-    lat_site = lat_site[0]
-    lon_site = lon_site[0]
+    lat_site = dset.get_coord_name(ds_site, "lat")
+    lon_site = dset.get_coord_name(ds_site, "lon")
     lat_spatial = dset.get_dim_name(ds_spatial, "lat")
     lon_spatial = dset.get_dim_name(ds_spatial, "lon")
 

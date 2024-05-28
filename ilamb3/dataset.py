@@ -37,8 +37,8 @@ def get_dim_name(
     """
     dim_names = {
         "time": ["time"],
-        "lat": ["lat", "latitude", "Latitude", "y"],
-        "lon": ["lon", "longitude", "Longitude", "x"],
+        "lat": ["lat", "latitude", "Latitude", "y", "lat_"],
+        "lon": ["lon", "longitude", "Longitude", "x", "lon_"],
         "depth": ["depth"],
     }
     # Assumption: the 'site' dimension is what is left over after all others are removed
@@ -156,39 +156,6 @@ def is_site(da: xr.DataArray) -> bool:
     ):
         return True
     return False
-
-
-def get_lon_span(ds: xr.Dataset) -> tuple[float, float]:
-    """
-    Return the longitude span.
-
-    Parameters
-    ----------
-    ds : xr.Dataset
-        The input dataset.
-
-    Returns
-    -------
-    min : float
-        The minumum longitude found.
-    max : float
-        The maxumum longitude found.
-    """
-    lon_name = None
-    try:
-        lon_name = get_dim_name(ds, "lon")
-    except KeyError:
-        pass
-    if lon_name is None:
-        lon_name = {"lon", "longitude", "Longitude", "x"} & set(ds)
-    if not lon_name:
-        raise ValueError("No longitude-like variable/coord in the dataset.")
-    if isinstance(lon_name, set):
-        lon_name = lon_name.pop()
-    lon = ds[lon_name]
-    if "bounds" in lon.attrs and lon.attrs["bounds"] in ds:
-        lon = ds[lon.attrs["bounds"]]
-    return float(lon.min().values), float(lon.max().values)
 
 
 def get_time_extent(

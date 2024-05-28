@@ -119,9 +119,17 @@ class bias_analysis(ILAMBAnalysis):
             norm = dset.std_time(ref, varname)
 
         # Nest the grids for comparison, we postpend composite grid variables with "_"
-        ref_, com_, norm_, uncert_ = cmp.nest_spatial_grids(
-            ref_mean, com_mean, norm, uncert
-        )
+        if dset.is_spatial(ref) and dset.is_spatial(com):
+            ref_, com_, norm_, uncert_ = cmp.nest_spatial_grids(
+                ref_mean, com_mean, norm, uncert
+            )
+        elif dset.is_site(ref) and dset.is_site(com):
+            ref_ = ref_mean
+            com_ = com_mean
+            norm_ = norm
+            uncert_ = uncert
+        else:
+            raise ValueError("Reference and comparison not uniformly site/spatial.")
 
         # Compute score by different methods
         bias = com_ - ref_
@@ -147,11 +155,15 @@ class bias_analysis(ILAMBAnalysis):
             ref_out["uncert"] = uncert
         com_out = bias.to_dataset(name="bias")
         com_out["bias_score"] = score
-        lat_name = dset.get_dim_name(com_mean, "lat")
-        lon_name = dset.get_dim_name(com_mean, "lon")
-        com_out["mean"] = com_mean.rename(
-            {lat_name: f"{lat_name}_", lon_name: f"{lon_name}_"}
-        )
+        try:
+            lat_name = dset.get_dim_name(com_mean, "lat")
+            lon_name = dset.get_dim_name(com_mean, "lon")
+            com_mean = com_mean.rename(
+                {lat_name: f"{lat_name}_", lon_name: f"{lon_name}_"}
+            )
+        except KeyError:
+            pass
+        com_out["mean"] = com_mean
 
         # Function for finding a spatial/site mean/sum
         def _scalar(var, varname, region, mean=True, weight=False):
@@ -168,7 +180,9 @@ class bias_analysis(ILAMBAnalysis):
                 )
             elif dset.is_site(da):
                 site_dim = dset.get_dim_name(da, "site")
+                da = da.pint.dequantify()
                 da = da.mean(dim=site_dim)
+                da = da.pint.quantify()
             else:
                 raise ValueError(f"Input is neither spatial nor site: {da}")
             return da

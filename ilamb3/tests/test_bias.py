@@ -62,7 +62,7 @@ def test_bias_site_collier2018():
     df = df[df["type"] == "score"]
     print(df.iloc[0].value)
     assert len(df) == 1
-    assert np.allclose(df.iloc[0].value, 0)
+    assert np.allclose(df.iloc[0].value, 0.665078089592162)
 
 
 @pytest.mark.skip("incomplete")
