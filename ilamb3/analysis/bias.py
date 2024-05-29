@@ -1,3 +1,11 @@
+"""
+The ILAMB bias methodology.
+
+See Also
+--------
+ILAMBAnalysis : The abstract base class from which this derives.
+"""
+
 from typing import Literal, Union
 
 import numpy as np
@@ -12,10 +20,34 @@ from ilamb3.exceptions import NoDatabaseEntry
 
 
 class bias_analysis(ILAMBAnalysis):
-    def __init__(self, required_variable: str):
+    """
+    The ILAMB bias methodology.
+
+    Parameters
+    ----------
+    required_variable : str
+        The name of the variable to be used in this analysis.
+
+    Methods
+    -------
+    required_variables
+        What variables are required.
+    __call__
+        The method
+    """
+
+    def __init__(self, required_variable: str):  # numpydoc ignore=GL08
         self.req_variable = required_variable
 
     def required_variables(self) -> list[str]:
+        """
+        Return the list of variables required for this analysis.
+
+        Returns
+        -------
+        list
+            The variable names used in this analysis.
+        """
         return [self.req_variable]
 
     def __call__(
@@ -30,40 +62,45 @@ class bias_analysis(ILAMBAnalysis):
         quantile_dbase: Union[pd.DataFrame, None] = None,
         quantile_threshold: int = 70,
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
-        """Apply the ILAMB bias methodology on the given datasets.
+        """
+        Apply the ILAMB bias methodology on the given datasets.
 
         Parameters
         ----------
-        ref, com
-            The reference and comparison dataset.
-        method
-            The name of the scoring methodology to use.
-        regions
+        ref : xr.Dataset
+            The reference dataset.
+        com : xr.Dataset
+            The comparison dataset.
+        method : str
+            The name of the scoring methodology to use, either `Collier2018` or
+            `RegionalQuantiles`.
+        regions : list
             A list of region labels over which to apply the analysis.
-        use_uncertainty
+        use_uncertainty : bool
             Enable to utilize uncertainty information from the reference product if
             present.
-        spatial_sum
+        spatial_sum : bool
             Enable to report a spatial sum in the period mean as opposed to a spatial
             mean. This is often preferred in carbon variables where the total global
             carbon is of interest.
-        mass_weighting
+        mass_weighting : bool
             Enable to weight the score map integrals by the temporal mean of the
             reference dataset.
-        quantile_dbase
+        quantile_dbase : pd.DataFrame
             If using `method='RegionalQuantiles'`, the dataframe containing the regional
             quantiles to be used to score the datasets.
-        quantile_threshold
+        quantile_threshold : int
             If using `method='RegionalQuantiles'`, the threshold values to use from the
             `quantile_dbase`.
 
         Returns
         -------
-        df
+        pd.DataFrame
             A dataframe with scalar and score information from the comparison.
-        ref_out, com_out
-            A dataset containing grided information resulting from the reference and
-            comparison.
+        xr.Dataset
+            A dataset containing reference grided information from the comparison.
+        xr.Dataset
+            A dataset containing comparison grided information from the comparison.
         """
         # Initialize
         analysis_name = "Bias"
@@ -165,8 +202,10 @@ class bias_analysis(ILAMBAnalysis):
             pass
         com_out["mean"] = com_mean
 
-        # Function for finding a spatial/site mean/sum
-        def _scalar(var, varname, region, mean=True, weight=False):
+        # Either integrate or average depending on the input var
+        def _scalar(
+            var, varname, region, mean=True, weight=False
+        ):  # numpydoc ignore=GL08
             da = var
             if isinstance(var, xr.Dataset):
                 da = var[varname]
