@@ -414,8 +414,8 @@ def integrate_time(
         msr = compute_time_measures(dset)
     var = var.pint.quantify()
     if mean:
-        return var.weighted(msr).mean(dim=time_name)
-    return var.weighted(msr).sum(dim=time_name)
+        return var.weighted(msr.fillna(0)).mean(dim=time_name)
+    return var.weighted(msr.fillna(0)).sum(dim=time_name)
 
 
 def accumulate_time(
@@ -486,7 +486,7 @@ def std_time(
         var = dset
         msr = compute_time_measures(dset)
     var = var.pint.quantify()
-    return var.weighted(msr).std(dim=time_name)
+    return var.weighted(msr.fillna(0)).std(dim=time_name)
 
 
 def integrate_space(
@@ -548,7 +548,7 @@ def integrate_space(
     if weight is not None:
         assert isinstance(weight, xr.DataArray)
         msr = msr * weight.pint.dequantify()
-    out = var.weighted(msr)
+    out = var.weighted(msr.fillna(0))
     if mean:
         out = out.mean(dim=space)
         out.attrs["units"] = var.attrs["units"]
@@ -666,8 +666,8 @@ def integrate_depth(
     msr = dset[dset["depth"].attrs["bounds"]]
     msr = msr.diff(dim=msr.dims[-1])
     if mean:
-        return var.weighted(msr).mean(dim="depth")
-    return var.weighted(msr).sum(dim="depth")
+        return var.weighted(msr.fillna(0)).mean(dim="depth")
+    return var.weighted(msr.fillna(0)).sum(dim="depth")
 
 
 def scale_by_water_density(da: xr.DataArray, target: str) -> xr.DataArray:
