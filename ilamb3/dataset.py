@@ -28,6 +28,10 @@ def get_dim_name(
     str
         The name of the dimension.
 
+    See Also
+    --------
+    get_coord_name : A variant when the coordinate is not a dimension.
+
     Notes
     -----
     This function is meant to handle the problem that not all data calls the dimensions
@@ -86,7 +90,7 @@ def get_coord_name(
 
     See Also
     --------
-    get_dim_name
+    get_dim_name : A variant when the coordinate is a dimension.
     """
     coord_names = {
         "lat": ["lat", "latitude", "Latitude", "y"],
@@ -208,7 +212,7 @@ def compute_time_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray
     and part of the dataset.
     """
 
-    def _measure1d(time):
+    def _measure1d(time):  # numpydoc ignore=GL08
         if time.size == 1:
             msg = "Cannot estimate time measures from single value without bounds"
             raise ValueError(msg)
@@ -414,6 +418,44 @@ def integrate_time(
     return var.weighted(msr).sum(dim=time_name)
 
 
+def accumulate_time(
+    dset: Union[xr.Dataset, xr.DataArray],
+    varname: Union[str, None] = None,
+) -> xr.DataArray:
+    """
+    Return the time accumulation of the dataset.
+
+    Parameters
+    ----------
+    dset : xr.Dataset or xr.DataArray
+        The input dataset/dataarray.
+    varname : str, optional
+        The variable to integrate, must be given if a dataset is passed in.
+
+    Returns
+    -------
+    xr.DataArray
+        The accumulation.
+    """
+    time_name = get_dim_name(dset, "time")
+    if isinstance(dset, xr.Dataset):
+        assert varname is not None
+        var = dset[varname]
+        msr = (
+            dset["time_measures"]
+            if "time_measures" in dset
+            else compute_time_measures(dset)
+        )
+    else:
+        var = dset
+        msr = compute_time_measures(dset)
+    var = var.pint.quantify() * msr
+    var = var.pint.dequantify()
+    var = var.cumsum(dim=time_name)
+    var = var.pint.quantify()
+    return var
+
+
 def std_time(
     dset: Union[xr.Dataset, xr.DataArray], varname: Union[str, None] = None
 ) -> xr.DataArray:
@@ -543,7 +585,7 @@ def sel(dset: xr.Dataset, coord: str, cmin: Any, cmax: Any) -> xr.Dataset:
     and max to be the limits of the slice.
     """
 
-    def _get_interval(dset, dim, value, side):
+    def _get_interval(dset, dim, value, side):  # numpydoc ignore=GL08
         coord = dset[dim]
         if "bounds" in coord.attrs:
             if coord.attrs["bounds"] in dset:
@@ -629,7 +671,8 @@ def integrate_depth(
 
 
 def scale_by_water_density(da: xr.DataArray, target: str) -> xr.DataArray:
-    """Conditionally scale the dataarray by density if needed in the conversion.
+    """
+    Conditionally scale the dataarray by density if needed in the conversion.
 
     Parameters
     ----------
@@ -695,3 +738,33 @@ def convert(
         return da
     dset[varname] = da
     return dset
+
+
+def coarsen_annual(dset: xr.Dataset) -> xr.Dataset:
+    """
+    Return the dataset coarsened to annual.
+
+    Parameters
+    ----------
+    dset : xr.Dataset
+        The input dataset/dataarray.
+
+    Returns
+    -------
+    xr.Dataset
+        The coarsened dataset.
+    """
+    # Can't sum time objects so find them and remove
+    time_name = get_dim_name(dset, "time")
+    if "bounds" in dset[time_name].attrs:
+        bounds = dset[time_name].attrs["bounds"]
+        if bounds in dset:
+            dset = dset.drop_vars(bounds)
+    # groupby + weighted does not work so we do this.
+    dset = dset.pint.dequantify()
+    msr = compute_time_measures(dset).pint.dequantify()
+    ann = (dset * msr).groupby(f"{time_name}.year").sum() / msr.groupby(
+        f"{time_name}.year"
+    ).sum()
+    ann = ann.pint.quantify()
+    return ann
