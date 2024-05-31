@@ -76,7 +76,7 @@ class nbp_analysis(ILAMBAnalysis):
             evaluation_year = int(ref["time"][-1].dt.year)
 
         # Check that the comparison starts in the appropriate year
-        if com["time"].dt.year > ref["time"].dt.year:
+        if com["time"][0].dt.year > ref["time"][0].dt.year:
             raise TemporalOverlapIssue()
         tstart = min([t for t in com["time"] if t.dt.year == ref["time"][0].dt.year])
         com = com.sel({"time": slice(tstart, com["time"][-1])})
