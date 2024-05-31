@@ -2,6 +2,7 @@
 
 # import these packages so that units via pint will be possible once anything
 # from ilamb is imported.
+import intake
 import pint_xarray  # noqa
 import xarray as xr
 from cf_xarray.units import units
@@ -13,5 +14,20 @@ units.define("kg = 1e3 * g")
 units.define("Mg = 1e6 * g")
 units.define("Pg = 1e15 * g")
 
-__all__ = ["dataset", "compare", "analysis", "regions"]
+
+def ilamb_catalog() -> intake.Catalog:
+    """
+    Return the intake ilamb reference data catalog.
+
+    Returns
+    -------
+    intake.Catalog
+        The intake ilamb reference data catalog.
+    """
+    return intake.open_catalog(
+        "https://raw.githubusercontent.com/nocollier/intake-ilamb/main/ilamb.yaml"
+    )
+
+
+__all__ = ["dataset", "compare", "analysis", "regions", "ilamb_catalog"]
 xr.set_options(keep_attrs=True)
