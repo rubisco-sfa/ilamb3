@@ -7,8 +7,8 @@ This method expects the model variable `nbp` but we also accept `netAtmosLandCO2
 
 ```{math}
 \delta(t) = \sqrt{
-    \left(v_{\mathrm{ref}}-v_{\mathrm{ref}}^{\mathrm{low}}\right)^2 +
-    \left(v_{\mathrm{ref}}^{\mathrm{high}}-v_{\mathrm{ref}}\right)^2
+    \left(v_{\mathrm{ref}}(t)-v_{\mathrm{ref}}^{\mathrm{low}}(t)\right)^2 +
+    \left(v_{\mathrm{ref}}^{\mathrm{high}}(t)-v_{\mathrm{ref}}(t)\right)^2
 }
 ```
 
@@ -38,8 +38,8 @@ While the balance at the end of the reference data is of primary concern, the di
 
 ```{math}
 \varepsilon(t) = \left(
-    \max(v_{\mathrm{com}}-v_{\mathrm{ref,low}},0) +
-    \max(v_{\mathrm{ref,high}}-v_{\mathrm{com}},0)
+    \max(v_{\mathrm{com}}(t)-v_{\mathrm{ref}}^{\mathrm{low}}(t),0) +
+    \max(v_{\mathrm{ref}}^{\mathrm{high}}(t)-v_{\mathrm{com}}(t),0)
     \right) / \delta(t).
 ```
 
