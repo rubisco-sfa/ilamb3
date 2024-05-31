@@ -97,6 +97,11 @@ class nbp_analysis(ILAMBAnalysis):
         if dset.is_spatial(com):
             com["nbp"] = dset.integrate_space(com, "nbp")
 
+        # Load into memory, not sure this is the right place for this
+        com = com.pint.dequantify()
+        com.load()
+        com = com.pint.quantify()
+
         # Accumulate
         def _cumsum(ds):  # numpydoc ignore=GL08
             for var, da in ds.items():
