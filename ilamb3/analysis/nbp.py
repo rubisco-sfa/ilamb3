@@ -75,6 +75,12 @@ class nbp_analysis(ILAMBAnalysis):
         if evaluation_year is None:
             evaluation_year = int(ref["time"][-1].dt.year)
 
+        # Check that the comparison starts in the appropriate year
+        if com["time"].dt.year > ref["time"].dt.year:
+            raise TemporalOverlapIssue()
+        tstart = min([t for t in com["time"] if t.dt.year == ref["time"][0].dt.year])
+        com = com.sel({"time": slice(tstart, com["time"][-1])})
+
         # Fixes to data names and checks for required variables
         if "netAtmosLandCO2Flux" in com:
             com = com.rename_vars(dict(netAtmosLandCO2Flux="nbp"))
@@ -88,10 +94,6 @@ class nbp_analysis(ILAMBAnalysis):
             else:
                 ref[var] = -ref[var]
         com["nbp"] = -com["nbp"]
-
-        # Check that the comparison starts in the appropriate year
-        if com["time"].dt.year > ref["time"].dt.year:
-            raise TemporalOverlapIssue()
 
         # Integrate globally
         if dset.is_spatial(com):
@@ -143,7 +145,10 @@ class nbp_analysis(ILAMBAnalysis):
 
         # Difference score
         ref_val = float(ref["nbp"].sel(year=evaluation_year))
-        com_val = float(com["nbp"].sel(year=evaluation_year))
+        try:
+            com_val = float(com["nbp"].sel(year=evaluation_year))
+        except KeyError:
+            com_val = np.nan
         uncert_val = float(uncert.sel(year=evaluation_year))
         scale = -np.log(0.5) / 1  # outside of the uncertainty window? score < 50%
         diff_score = np.exp(-scale * np.abs(com_val - ref_val) / uncert_val)
