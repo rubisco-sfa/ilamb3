@@ -38,6 +38,7 @@ This package is being developed and *not* currently listed in PyPI or conda-forg
 
    prelim
    bias
+   nbp
 
 .. toctree::
    :maxdepth: 2

@@ -11,6 +11,7 @@ from ilamb3._version import __version__  # noqa
 # additional units that pint/cf-xarray does not handle
 units.define("kg = 1e3 * g")
 units.define("Mg = 1e6 * g")
+units.define("Pg = 1e15 * g")
 
 __all__ = ["dataset", "compare", "analysis", "regions"]
 xr.set_options(keep_attrs=True)
