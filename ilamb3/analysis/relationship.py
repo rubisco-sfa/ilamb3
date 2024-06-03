@@ -1,8 +1,8 @@
-"""ILAMB Analysis assets for studying relationships between variables.
+"""
+The ILAMB relationship (variable to variable) methodology.
 
-There is a lot of data to manage for relationships. So we build a relationship class
-and then later create a ILAMBAnalysis ABC which uses it in an ILAMB analysis.
-
+There is a lot of data to manage for relationships. So we build a relationship class and
+then later create a ILAMBAnalysis which uses it.
 """
 
 from dataclasses import dataclass, field
@@ -19,7 +19,9 @@ from ilamb3.regions import Regions
 
 @dataclass
 class Relationship:
-    """A class for developing and comparing relationships from gridded data."""
+    """
+    A class for developing and comparing relationships from gridded data.
+    """
 
     dep: xr.DataArray
     ind: xr.DataArray
@@ -38,6 +40,7 @@ class Relationship:
     _response_std: np.ndarray = field(init=False, default_factory=lambda: None)
 
     def __post_init__(self):
+        """After initialization, perform checks on input data."""
         # check input dataarrays for compatibility
         assert isinstance(self.dep, xr.DataArray)
         assert isinstance(self.ind, xr.DataArray)
@@ -65,17 +68,23 @@ class Relationship:
     def compute_limits(
         self, rel: Union["Relationship", None] = None
     ) -> Union["Relationship", None]:
-        """Compute the limits of the dependent and independent variables.
+        """
+        Compute the limits of the dependent and independent variables.
 
         Parameters
         ----------
+        rel : Relationship, optional
+            An optional and additional relationship who limits you also would like to
+            include in the check.
 
         Returns
         -------
-
+        Relationship or None
+            If a relationship was passed in, this will return it also with its limits
+            set.
         """
 
-        def _singlelimit(var, limit=None):
+        def _singlelimit(var, limit=None):  # numpydoc ignore=GL08
             lim = [var.min(), var.max()]
             delta = 1e-8 * (lim[1] - lim[0])
             lim[0] -= delta
@@ -99,15 +108,16 @@ class Relationship:
         return rel
 
     def build_response(self, nbin: int = 25, eps: float = 3e-3):
-        """Creates a 2D distribution and a functional response
+        """
+        Create the 2D distribution and functional response.
 
         Parameters
         ----------
-        nbin
-            the number of bins to use in both dimensions
-        eps
-            the fraction of points required for a bin in the
-            independent variable be included in the funcitonal responses
+        nbin : int
+            The number of bins to use in both dimensions.
+        eps : float
+            The fraction of points required for a bin in the
+            independent variable be included in the funcitonal responses.
         """
         # if no limits have been created, make them now
         if self._dep_limits is None or self._ind_limits is None:
@@ -164,7 +174,19 @@ class Relationship:
         self._response_std = std
 
     def score_response(self, rel: "Relationship") -> float:
-        """Score the reponse using the relative RMSE error."""
+        """
+        Score the functional response of the relationships.
+
+        Parameters
+        ----------
+        rel : Relationship
+            The other relationship to compare.
+
+        Returns
+        -------
+        float
+            The response score.
+        """
         rel_error = np.linalg.norm(
             self._response_mean - rel._response_mean
         ) / np.linalg.norm(self._response_mean)
@@ -173,11 +195,37 @@ class Relationship:
 
 
 class relationship_analysis(ILAMBAnalysis):
-    def __init__(self, dep_variable: str, ind_variable: str):
+    """
+    The ILAMB relationship methodology.
+
+    Parameters
+    ----------
+    dep_variable : str
+        The name of the dependent variable to be used in this analysis.
+    ind_variable : str
+        The name of the independent variable to be used in this analysis.
+
+    Methods
+    -------
+    required_variables
+        What variables are required.
+    __call__
+        The method
+    """
+
+    def __init__(self, dep_variable: str, ind_variable: str):  # numpydoc ignore=GL08
         self.dep_variable = dep_variable
         self.ind_variable = ind_variable
 
     def required_variables(self) -> list[str]:
+        """
+        Return the list of variables required for this analysis.
+
+        Returns
+        -------
+        list
+            The variable names used in this analysis.
+        """
         return [self.dep_variable, self.ind_variable]
 
     def __call__(
@@ -185,8 +233,28 @@ class relationship_analysis(ILAMBAnalysis):
         ref: xr.Dataset,
         com: xr.Dataset,
         regions: list[Union[str, None]] = [None],
-        **kwargs,
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
+        """
+        Apply the ILAMB relationship methodology on the given datasets.
+
+        Parameters
+        ----------
+        ref : xr.Dataset
+            The reference dataset.
+        com : xr.Dataset
+            The comparison dataset.
+        regions : list
+            A list of region labels over which to apply the analysis.
+
+        Returns
+        -------
+        pd.DataFrame
+            A dataframe with scalar and score information from the comparison.
+        xr.Dataset
+            A dataset containing reference grided information from the comparison.
+        xr.Dataset
+            A dataset containing comparison grided information from the comparison.
+        """
         # Initialize
         analysis_name = "Relationship"
         var_ind = self.ind_variable
@@ -231,4 +299,4 @@ class relationship_analysis(ILAMBAnalysis):
                 "value",
             ],
         )
-        return dfs, None, None
+        return dfs, xr.Dataset(), xr.Dataset()
