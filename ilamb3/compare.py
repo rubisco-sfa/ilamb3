@@ -145,6 +145,12 @@ def trim_time(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]
     ta0, taf = dset.get_time_extent(dsa)
     tb0, tbf = dset.get_time_extent(dsb)
 
+    # At this point we need actual data, so load
+    ta0.load()
+    taf.load()
+    tb0.load()
+    tbf.load()
+
     # Convert to a date tuple (year, month, day) and find the maximal overlap
     tmin = max(_to_tuple(ta0), _to_tuple(tb0))
     tmax = min(_to_tuple(taf), _to_tuple(tbf))
@@ -258,3 +264,33 @@ def extract_sites(
     )
     assert (dist < model_res).all()
     return ds_spatial
+
+
+def rename_dims(*args):
+    """
+    Rename the dimension to a uniform canonical name.
+
+    Parameters
+    ----------
+    *args
+        Any number of `xr.Dataset` or `xr.DataArray` objects for which we will change
+        the dimension names.
+
+    Returns
+    -------
+    *args
+        The input *args with the dimension names changed.
+    """
+
+    def _populate_renames(ds):
+        out = {}
+        for dim in ["time", "lat", "lon"]:
+            try:
+                out[dset.get_dim_name(ds, dim)] = dim
+            except KeyError:
+                pass
+        return out
+
+    for arg in args:
+        assert isinstance(arg, (xr.DataArray, xr.Dataset))
+    return [arg.rename(_populate_renames(arg)) for arg in args]

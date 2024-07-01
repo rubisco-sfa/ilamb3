@@ -126,6 +126,8 @@ class bias_analysis(ILAMBAnalysis):
 
         # Temporal means across the time period
         ref, com = cmp.make_comparable(ref, com, varname)
+        ref.pint.dequantify().load().pint.quantify()
+        com.pint.dequantify().load().pint.quantify()
         ref_mean = (
             dset.integrate_time(ref, varname, mean=True)
             if "time" in ref[varname].dims
@@ -169,6 +171,7 @@ class bias_analysis(ILAMBAnalysis):
             raise ValueError("Reference and comparison not uniformly site/spatial.")
 
         # Compute score by different methods
+        ref_, com_, norm_, uncert_ = cmp.rename_dims(ref_, com_, norm_, uncert_)
         bias = com_ - ref_
         if method == "Collier2018":
             score = np.exp(-(np.abs(bias) - uncert_).clip(0) / norm_)
