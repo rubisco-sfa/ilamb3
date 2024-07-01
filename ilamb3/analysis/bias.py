@@ -6,6 +6,7 @@ See Also
 ILAMBAnalysis : The abstract base class from which this derives.
 """
 
+import warnings
 from typing import Literal, Union
 
 import numpy as np
@@ -261,6 +262,11 @@ class bias_analysis(ILAMBAnalysis):
             )
             # Bias Score
             bias_scalar_score = _scalar(com_out, "bias_score", region, True, True)
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", "divide by zero encountered in divide", RuntimeWarning
+                )
+                bias_scalar_score = float(bias_scalar_score.pint.dequantify())
             dfs.append(
                 [
                     "Comparison",
@@ -269,7 +275,7 @@ class bias_analysis(ILAMBAnalysis):
                     "Bias Score",
                     "score",
                     "1",
-                    float(bias_scalar_score.pint.dequantify()),
+                    bias_scalar_score,
                 ]
             )
 
