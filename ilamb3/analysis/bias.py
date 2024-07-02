@@ -6,6 +6,7 @@ See Also
 ILAMBAnalysis : The abstract base class from which this derives.
 """
 
+import warnings
 from typing import Literal, Union
 
 import numpy as np
@@ -126,6 +127,8 @@ class bias_analysis(ILAMBAnalysis):
 
         # Temporal means across the time period
         ref, com = cmp.make_comparable(ref, com, varname)
+        ref.pint.dequantify().load().pint.quantify()
+        com.pint.dequantify().load().pint.quantify()
         ref_mean = (
             dset.integrate_time(ref, varname, mean=True)
             if "time" in ref[varname].dims
@@ -169,6 +172,7 @@ class bias_analysis(ILAMBAnalysis):
             raise ValueError("Reference and comparison not uniformly site/spatial.")
 
         # Compute score by different methods
+        ref_, com_, norm_, uncert_ = cmp.rename_dims(ref_, com_, norm_, uncert_)
         bias = com_ - ref_
         if method == "Collier2018":
             score = np.exp(-(np.abs(bias) - uncert_).clip(0) / norm_)
@@ -258,6 +262,11 @@ class bias_analysis(ILAMBAnalysis):
             )
             # Bias Score
             bias_scalar_score = _scalar(com_out, "bias_score", region, True, True)
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", "divide by zero encountered in divide", RuntimeWarning
+                )
+                bias_scalar_score = float(bias_scalar_score.pint.dequantify())
             dfs.append(
                 [
                     "Comparison",
@@ -266,7 +275,7 @@ class bias_analysis(ILAMBAnalysis):
                     "Bias Score",
                     "score",
                     "1",
-                    float(bias_scalar_score.pint.dequantify()),
+                    bias_scalar_score,
                 ]
             )
 

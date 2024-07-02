@@ -140,7 +140,13 @@ class Relationship:
                 np.log10(self.dep_limits[0]), np.log10(self.dep_limits[1]), nbin + 1
             )
         dist, xedges, yedges = np.histogram2d(
-            ind, dep, bins=[xedges, yedges], range=[self._ind_limits, self._dep_limits]
+            ind,
+            dep,
+            bins=[xedges, yedges],
+            range=[
+                [v.values for v in self._ind_limits],
+                [v.values for v in self._dep_limits],
+            ],
         )
         dist = np.ma.masked_values(dist.T, 0).astype(float)
         dist /= dist.sum()

@@ -230,9 +230,8 @@ def compute_time_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray
     # compute from the bounds
     delt = dset[timeb_name]
     nbnd = delt.dims[-1]
-    delt = delt.diff(nbnd).squeeze()
-    delt *= 1e-9 / 86400  # [ns] to [d]
-    measure = delt.astype("float")
+    delt = delt.diff(nbnd).squeeze().compute()
+    measure = delt.astype("float") * 1e-9 / 86400  # [ns] to [d]
     measure = measure.pint.quantify("d")
     return measure
 
