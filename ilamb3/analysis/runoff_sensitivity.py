@@ -126,8 +126,12 @@ def compute_runoff_sensitivity(
                 if "Intercept" not in key and ":" not in key
             }
         )
-        out["R2"] = results.rsquared
+        out["R2 Cross"] = results.rsquared
         out["Cond"] = results.condition_number
+
+        # Also one without the cross term for comparison
+        results = smf.ols("mrro ~ tas + pr", data=anomaly.to_dataframe()).fit()
+        out["R2"] = results.rsquared
         out["basin"] = str(basin)
         df.append(out)
     df = pd.DataFrame(df).set_index("basin")
@@ -210,3 +214,4 @@ if __name__ == "__main__":
     ds = ds.sel({"time": slice("1905-01-01", "2005-01-01")})
 
     df = compute_runoff_sensitivity(ds, basins[:2])
+    print(df.transpose())
