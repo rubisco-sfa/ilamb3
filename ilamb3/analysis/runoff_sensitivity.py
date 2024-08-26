@@ -15,6 +15,22 @@ import ilamb3.dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.exceptions import MissingRegion, MissingVariable
 
+"""
+Next Steps:
+- implement your def of anomaly
+x harvest scalars from statsmodels
+- register your region definitions in ilamb_regions (obs_data/mrb_*)
+- do we get the same thing that the other code does?
+
+To Think About:
+- masking issues for coarse models / small basins
+
+Optimization Ideas:
+- swap water year and basin avg order?
+- threaded?
+
+"""
+
 
 def compute_runoff_sensitivity(
     ds: xr.Dataset, basins: list[str], window_size: int = 9, quiet: bool = False
@@ -77,7 +93,7 @@ def compute_runoff_sensitivity(
         dsb = dsb.weighted(msr).mean(dim=space)
 
         # Averages per water year. This is weighted by the number of days per month in
-        # each water year. The `groupby`` does not work with the `weighted` accessor and
+        # each water year. The `groupby` does not work with the `weighted` accessor and
         # so we take the weighted mean by hand.
         dsb = (
             (dsb * dsb["time_measures"]).groupby("water_year").sum()
@@ -85,15 +101,33 @@ def compute_runoff_sensitivity(
         ).drop_vars("time_measures")
 
         # Take a windowed (decadal) average over the water years
-        dsb = dsb.rolling(water_year=window_size, center=True).mean()
-
-        #
+        mean = dsb.rolling(water_year=window_size, center=True).mean()
+        std = dsb.rolling(water_year=window_size, center=True).std()
+        anomaly = (dsb - mean) / std
 
         # Fit a linear model and compute stats
-        results = smf.ols("mrro ~ tas + pr", data=dsb.to_dataframe()).fit()
-        tqdm.write(str(results.summary()))
-
-        out = results.params.to_dict()
+        results = smf.ols("mrro ~ tas * pr", data=anomaly.to_dataframe()).fit()
+        out = {
+            f"{key} Sensitivity": val
+            for key, val in results.params.to_dict().items()
+            if "Intercept" not in key
+        }
+        out.update(
+            {
+                f"{key} Low": val
+                for key, val in results.conf_int()[0].to_dict().items()
+                if "Intercept" not in key and ":" not in key
+            }
+        )
+        out.update(
+            {
+                f"{key} High": val
+                for key, val in results.conf_int()[1].to_dict().items()
+                if "Intercept" not in key and ":" not in key
+            }
+        )
+        out["R2"] = results.rsquared
+        out["Cond"] = results.condition_number
         out["basin"] = str(basin)
         df.append(out)
     df = pd.DataFrame(df).set_index("basin")
@@ -172,8 +206,7 @@ if __name__ == "__main__":
     ds = xr.merge([m.get_variable(v) for v in ["mrro", "tas", "pr"]], compat="override")
     space = [dset.get_dim_name(ds, "lat"), dset.get_dim_name(ds, "lon")]
 
-    # select a time span, probably needs to come from the observations instead of hard
-    # code
+    # select a time span for the models
     ds = ds.sel({"time": slice("1905-01-01", "2005-01-01")})
 
-    df = compute_runoff_sensitivity(ds, basins[:1])
+    df = compute_runoff_sensitivity(ds, basins[:2])
