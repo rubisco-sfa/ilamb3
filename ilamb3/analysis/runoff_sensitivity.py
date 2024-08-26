@@ -109,33 +109,20 @@ def compute_runoff_sensitivity(
         anomaly["pr"] = anomaly["pr"] / mean["pr"].mean() * 100.0
 
         # Fit a linear model (with cross term) and compute stats
-        results = smf.ols("mrro ~ tas * pr", data=anomaly.to_dataframe()).fit()
+        model = smf.ols("mrro ~ tas + pr", data=anomaly.to_dataframe()).fit()
+        model_cross = smf.ols("mrro ~ tas * pr", data=anomaly.to_dataframe()).fit()
         out = {
-            f"{key} Sensitivity": val
-            for key, val in results.params.to_dict().items()
-            if "Intercept" not in key
+            "basin": basin,
+            "tas Sensitivity": model.params.to_dict()["tas"],
+            "tas Low": model.conf_int()[0].to_dict()["tas"],
+            "tas High": model.conf_int()[1].to_dict()["tas"],
+            "pr Sensitivity": model.params.to_dict()["pr"],
+            "pr Low": model.conf_int()[0].to_dict()["pr"],
+            "pr High": model.conf_int()[1].to_dict()["pr"],
+            "R2 Cross": model_cross.rsquared,
+            "R2": model.rsquared,
+            "Cond": model.condition_number,
         }
-        out.update(
-            {
-                f"{key} Low": val
-                for key, val in results.conf_int()[0].to_dict().items()
-                if "Intercept" not in key and ":" not in key
-            }
-        )
-        out.update(
-            {
-                f"{key} High": val
-                for key, val in results.conf_int()[1].to_dict().items()
-                if "Intercept" not in key and ":" not in key
-            }
-        )
-        out["R2 Cross"] = results.rsquared
-        out["Cond"] = results.condition_number
-
-        # Also one without the cross term for comparison
-        results = smf.ols("mrro ~ tas + pr", data=anomaly.to_dataframe()).fit()
-        out["R2"] = results.rsquared
-        out["basin"] = str(basin)
         df.append(out)
     df = pd.DataFrame(df).set_index("basin")
     return df
