@@ -102,10 +102,13 @@ def compute_runoff_sensitivity(
 
         # Take a windowed (decadal) average over the water years
         mean = dsb.rolling(water_year=window_size, center=True).mean()
-        std = dsb.rolling(water_year=window_size, center=True).std()
-        anomaly = (dsb - mean) / std
 
-        # Fit a linear model and compute stats
+        # Compute the anomalies
+        anomaly = mean - mean.mean()
+        anomaly["mrro"] = anomaly["mrro"] / mean["mrro"].mean() * 100.0
+        anomaly["pr"] = anomaly["pr"] / mean["pr"].mean() * 100.0
+
+        # Fit a linear model (with cross term) and compute stats
         results = smf.ols("mrro ~ tas * pr", data=anomaly.to_dataframe()).fit()
         out = {
             f"{key} Sensitivity": val
