@@ -1,5 +1,5 @@
 """
-Blah.
+Runoff sensitivity to temperature and precipitation per river basin.
 
 See Also
 --------
@@ -14,17 +14,6 @@ from tqdm import tqdm
 import ilamb3.dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.exceptions import MissingRegion, MissingVariable
-
-"""
-
-To Think About:
-- masking issues for coarse models / small basins
-
-Optimization Ideas:
-- swap water year and basin avg order?
-- threaded?
-
-"""
 
 
 def compute_runoff_sensitivity(
@@ -63,6 +52,7 @@ def compute_runoff_sensitivity(
         raise MissingRegion(f"Input basins are not registered as regions: {missing}")
 
     # Associate cell/time measures with the dataset if not present
+    space = [dset.get_dim_name(ds, "lat"), dset.get_dim_name(ds, "lon")]
     if "cell_measures" not in ds:
         ds["cell_measures"] = dset.compute_cell_measures(ds).pint.dequantify()
     if "time_measures" not in ds:
@@ -92,9 +82,7 @@ def compute_runoff_sensitivity(
         # Compute the regional mean values per basin
         dsb = ilamb_regions.restrict_to_region(ds, basin)
         msr = dsb["cell_measures"].fillna(0)
-        dsb = dsb.drop_vars(
-            [v for v in ds.data_vars if v not in required_vars + ["time_measures"]]
-        )
+        dsb = dsb.drop_vars([v for v in ds.data_vars if v not in required_vars])
         dsb = dsb.weighted(msr).mean(dim=space)
 
         # Take a windowed (decadal) average over the water years
@@ -127,7 +115,7 @@ def compute_runoff_sensitivity(
 
 class runoff_sensitivty_analysis(ILAMBAnalysis):
     """
-    Blah.
+    Runoff sensitivity to temperature and precipitation per river basin.
 
     Methods
     -------
@@ -144,14 +132,17 @@ class runoff_sensitivty_analysis(ILAMBAnalysis):
         Returns
         -------
         list
-            A list of the required variables, here always [pr, tas, hfls, mrro].
+            A list of the required variables, here always [pr, tas, mrro].
         """
-        return ["pr", "tas", "hfls", "mrro"]
+        return ["pr", "tas", "mrro"]
 
     def __call__(
         self,
         ref: xr.Dataset,
         com: xr.Dataset,
+        basins: list[str],
+        timestamp_start: str = "1905-01-01",
+        timestamp_end: str = "2005-01-01",
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
         """
         Apply the ILAMB bias methodology on the given datasets.
@@ -162,6 +153,13 @@ class runoff_sensitivty_analysis(ILAMBAnalysis):
             The reference dataset.
         com : xr.Dataset
             The comparison dataset.
+        basins : list[str]
+            The basins in which to compute sensitivities. These should refer to labels
+            that have been registered in the ilamb3.regions.Regions class.
+        timestamp_start : str
+            The initial time for which to compute comparision sensitivities.
+        timestamp_end : str
+            The final time for which to compute comparision sensitivities.
 
         Returns
         -------
@@ -177,10 +175,14 @@ class runoff_sensitivty_analysis(ILAMBAnalysis):
         if missing:
             raise MissingVariable(f"Comparison dataset is lacking variables: {missing}")
 
+        com = com.sel({"time": slice(timestamp_start, timestamp_end)})
+        df_com = compute_runoff_sensitivity(com, basins)
+
+        return df_com, xr.Dataset(), xr.Dataset()
+
 
 if __name__ == "__main__":
     # Temporary for some simple testing, using a coarse model for speed of execution
-
     from ilamb3.models import ModelESGF
     from ilamb3.regions import Regions
 
@@ -191,8 +193,8 @@ if __name__ == "__main__":
     # Test again CanESM5
     m = ModelESGF("CanESM5", "r1i1p1f1", "gn")
     ds = xr.merge([m.get_variable(v) for v in ["mrro", "tas", "pr"]], compat="override")
-    space = [dset.get_dim_name(ds, "lat"), dset.get_dim_name(ds, "lon")]
 
     # Select a time span for the models
-    ds = ds.sel({"time": slice("1905-01-01", "2005-01-01")})
-    df = compute_runoff_sensitivity(ds, ["amazon", "ob", "lena", "mississippi"])
+    analysis = runoff_sensitivty_analysis()
+    df, _, _ = analysis(xr.Dataset(), ds, basins)
+    print(df)
