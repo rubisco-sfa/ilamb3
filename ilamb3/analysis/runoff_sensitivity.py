@@ -62,16 +62,26 @@ def compute_runoff_sensitivity(
     if missing:
         raise MissingRegion(f"Input basins are not registered as regions: {missing}")
 
-    # Compute the water year for the time series (beginning of year is Oct)
-    t = ds[dset.get_dim_name(ds, "time")]
-    ds["water_year"] = xr.where(t.dt.month > 9, t.dt.year, t.dt.year - 1)
-    ds = ds.set_coords("water_year")
-
     # Associate cell/time measures with the dataset if not present
     if "cell_measures" not in ds:
         ds["cell_measures"] = dset.compute_cell_measures(ds).pint.dequantify()
     if "time_measures" not in ds:
         ds["time_measures"] = dset.compute_time_measures(ds).pint.dequantify()
+        if "time_bnds" in ds:
+            ds = ds.drop_vars("time_bnds")
+
+    # Compute the water year for the time series (beginning of year is Oct)
+    t = ds[dset.get_dim_name(ds, "time")]
+    ds["water_year"] = xr.where(t.dt.month > 9, t.dt.year, t.dt.year - 1)
+    ds = ds.set_coords("water_year")
+
+    # Averages per water year. This is weighted by the number of days per month in each
+    # water year. The `groupby` does not work with the `weighted` accessor and so we
+    # take the weighted mean by hand.
+    ds = (
+        (ds * ds["time_measures"]).groupby("water_year").sum()
+        / ds["time_measures"].groupby("water_year").sum()
+    ).drop_vars("time_measures")
 
     # Loop over basins and build up the dataframe of sensitivities
     df = []
@@ -86,14 +96,6 @@ def compute_runoff_sensitivity(
             [v for v in ds.data_vars if v not in required_vars + ["time_measures"]]
         )
         dsb = dsb.weighted(msr).mean(dim=space)
-
-        # Averages per water year. This is weighted by the number of days per month in
-        # each water year. The `groupby` does not work with the `weighted` accessor and
-        # so we take the weighted mean by hand.
-        dsb = (
-            (dsb * dsb["time_measures"]).groupby("water_year").sum()
-            / dsb["time_measures"].groupby("water_year").sum()
-        ).drop_vars("time_measures")
 
         # Take a windowed (decadal) average over the water years
         mean = dsb.rolling(water_year=window_size, center=True).mean()
@@ -178,7 +180,6 @@ class runoff_sensitivty_analysis(ILAMBAnalysis):
 
 if __name__ == "__main__":
     # Temporary for some simple testing, using a coarse model for speed of execution
-    from pathlib import Path
 
     from ilamb3.models import ModelESGF
     from ilamb3.regions import Regions
@@ -194,13 +195,4 @@ if __name__ == "__main__":
 
     # Select a time span for the models
     ds = ds.sel({"time": slice("1905-01-01", "2005-01-01")})
-
     df = compute_runoff_sensitivity(ds, ["amazon", "ob", "lena", "mississippi"])
-
-    filename = Path("sensitivites.parquet")
-    if not filename.is_file():
-        df.to_parquet(filename)
-    df0 = pd.read_parquet(filename)
-
-    # 14s/basin
-    print((df - df0).abs().max())
