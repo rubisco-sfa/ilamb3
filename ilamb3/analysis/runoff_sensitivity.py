@@ -16,11 +16,6 @@ from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.exceptions import MissingRegion, MissingVariable
 
 """
-Next Steps:
-- implement your def of anomaly
-x harvest scalars from statsmodels
-- register your region definitions in ilamb_regions (obs_data/mrb_*)
-- do we get the same thing that the other code does?
 
 To Think About:
 - masking issues for coarse models / small basins
@@ -108,7 +103,7 @@ def compute_runoff_sensitivity(
         anomaly["mrro"] = anomaly["mrro"] / mean["mrro"].mean() * 100.0
         anomaly["pr"] = anomaly["pr"] / mean["pr"].mean() * 100.0
 
-        # Fit a linear model (with cross term) and compute stats
+        # Fit a linear model (with and without the cross term) and compute stats
         model = smf.ols("mrro ~ tas + pr", data=anomaly.to_dataframe()).fit()
         model_cross = smf.ols("mrro ~ tas * pr", data=anomaly.to_dataframe()).fit()
         out = {
@@ -119,8 +114,8 @@ def compute_runoff_sensitivity(
             "pr Sensitivity": model.params.to_dict()["pr"],
             "pr Low": model.conf_int()[0].to_dict()["pr"],
             "pr High": model.conf_int()[1].to_dict()["pr"],
-            "R2 Cross": model_cross.rsquared,
             "R2": model.rsquared,
+            "R2 Cross": model_cross.rsquared,
             "Cond": model.condition_number,
         }
         df.append(out)
@@ -183,25 +178,29 @@ class runoff_sensitivty_analysis(ILAMBAnalysis):
 
 if __name__ == "__main__":
     # Temporary for some simple testing, using a coarse model for speed of execution
-    import ilamb3
+    from pathlib import Path
+
     from ilamb3.models import ModelESGF
     from ilamb3.regions import Regions
 
-    # grab some sample basins, still need to encode the right ones. Also have to fix
-    # ilamb to read this without fixes you see here.
+    # Register the MRB basins with the ilamb system
     ilamb_regions = Regions()
-    basins = ilamb3.ilamb_catalog()["river_basins | Dai"].read()
-    basins = basins.rename(dict(basin_index="ids", label="name"))
-    basins["label"] = basins["name"].str.lower()
-    basins["ids"].attrs = {"names": "name", "labels": "label"}
-    basins = ilamb_regions.add_netcdf(basins)
+    basins = ilamb_regions.add_netcdf("mrb_basins.nc")
 
+    # Test again CanESM5
     m = ModelESGF("CanESM5", "r1i1p1f1", "gn")
     ds = xr.merge([m.get_variable(v) for v in ["mrro", "tas", "pr"]], compat="override")
     space = [dset.get_dim_name(ds, "lat"), dset.get_dim_name(ds, "lon")]
 
-    # select a time span for the models
+    # Select a time span for the models
     ds = ds.sel({"time": slice("1905-01-01", "2005-01-01")})
 
-    df = compute_runoff_sensitivity(ds, basins[:2])
-    print(df.transpose())
+    df = compute_runoff_sensitivity(ds, ["amazon", "ob", "lena", "mississippi"])
+
+    filename = Path("sensitivites.parquet")
+    if not filename.is_file():
+        df.to_parquet(filename)
+    df0 = pd.read_parquet(filename)
+
+    # 14s/basin
+    print((df - df0).abs().max())
