@@ -9,6 +9,7 @@ ILAMBAnalysis : The abstract base class from which this derives.
 from pathlib import Path
 from typing import Union
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import statsmodels.formula.api as smf
 import xarray as xr
@@ -16,6 +17,7 @@ from tqdm import tqdm
 
 import ilamb3
 import ilamb3.dataset as dset
+import ilamb3.post as post
 from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.exceptions import MissingRegion, MissingVariable
 from ilamb3.regions import Regions
@@ -277,6 +279,40 @@ class runoff_sensitivty_analysis(ILAMBAnalysis):
 
         return df_com, ds_ref, ds_com
 
+    def plots(
+        self, ds_ref: xr.Dataset, dsd_com: dict[str, xr.Dataset]
+    ) -> dict[str, dict[str, plt.Figure]]:
+        """
+        Return figures of the reference and comparison data.
+
+        Parameters
+        ----------
+        ds_ref : xr.Dataset
+            The reference dataset.
+        dsd_com : dictionary of xr.Dataset
+            A dictionary of xr.Datasets whose keys are the comparisons (models).
+
+        Returns
+        -------
+        dict[str,dict[str,plt.Figure]]
+            A nested dictionary of matplotlib figures where the first level corresponds
+            to the source name and the second level the plot name.
+        """
+        limits = post.get_plot_limits(ds_ref, dsd_com)
+        # plots are about 10 [Mb] each, fine to override this warning
+        plt.rcParams["figure.max_open_warning"] = len(limits) * (len(dsd_com) + 1)
+        figs = {"Reference": {}}
+        for plot, da in ds_ref.items():
+            fig, _ = post.plot_space(da, vmin=limits[plot][0], vmax=limits[plot][1])
+            figs["Reference"][plot] = fig
+        for com, ds_com in dsd_com.items():
+            figs[com] = {}
+            for plot, da in ds_com.items():
+                fig, _ = post.plot_space(da, vmin=limits[plot][0], vmax=limits[plot][1])
+                figs[com][plot] = fig
+        plt.rcParams["figure.max_open_warning"] = 20
+        return figs
+
 
 if __name__ == "__main__":
 
@@ -303,6 +339,9 @@ if __name__ == "__main__":
     if not ref_file.is_file():
         analysis.sensitivity_frame.to_parquet(ref_file)
 
+    # Make plots
+    figs = analysis.plots(ds_ref, {"CanESM5": ds_com})
+
     # Hanjun's numbers for reference:
-    # - tas: -0.61410
-    # - pr: 1.233
+    #   tas: -0.61410
+    #   pr: 1.233
