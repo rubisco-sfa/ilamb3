@@ -131,7 +131,7 @@ def compute_runoff_sensitivity(
     return df
 
 
-class runoff_sensitivty_analysis(ILAMBAnalysis):
+class runoff_sensitivity_analysis(ILAMBAnalysis):
     """
     Runoff sensitivity to temperature and precipitation per river basin.
 
@@ -320,7 +320,7 @@ if __name__ == "__main__":
 
     # Initialize the analysis
     ref_file = Path("ref.parquet")
-    analysis = runoff_sensitivty_analysis(
+    analysis = runoff_sensitivity_analysis(
         basin_source="mrb_basins.nc",
         sensitivity_frame=ref_file if ref_file.is_file() else None,
         mrro_source="mrro | LORA",
