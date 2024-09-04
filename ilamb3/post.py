@@ -30,7 +30,7 @@ def get_plots(ds_ref: xr.Dataset, dsd_com: dict[str, xr.Dataset]) -> list[str]:
     """
     # Which plots do we find in both?
     plots = set(ds_ref)
-    plots.union(*[set(ds) for _, ds in dsd_com.items()])
+    plots = plots.union(*[set(ds) for _, ds in dsd_com.items()])
     return list(plots)
 
 
@@ -71,12 +71,14 @@ def get_plot_limits(
         plots = get_plots(ds_ref, dsd_com)
 
     limits = {key: [] for key in plots}
-    limits = {key: _append_finite(limits[key], ds_ref[key]) for key in ds_ref}
-    limits = {
-        key: _append_finite(limits[key], com[key])
-        for _, com in dsd_com.items()
-        for key in com
-    }
+    limits.update({key: _append_finite(limits[key], ds_ref[key]) for key in ds_ref})
+    limits.update(
+        {
+            key: _append_finite(limits[key], com[key])
+            for _, com in dsd_com.items()
+            for key in com
+        }
+    )
     limits = {
         key: np.quantile(np.hstack(arr), [outlier_fraction, 1 - outlier_fraction])
         for key, arr in limits.items()
