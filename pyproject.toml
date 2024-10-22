@@ -58,7 +58,6 @@ version_scheme = "no-guess-dev"
 local_scheme = "node-and-date"
 fallback_version = "0.0.0"
 write_to = "ilamb3/_version.py"
-write_to_template = '__version__ = "{version}"'
 
 [tool.pytest.ini_options]
 console_output_style = "count"
@@ -78,12 +77,12 @@ extend-exclude = [
   "doc",
 ]
 target-version = "py39"
-ignore = [
+lint.ignore = [
   "E402",
   "E501",
   "E731",
 ]
-select = [
+lint.select = [
   "F", # Pyflakes
   "E", # Pycodestyle
   "W",

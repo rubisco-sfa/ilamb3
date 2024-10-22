@@ -287,7 +287,7 @@ class relationship_analysis(ILAMBAnalysis):
                     analysis_name,
                     f"Score {var_dep} vs {var_ind}",
                     "score",
-                    "",
+                    "1",
                     score,
                 ]
             )

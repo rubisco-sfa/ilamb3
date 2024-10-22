@@ -3,6 +3,7 @@ from intake_esgf import ESGFCatalog
 from intake_esgf.exceptions import NoSearchResults
 
 from ilamb3.exceptions import VarNotInModel
+from ilamb3.models.base import Model
 
 
 def _create_cell_measures(ds: xr.Dataset, variable_id: str) -> xr.Dataset:
@@ -24,22 +25,33 @@ def _create_cell_measures(ds: xr.Dataset, variable_id: str) -> xr.Dataset:
     return ds
 
 
-class ModelESGF:
-    def __init__(self, source_id: str, variant_label: str, grid_label: str):
+class ModelESGF(Model):
+    def __init__(self, source_id: str, member_id: str, grid_label: str):
+        self.name = source_id
         self.search = dict(
             source_id=source_id,
-            variant_label=variant_label,
+            member_id=member_id,
             grid_label=grid_label,
-            experiment_id="historical",
-            frequency="mon",
         )
 
     def __repr__(self):
-        return f"{self.search['source_id']}|{self.search['variant_label']}|{self.search['grid_label']}"
+        return f"{self.search['source_id']}|{self.search['member_id']}|{self.search['grid_label']}"
 
-    def get_variable(self, variable_id: str, quiet: bool = True) -> xr.Dataset:
+    def get_variable(
+        self,
+        variable_id: str,
+        experiment_id: str = "historical",
+        frequency: str = "mon",
+        quiet: bool = True,
+    ) -> xr.Dataset:
         search = self.search.copy()
-        search.update({"variable_id": variable_id})
+        search.update(
+            {
+                "experiment_id": experiment_id,
+                "variable_id": variable_id,
+                "frequency": frequency,
+            }
+        )
         try:
             cat = ESGFCatalog().search(quiet=quiet, **search)
         except NoSearchResults:
