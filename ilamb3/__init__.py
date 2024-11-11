@@ -8,6 +8,7 @@ import xarray as xr
 from cf_xarray.units import units
 
 from ilamb3._version import __version__  # noqa
+from ilamb3.config import conf  # noqa
 
 # additional units that pint/cf-xarray does not handle
 units.define("kg = 1e3 * g")
@@ -29,5 +30,5 @@ def ilamb_catalog() -> intake.Catalog:
     )
 
 
-__all__ = ["dataset", "compare", "analysis", "regions", "ilamb_catalog"]
+__all__ = ["dataset", "compare", "analysis", "regions", "ilamb_catalog,", "conf"]
 xr.set_options(keep_attrs=True)

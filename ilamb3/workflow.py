@@ -1,6 +1,9 @@
+import logging
 import os
+import time
 import warnings
 from pathlib import Path
+from traceback import format_exc
 
 import pandas as pd
 import xarray as xr
@@ -33,9 +36,10 @@ def open_reference_data(key_or_path: str | Path) -> xr.Dataset:
     key_or_path = Path(key_or_path)
     if key_or_path.is_file():
         return xr.open_dataset(key_or_path)
-    root = Path(os.environ["ILAMB_ROOT"])
-    if (root / key_or_path).is_file():
-        return xr.open_dataset(root / key_or_path)
+    if "ILAMB_ROOT" in os.environ:
+        root = Path(os.environ["ILAMB_ROOT"])
+        if (root / key_or_path).is_file():
+            return xr.open_dataset(root / key_or_path)
     cat = ilamb3.ilamb_catalog()
     key_or_path = str(key_or_path)
     if key_or_path in cat:
@@ -45,21 +49,77 @@ def open_reference_data(key_or_path: str | Path) -> xr.Dataset:
     )
 
 
+def _warning_handler(message, category, filename, lineno, file=None, line=None):
+    logger = logging.getLogger(str(filename))
+    logger.setLevel(logging.WARNING)
+    file_handler = logging.FileHandler(filename)
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    logger.warning(message)
+
+
+def _get_logger(logfile: str) -> logging.Logger:
+
+    # Where will the log be written?
+    logfile = Path(logfile).expanduser()
+    logfile.parent.mkdir(parents=True, exist_ok=True)
+    if logfile.exists():
+        logfile.unlink()
+    logfile.touch()
+
+    # We need a named logger to avoid other packages that use the root logger
+    logger = logging.getLogger(str(logfile))
+    if not logger.handlers:
+        # Now setup the file into which we log relevant information
+        file_handler = logging.FileHandler(logfile)
+        file_handler.setFormatter(
+            logging.Formatter(
+                "[\x1b[36;20m%(asctime)s\033[0m][\x1b[36;20m%(levelname)s\033[0m] %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+        )
+        file_handler.setLevel(logging.INFO)
+        logger.addHandler(file_handler)
+    logger.setLevel(logging.INFO)
+
+    # This is probably wrong, but when I log from my logger it logs from parent also
+    logger.parent.handlers = []
+    return logger
+
+
 def work_model_data(work):
 
     # Unpack the work
     model, analysis_setup = work
 
-    # We will catch all warnings and then put them into the log file
-    with warnings.catch_warnings(record=True) as _:
-        warnings.simplefilter("always")
+    # Setup logging
+    logfile = (
+        Path(ilamb3.conf["build_dir"]) / (analysis_setup["path"]) / f"{model.name}.log"
+    )
+    logger = _get_logger(logfile)
 
-        # If a specialized analysis will be required, then it should be given in the
+    logger.info("Beginning analysis")
+    with warnings.catch_warnings(record=True) as recorded_warnings:
+        # If a specialized analysis will be required, then it should be specified in the
         # analysis_setup.
-        if "analysis" in analysis_setup:
-            raise NotImplementedError()
-        else:
-            df, ds_ref, ds_com = work_default_analysis(model, **analysis_setup)
+        try:
+            if "analysis" in analysis_setup:
+                raise NotImplementedError()
+            else:
+                analysis_time = time.time()
+                df, ds_ref, ds_com = work_default_analysis(model, **analysis_setup)
+                analysis_time = time.time() - analysis_time
+                logger.info(f"Analysis completed in {analysis_time:.1f} [s]")
+        except Exception:
+            logger.error(format_exc())
+            df = pd.DataFrame()
+            ds_ref = xr.Dataset()
+            ds_com = xr.Dataset()
+
+    # now dump the warnings
+    for w in recorded_warnings:
+        logger.warning(str(w.message))
 
     return df, ds_ref, ds_com
 

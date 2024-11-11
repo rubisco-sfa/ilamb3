@@ -294,3 +294,7 @@ class bias_analysis(ILAMBAnalysis):
         )
         dfs.attrs = dict(method=method)
         return dfs, ref_out, com_out
+
+    def plots(self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset]):
+
+        pass
