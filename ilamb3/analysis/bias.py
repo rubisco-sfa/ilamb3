@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+import ilamb3.plot as plt
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis
@@ -295,6 +296,27 @@ class bias_analysis(ILAMBAnalysis):
         dfs.attrs = dict(method=method)
         return dfs, ref_out, com_out
 
-    def plots(self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset]):
+    def plots(
+        self,
+        df: pd.DataFrame,
+        ref: xr.Dataset,
+        com: dict[str, xr.Dataset],
+        regions: list[str],
+    ):
 
-        pass
+        # plot_name, region, source
+        com["Reference"] = ref
+        df = plt.determine_plot_limits(com).set_index("name")
+        print(df)
+
+        axs = {
+            "mean": {
+                region: {
+                    source: plt.plot_map(ds["mean"], region=region)
+                    for source, ds in com.items()
+                }
+                for region in regions
+            },
+        }
+
+        return axs

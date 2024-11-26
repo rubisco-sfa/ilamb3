@@ -105,6 +105,28 @@ def get_coord_name(
     return str(coord_name.pop())
 
 
+def is_temporal(da: xr.DataArray) -> bool:
+    """
+    Return if the dataarray is temporal.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        The input dataarray.
+
+    Returns
+    -------
+    bool
+        True if time dimension is present, False otherwise.
+    """
+    try:
+        get_dim_name(da, "time")
+        return True
+    except KeyError:
+        pass
+    return False
+
+
 def is_spatial(da: xr.DataArray) -> bool:
     """
     Return if the dataarray is spatial.

@@ -59,6 +59,9 @@ local_scheme = "node-and-date"
 fallback_version = "0.0.0"
 write_to = "ilamb3/_version.py"
 
+[tool.setuptools.package-data]
+ilamb3 = ["templates/*.html"]
+
 [tool.pytest.ini_options]
 console_output_style = "count"
 addopts = "--cov=ilamb3 --cov-report=xml --verbose"

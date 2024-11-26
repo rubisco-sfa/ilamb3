@@ -1,74 +1,64 @@
 """Region definitions for use in the ILAMB system."""
 
 import os
-from typing import Literal, Union
+from typing import Union
 
 import numpy as np
 import xarray as xr
 
-
-def get_dim_name(
-    dset: Union[xr.Dataset, xr.DataArray], dim: Literal["time", "lat", "lon"]
-) -> str:
-    """Return the name of the `dim` dimension from the dataset.
-
-    Parameters
-    ----------
-    dset
-        The input dataset/dataarray.
-    dim
-        The dimension to find in the dataset/dataarray
-
-    Note
-    ----
-    Duplicate of function in ilamb3.database to avoid circular import.
-
-    """
-    dim_names = {
-        "time": ["time"],
-        "lat": ["lat", "latitude", "Latitude", "y"],
-        "lon": ["lon", "longitude", "Longitude", "x"],
-        "depth": ["depth"],
-    }
-    possible_names = dim_names[dim]
-    dim_name = set(dset.dims).intersection(possible_names)
-    if len(dim_name) != 1:
-        msg = f"{dim} dimension not found: {dset.dims}] "
-        msg += f"not in [{','.join(possible_names)}]"
-        raise KeyError(msg)
-    return str(dim_name.pop())
+import ilamb3.dataset as dset
 
 
 def restrict_to_bbox(
-    var: Union[xr.Dataset, xr.DataArray],
-    lat_name: str,
-    lon_name: str,
-    lat0: float,
-    latf: float,
-    lon0: float,
-    lonf: float,
+    da: xr.DataArray, lat0: float, latf: float, lon0: float, lonf: float
 ):
-    """Return the dataset selected to the nearest bounding box.
+    """Return the dataarray selected to the nearest bounding box.
 
     This is awkward because as of `v2023.6.0`, the `method` keyword cannot be used in
     slices. Note that this routine will sort the dimensions because slicing does not
     work well on unsorted indices.
-
     """
-    var = var.sortby(list(var.dims))
-    var = var.sel(
+    assert isinstance(da, xr.DataArray)
+    lat_name = dset.get_dim_name(da, "lat")
+    lon_name = dset.get_dim_name(da, "lon")
+    da = da.sortby(list(da.dims))
+    da = da.sel(
         {
             lat_name: slice(
-                var[lat_name].sel({lat_name: lat0}, method="nearest"),
-                var[lat_name].sel({lat_name: latf}, method="nearest"),
+                da[lat_name].sel({lat_name: lat0}, method="nearest"),
+                da[lat_name].sel({lat_name: latf}, method="nearest"),
             ),
             lon_name: slice(
-                var[lon_name].sel({lon_name: lon0}, method="nearest"),
-                var[lon_name].sel({lon_name: lonf}, method="nearest"),
+                da[lon_name].sel({lon_name: lon0}, method="nearest"),
+                da[lon_name].sel({lon_name: lonf}, method="nearest"),
             ),
         }
     )
-    return var
+    return da
+
+
+def restrict_to_region(da: xr.DataArray, dar: xr.DataArray):
+    """."""
+    assert isinstance(da, xr.DataArray)
+    lat_name = dset.get_dim_name(da, "lat")
+    lon_name = dset.get_dim_name(da, "lon")
+    rlat_name = dset.get_dim_name(dar, "lat")
+    rlon_name = dset.get_dim_name(dar, "lon")
+    dar = dar.rename({rlat_name: lat_name, rlon_name: lon_name})
+    return restrict_to_bbox(
+        xr.where(
+            dar.interp(
+                {lat_name: da[lat_name], lon_name: da[lon_name]},
+                method="nearest",
+            ),
+            da,
+            np.nan,
+        ),
+        dar[lat_name].min(),
+        dar[lat_name].max(),
+        dar[lon_name].min(),
+        dar[lon_name].max(),
+    )
 
 
 class Regions:
@@ -176,41 +166,32 @@ class Regions:
         var: Union[xr.Dataset, xr.DataArray],
         label: Union[str, None],
     ) -> Union[xr.Dataset, xr.DataArray]:
-        """Given the region label and a variable, return a mask."""
+        """Given the region label and a variable, return a mask.
+
+        ILAMB intermediate netCDF files can contain 2 grids defined by (lat,lon) and
+        (lat_,lon_, the composed grid). For this reason, we need to restrict to regions
+        one dataarray at a time.
+        """
         if label is None:
             return var
         rdata = Regions._regions[label]
         rtype = rdata[0]
-        lat_name = get_dim_name(var, "lat")
-        lon_name = get_dim_name(var, "lon")
         if rtype == 0:
             _, _, rlat, rlon = rdata
-            out = restrict_to_bbox(
-                var, lat_name, lon_name, rlat[0], rlat[1], rlon[0], rlon[1]
-            )
+            if isinstance(var, xr.DataArray):
+                out = restrict_to_bbox(var, rlat[0], rlat[1], rlon[0], rlon[1])
+            else:
+                out = {
+                    key: restrict_to_bbox(var[key], rlat[0], rlat[1], rlon[0], rlon[1])
+                    for key in var
+                }
             return out
         if rtype == 1:
             _, _, dar = rdata
-            rlat_name = get_dim_name(dar, "lat")
-            rlon_name = get_dim_name(dar, "lon")
-            dar = dar.rename({rlat_name: lat_name, rlon_name: lon_name})
-            out = xr.where(
-                dar.interp(
-                    {lat_name: var[lat_name], lon_name: var[lon_name]},
-                    method="nearest",
-                ),
-                var,
-                np.nan,
-            )
-            out = restrict_to_bbox(
-                out,
-                lat_name,
-                lon_name,
-                dar[lat_name].min(),
-                dar[lat_name].max(),
-                dar[lon_name].min(),
-                dar[lon_name].max(),
-            )
+            if isinstance(var, xr.DataArray):
+                out = restrict_to_region(var, dar)
+            else:
+                out = {key: restrict_to_region(var[key], dar) for key in var}
             return out
         raise ValueError(f"Region type #{rtype} not recognized")
 

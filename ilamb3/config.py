@@ -6,7 +6,9 @@ from pathlib import Path
 
 import yaml
 
-defaults = {"build_dir": "./_build"}
+defaults = {
+    "build_dir": "./_build",
+}
 
 
 class Config(dict):
