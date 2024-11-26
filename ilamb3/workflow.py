@@ -150,13 +150,7 @@ def load_local_assets(root: str | Path) -> tuple[pd.DataFrame, dict[str, xr.Data
 
 
 def post_model_data(analysis_setup):
-    """
-    - combine csv files, remove references
-    - read in netcdf files
-    - initialize analysis
-    - call post
-    - render html
-    """
+    """."""
     # Setup logging
     root = Path(ilamb3.conf["build_dir"]) / (analysis_setup["path"])
     logfile = root / "post.log"
@@ -169,46 +163,61 @@ def post_model_data(analysis_setup):
         post_time = time.time()
 
         # Load what we have in the local directory
-        df, com = load_local_assets(root)
-        ref = com.pop("Reference") if "Reference" in com else xr.Dataset()
+        try:
+            df, com = load_local_assets(root)
+            ref = com.pop("Reference") if "Reference" in com else xr.Dataset()
+        except Exception:
+            logger.error("An exception was encountered loading local assets.")
+            logger.error(format_exc())
+            return
 
-        # Make plots and load them into a dataframe
-        df_plots = []
-        for _, analysis in analyses.items():
-            if "plots" in dir(analysis):
-                df_plots += [analysis.plots(df, ref, com)]
-        df_plots = pd.concat(df_plots, ignore_index=True)
-
-        # Write plots
-        for _, row in df_plots.iterrows():
-            row["axis"].get_figure().savefig(
-                root / f"{row['source']}_{row['region']}_{row['name']}.png"
-            )
+        # Make plots and write plots
+        try:
+            df_plots = []
+            for _, analysis in analyses.items():
+                if "plots" in dir(analysis):
+                    df_plots += [analysis.plots(df, ref, com)]
+            df_plots = pd.concat(df_plots, ignore_index=True)
+            for _, row in df_plots.iterrows():
+                row["axis"].get_figure().savefig(
+                    root / f"{row['source']}_{row['region']}_{row['name']}.png"
+                )
+        except Exception:
+            logger.error("An exception was encountered creating plots")
+            logger.error(format_exc())
+            return
 
         # Write out html
-        df = df.reset_index(drop=True)
-        df["id"] = df.index
-        data = {
-            "page_header": "gpp | FLUXCOM | 1980-2013",
-            "model_names": [m for m in df["source"].unique() if m != "Reference"],
-            "regions": {
-                (None if key == "None" else key): (
-                    "All Data" if key == "None" else ilamb_regions.get_name(key)
-                )
-                for key in df["region"].unique()
-            },
-            "analyses": list(df["analysis"].unique()),
-            "data_information": {
-                "Title": "FLUXCOM (RS+METEO) Global Land Carbon Fluxes using CRUNCEP climate data",
-                "Institutions": "Department Biogeochemical Integration, Max Planck Institute for Biogeochemistry, Germany",
-                "Version": "1",
-            },
-            "table_data": str(
-                [row.to_dict() for _, row in df.drop(columns="units").iterrows()]
-            ),
-        }
-        template = open(Path(ilamb3.__path__[0]) / "templates/dataset_page.html").read()
-        open(root / "index.html", mode="w").write(Template(template).render(data))
+        try:
+            df = df.reset_index(drop=True)
+            df["id"] = df.index
+            data = {
+                "page_header": ref.attrs["header"] if "header" in ref.attrs else "",
+                "model_names": [m for m in df["source"].unique() if m != "Reference"],
+                "regions": {
+                    (None if key == "None" else key): (
+                        "All Data" if key == "None" else ilamb_regions.get_name(key)
+                    )
+                    for key in df["region"].unique()
+                },
+                "analyses": list(df["analysis"].unique()),
+                "data_information": {
+                    key.capitalize(): ref.attrs[key]
+                    for key in ["title", "institutions", "version"]
+                    if key in ref.attrs
+                },
+                "table_data": str(
+                    [row.to_dict() for _, row in df.drop(columns="units").iterrows()]
+                ),
+            }
+            template = open(
+                Path(ilamb3.__path__[0]) / "templates/dataset_page.html"
+            ).read()
+            open(root / "index.html", mode="w").write(Template(template).render(data))
+        except Exception:
+            logger.error("An exception was encountered creating the html page.")
+            logger.error(format_exc())
+            return
 
         post_time = time.time() - post_time
         logger.info(f"Post-processing completed in {post_time:.1f} [s]")
@@ -282,6 +291,10 @@ def work_default_analysis(model: Model, **analysis_setup):
 
     # Get reference data
     ref = {v: open_reference_data(s) for v, s in (sources | relationships).items()}
+    header = f"{variable} | {Path(analysis_setup['path']).name}"
+    if dset.is_temporal(ref[variable]):
+        header += f" | {ref[variable]['time'].dt.year.min():d}-{ref[variable]['time'].dt.year.max():d}"
+    attrs = ref[variable].attrs
     if relationships:
         # Interpolate relationships to the reference grid
         lat = ref[variable][dset.get_dim_name(ref[variable], "lat")]
@@ -321,6 +334,8 @@ def work_default_analysis(model: Model, **analysis_setup):
     dfs["source"] = dfs["source"].str.replace("Comparison", model.name)
     ds_ref = xr.merge(ds_refs).pint.dequantify()
     ds_com = xr.merge(ds_coms).pint.dequantify()
+    ds_ref.attrs = attrs
+    ds_ref.attrs["header"] = header
 
     return dfs, ds_ref, ds_com
 
