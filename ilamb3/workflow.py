@@ -172,10 +172,18 @@ def post_model_data(analysis_setup):
         df, com = load_local_assets(root)
         ref = com.pop("Reference") if "Reference" in com else xr.Dataset()
 
-        # Make plots
+        # Make plots and load them into a dataframe
+        df_plots = []
         for _, analysis in analyses.items():
             if "plots" in dir(analysis):
-                analysis.plots(df, ref, com, df["region"].unique())
+                df_plots += [analysis.plots(df, ref, com)]
+        df_plots = pd.concat(df_plots, ignore_index=True)
+
+        # Write plots
+        for _, row in df_plots.iterrows():
+            row["axis"].get_figure().savefig(
+                root / f"{row['source']}_{row['region']}_{row['name']}.png"
+            )
 
         # Write out html
         df = df.reset_index(drop=True)
@@ -199,8 +207,8 @@ def post_model_data(analysis_setup):
                 [row.to_dict() for _, row in df.drop(columns="units").iterrows()]
             ),
         }
-        template = open(Path(ilamb3.__path__) / "templates/dataset_page.html").read()
-        open("tmp.html", mode="w").write(Template(template).render(data))
+        template = open(Path(ilamb3.__path__[0]) / "templates/dataset_page.html").read()
+        open(root / "index.html", mode="w").write(Template(template).render(data))
 
         post_time = time.time() - post_time
         logger.info(f"Post-processing completed in {post_time:.1f} [s]")
@@ -224,8 +232,13 @@ def setup_analyses(**analysis_setup) -> dict[str, ILAMBAnalysis]:
     variable = list(sources.keys())[0]
 
     # Setup the default analysis
+    cmap = (
+        analysis_setup.pop("variable_cmap")
+        if "variable_cmap" in analysis_setup
+        else "viridis"
+    )
     analyses = {
-        name: a(variable)
+        name: a(variable, variable_cmap=cmap)
         for name, a in DEFAULT_ANALYSES.items()
         if analysis_setup.get(f"skip_{name}", False) is False
     }
@@ -250,8 +263,13 @@ def work_default_analysis(model: Model, **analysis_setup):
     variable = list(sources.keys())[0]
 
     # Setup the default analysis
+    cmap = (
+        analysis_setup.pop("variable_cmap")
+        if "variable_cmap" in analysis_setup
+        else "viridis"
+    )
     analyses = {
-        name: a(variable)
+        name: a(variable, variable_cmap=cmap)
         for name, a in DEFAULT_ANALYSES.items()
         if analysis_setup.get(f"skip_{name}", False) is False
     }

@@ -29,6 +29,8 @@ class bias_analysis(ILAMBAnalysis):
     ----------
     required_variable : str
         The name of the variable to be used in this analysis.
+    variable_cmap : str
+        The colormap to use in plots of the comparison variable, optional.
 
     Methods
     -------
@@ -38,8 +40,11 @@ class bias_analysis(ILAMBAnalysis):
         The method
     """
 
-    def __init__(self, required_variable: str):  # numpydoc ignore=GL08
+    def __init__(
+        self, required_variable: str, variable_cmap: str = "viridis"
+    ):  # numpydoc ignore=GL08
         self.req_variable = required_variable
+        self.cmap = variable_cmap
 
     def required_variables(self) -> list[str]:
         """
@@ -196,7 +201,7 @@ class bias_analysis(ILAMBAnalysis):
         if use_uncertainty:
             ref_out["uncert"] = uncert
         com_out = bias.to_dataset(name="bias")
-        com_out["bias_score"] = score
+        com_out["biasscore"] = score
         try:
             lat_name = dset.get_dim_name(com_mean, "lat")
             lon_name = dset.get_dim_name(com_mean, "lon")
@@ -262,7 +267,7 @@ class bias_analysis(ILAMBAnalysis):
                 ]
             )
             # Bias Score
-            bias_scalar_score = _scalar(com_out, "bias_score", region, True, True)
+            bias_scalar_score = _scalar(com_out, "biasscore", region, True, True)
             with warnings.catch_warnings():
                 warnings.filterwarnings(
                     "ignore", "divide by zero encountered in divide", RuntimeWarning
@@ -301,22 +306,40 @@ class bias_analysis(ILAMBAnalysis):
         df: pd.DataFrame,
         ref: xr.Dataset,
         com: dict[str, xr.Dataset],
-        regions: list[str],
-    ):
+    ) -> pd.DataFrame:
 
-        # plot_name, region, source
+        # Some initialization
+        regions = [None if r == "None" else r for r in df["region"].unique()]
         com["Reference"] = ref
-        df = plt.determine_plot_limits(com).set_index("name")
-        print(df)
 
-        axs = {
-            "mean": {
-                region: {
-                    source: plt.plot_map(ds["mean"], region=region)
-                    for source, ds in com.items()
-                }
-                for region in regions
-            },
-        }
+        # Setup plot data
+        df = plt.determine_plot_limits(com).set_index("name")
+        df.loc["mean", "cmap"] = self.cmap
+        df.loc["bias", "cmap"] = "seismic"
+        df.loc["biasscore", "cmap"] = "plasma"
+
+        # Build up a dataframe of matplotlib axes
+        axs = [
+            {
+                "name": plot,
+                "region": region,
+                "source": source,
+                "axis": (
+                    plt.plot_map(
+                        ds[plot],
+                        region=region,
+                        vmin=df.loc[plot, "low"],
+                        vmax=df.loc[plot, "high"],
+                        cmap=df.loc[plot, "cmap"],
+                    )
+                    if plot in ds
+                    else pd.NA
+                ),
+            }
+            for plot in df.index
+            for source, ds in com.items()
+            for region in regions
+        ]
+        axs = pd.DataFrame(axs).dropna(subset=["axis"])
 
         return axs

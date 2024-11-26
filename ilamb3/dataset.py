@@ -93,8 +93,8 @@ def get_coord_name(
     get_dim_name : A variant when the coordinate is a dimension.
     """
     coord_names = {
-        "lat": ["lat", "latitude", "Latitude", "y"],
-        "lon": ["lon", "longitude", "Longitude", "x"],
+        "lat": ["lat", "latitude", "Latitude", "y", "lat_"],
+        "lon": ["lon", "longitude", "Longitude", "x", "lon_"],
     }
     possible_names = coord_names[coord]
     coord_name = set(dset.coords).intersection(possible_names)

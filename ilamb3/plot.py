@@ -115,7 +115,9 @@ def plot_map(da: xr.DataArray, **kwargs):
 
 
 def determine_plot_limits(
-    dsd: xr.Dataset | dict[str, xr.Dataset], percent_pad: float = 1.0
+    dsd: xr.Dataset | dict[str, xr.Dataset],
+    percent_pad: float = 1.0,
+    symmetrize: list[str] = ["bias"],
 ) -> pd.DataFrame:
     """Return a dataframe with the plot minima and maxima."""
     if isinstance(dsd, xr.Dataset):
@@ -138,5 +140,10 @@ def determine_plot_limits(
             ),
             [percent_pad * 0.01, 1 - percent_pad * 0.01],
         )
+        # symmetrize
+        if plot in symmetrize:
+            vmax = max(np.abs(data))
+            data[0] = -vmax
+            data[1] = vmax
         out.append({"name": plot, "low": data[0], "high": data[1]})
     return pd.DataFrame(out)
