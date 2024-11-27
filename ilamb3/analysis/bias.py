@@ -314,9 +314,9 @@ class bias_analysis(ILAMBAnalysis):
 
         # Setup plot data
         df = plt.determine_plot_limits(com).set_index("name")
-        df.loc["mean", "cmap"] = self.cmap
-        df.loc["bias", "cmap"] = "seismic"
-        df.loc["biasscore", "cmap"] = "plasma"
+        df.loc["mean", ["cmap", "title"]] = [self.cmap, "Period Mean"]
+        df.loc["bias", ["cmap", "title"]] = ["seismic", "Bias"]
+        df.loc["biasscore", ["cmap", "title"]] = ["plasma", "Bias Score"]
 
         # Build up a dataframe of matplotlib axes
         axs = [
@@ -331,6 +331,7 @@ class bias_analysis(ILAMBAnalysis):
                         vmin=df.loc[plot, "low"],
                         vmax=df.loc[plot, "high"],
                         cmap=df.loc[plot, "cmap"],
+                        title=source + " " + df.loc[plot, "title"],
                     )
                     if plot in ds
                     else pd.NA

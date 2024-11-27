@@ -484,12 +484,12 @@ def run_study(study_setup: str, model_setup: str):
         if not _is_complete(w, ilamb3.conf["build_dir"])
     ]
 
-    # Phase I
+    # Phase 1: analysis
     if work_list:
         with MPIPoolExecutor() as executor:
             results = tqdm(
                 executor.map(work_model_data, work_list),
-                bar_format="{desc:>28}: {percentage:3.0f}%|{bar}|{n_fmt}/{total_fmt} [{rate_fmt:>15s}{postfix}]",
+                bar_format="{desc:>28}: {percentage:3.0f}%|{bar}|{n_fmt}/{total_fmt} [{rate_fmt:>15s} {postfix}]",
                 desc="Analysis of Model-Data Pairs",
                 unit="pair",
                 total=len(work_list),
@@ -500,7 +500,7 @@ def run_study(study_setup: str, model_setup: str):
     with MPIPoolExecutor() as executor:
         results = tqdm(
             executor.map(post_model_data, analyses_list),
-            bar_format="{desc:>28}: {percentage:3.0f}%|{bar}|{n_fmt}/{total_fmt} [{rate_fmt:>15s}{postfix}]",
+            bar_format="{desc:>28}: {percentage:3.0f}%|{bar}|{n_fmt}/{total_fmt} [{rate_fmt:>15s} {postfix}]",
             desc="Post-processing",
             unit="analysis",
             total=len(analyses_list),

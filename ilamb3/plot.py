@@ -36,7 +36,6 @@ def pick_projection(extents: list[float]) -> tuple[ccrs.Projection, float]:
 
 def finalize_plot(ax: plt.Axes, extents: list[float]) -> plt.Axes:
     """Add some final features to our plots."""
-    ax.set_title("")  # We don't want xarray's title
     ax.add_feature(
         cfeature.NaturalEarthFeature(
             "physical", "land", "110m", edgecolor="face", facecolor="0.875"
@@ -66,6 +65,7 @@ def plot_map(da: xr.DataArray, **kwargs):
 
     # Process some options
     kwargs["cmap"] = plt.get_cmap(kwargs["cmap"] if "cmap" in kwargs else "viridis", 9)
+    title = kwargs.pop("title") if "title" in kwargs else ""
 
     # Process region if given
     ilamb_regions = Regions()
@@ -109,7 +109,7 @@ def plot_map(da: xr.DataArray, **kwargs):
         )
     else:
         raise ValueError("plotting error")
-
+    ax.set_title(title)
     ax = finalize_plot(ax, extents)
     return ax
 
