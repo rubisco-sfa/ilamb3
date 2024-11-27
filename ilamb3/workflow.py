@@ -341,7 +341,7 @@ def work_default_analysis(model: Model, **analysis_setup):
     ds_coms = []
     for name, a in analyses.items():
         try:
-            df, ds_ref, ds_com = a(ref, com)
+            df, ds_ref, ds_com = a(ref, com, regions=ilamb3.conf["regions"])
         except Exception:
             raise AnalysisFailure(name, variable, "?", model.name)
         dfs.append(df)

@@ -293,12 +293,12 @@ All
 {% for aname,analysis in analyses.items() %}
 <div id="div{{aname}}">
 <br><h2>{{aname}}</h2>
-{% for pname,plot in analysis.items() %}
-{% for item in plot %}
+{% for pname,plot in analysis.items() -%}
+{% for item in plot -%}
 {% for mname,pattern in item.items() %}
 <img id="{{pname}}_{{mname}}" src="{{pattern}}" width="49%">
-{% endfor %}
-{% endfor %}
+{% endfor -%}
+{% endfor -%}
 {% endfor %}
 </div>
 {% endfor %}

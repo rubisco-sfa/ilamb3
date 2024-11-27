@@ -5,8 +5,8 @@ from typing import Any, Literal, Union
 import numpy as np
 import xarray as xr
 
+import ilamb3.regions as ilreg
 from ilamb3.exceptions import NoSiteDimension
-from ilamb3.regions import Regions
 
 
 def get_dim_name(
@@ -550,7 +550,7 @@ def integrate_space(
     only be done in a single dimension at a time.
     """
     if region is not None:
-        regions = Regions()
+        regions = ilreg.Regions()
         dset = regions.restrict_to_region(dset, region)
     space = [get_dim_name(dset, "lat"), get_dim_name(dset, "lon")]
     if not isinstance(dset, xr.Dataset):

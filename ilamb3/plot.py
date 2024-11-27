@@ -30,7 +30,7 @@ def pick_projection(extents: list[float]) -> tuple[ccrs.Projection, float]:
     else:
         aspect_ratio = max(extents[1], extents[0]) - min(extents[1], extents[0])
         aspect_ratio /= max(extents[3], extents[2]) - min(extents[3], extents[2])
-        proj = ccrs.PlateCarree(central_longitude=extents[:2].mean())
+        proj = ccrs.PlateCarree(central_longitude=np.array(extents)[:2].mean())
     return proj, aspect_ratio
 
 

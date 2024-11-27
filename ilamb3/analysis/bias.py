@@ -114,7 +114,6 @@ class bias_analysis(ILAMBAnalysis):
         varname = self.req_variable
         if use_uncertainty and "bounds" not in ref[varname].attrs:
             use_uncertainty = False
-
         # Checks on the database if it is being used
         if method == "RegionalQuantiles":
             check_quantile_database(quantile_dbase)

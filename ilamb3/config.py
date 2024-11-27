@@ -6,8 +6,11 @@ from pathlib import Path
 
 import yaml
 
+import ilamb3.regions as reg
+
 defaults = {
     "build_dir": "./_build",
+    "regions": [None],
 }
 
 
@@ -50,11 +53,20 @@ class Config(dict):
         self,
         *,
         build_dir: str | None = None,
+        regions: list[str] | None = None,
     ):
         """Change ilamb3 configuration options."""
         temp = copy.deepcopy(self)
         if build_dir is not None:
             self["build_dir"] = str(build_dir)
+        if regions is not None:
+            ilamb_regions = reg.Regions()
+            does_not_exist = set(regions) - set(ilamb_regions._regions) - set([None])
+            if does_not_exist:
+                raise ValueError(
+                    f"Cannot run ILAMB over these regions [{list(does_not_exist)}] which are not registered in our system [{list(ilamb_regions._regions)}]"
+                )
+            self["regions"] = regions
         return self._unset(temp)
 
     def __getitem__(self, item):
