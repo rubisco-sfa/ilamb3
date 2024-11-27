@@ -85,7 +85,7 @@ body {
 </style>
 <script src="https://cdn.plot.ly/plotly-2.4.2.min.js"></script>
 <script>
-  var atypes = {{analyses}};
+  var atypes = {{analysis_list}};
   var tableData = {{table_data}};
   function updateImages() {
     var rsel  = document.getElementById("SelectRegion");
@@ -94,9 +94,9 @@ body {
     var MNAME = msel.options[msel.selectedIndex].value;
     var psel  = document.getElementById("SelectPlot");
     var PNAME = psel.options[psel.selectedIndex].value;
-    var ref_plots = ["timeint", "phase", "sd"];
+    var ref_plots = {{ref_plots}};
     ref_plots.forEach((x, i) => document.getElementById(x + '_Reference').src = 'Reference_' + RNAME + '_' + x + '.png');
-    var mod_plots = ["timeint", "phase", "bias", "biasscore", "rmse", "crmse", "rmsescore", "shift", "shiftscore"];
+    var mod_plots = {{mod_plots}};
     mod_plots.forEach((x, i) => document.getElementById(x + '_Model').src = MNAME + '_' + RNAME + '_' + x + '.png');
     var models = {{model_names}};
     models.forEach((x, i) => document.getElementById(x).src =  x + '_' + RNAME + '_' + PNAME + '.png');
@@ -289,9 +289,16 @@ All
 </div>
 
 <!--- Analyses -->
-{% for name in analyses %}
-<div id="div{{name}}">
-<br><h2>{{name}}</h2>
+{% for aname,analysis in analyses.items() %}
+<div id="div{{aname}}">
+<br><h2>{{aname}}</h2>
+{% for pname,plot in analysis.items() %}
+{% for item in plot %}
+{% for mname,pattern in item.items() %}
+<img id="{{pname}}_{{mname}}" src="{{pattern}}" width="49%">
+{% endfor %}
+{% endfor %}
+{% endfor %}
 </div>
 {% endfor %}
 

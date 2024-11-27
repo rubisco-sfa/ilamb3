@@ -337,7 +337,7 @@ class bias_analysis(ILAMBAnalysis):
                     else pd.NA
                 ),
             }
-            for plot in df.index
+            for plot in ["mean", "bias", "biasscore"]
             for source, ds in com.items()
             for region in regions
         ]

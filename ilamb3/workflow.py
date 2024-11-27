@@ -25,7 +25,7 @@ from ilamb3.exceptions import AnalysisFailure
 from ilamb3.models.base import Model
 from ilamb3.regions import Regions
 
-DEFAULT_ANALYSES = {"bias": anl.bias_analysis}
+DEFAULT_ANALYSES = {"Bias": anl.bias_analysis}
 
 
 def open_reference_data(key_or_path: str | Path) -> xr.Dataset:
@@ -174,9 +174,11 @@ def post_model_data(analysis_setup):
         # Make plots and write plots
         try:
             df_plots = []
-            for _, analysis in analyses.items():
+            for aname, analysis in analyses.items():
                 if "plots" in dir(analysis):
-                    df_plots += [analysis.plots(df, ref, com)]
+                    dfp = analysis.plots(df, ref, com)
+                    dfp["analysis"] = aname
+                    df_plots += [dfp]
             df_plots = pd.concat(df_plots, ignore_index=True)
             for _, row in df_plots.iterrows():
                 row["axis"].get_figure().savefig(
@@ -187,20 +189,37 @@ def post_model_data(analysis_setup):
             logger.error(format_exc())
             return
 
+        # Setup template analyses and plots
+        analyses = {analysis: {} for analysis in df["analysis"].unique()}
+        for (aname, pname), df_grp in df_plots.groupby(
+            ["analysis", "name"], sort=False
+        ):
+            analyses[aname][pname] = []
+            if "Reference" in df_grp["source"].unique():
+                analyses[aname][pname] += [
+                    {"Reference": f"Reference_RNAME_{pname}.png"}
+                ]
+            analyses[aname][pname] += [{"Model": f"MNAME_RNAME_{pname}.png"}]
+        ref_plots = list(df_plots[df_plots["source"] == "Reference"]["name"].unique())
+        mod_plots = list(df_plots[df_plots["source"] != "Reference"]["name"].unique())
+
         # Write out html
         try:
             df = df.reset_index(drop=True)
             df["id"] = df.index
             data = {
                 "page_header": ref.attrs["header"] if "header" in ref.attrs else "",
+                "analysis_list": list(analyses.keys()),
                 "model_names": [m for m in df["source"].unique() if m != "Reference"],
+                "ref_plots": ref_plots,
+                "mod_plots": mod_plots,
                 "regions": {
                     (None if key == "None" else key): (
                         "All Data" if key == "None" else ilamb_regions.get_name(key)
                     )
                     for key in df["region"].unique()
                 },
-                "analyses": list(df["analysis"].unique()),
+                "analyses": analyses,
                 "data_information": {
                     key.capitalize(): ref.attrs[key]
                     for key in ["title", "institutions", "version"]
@@ -249,7 +268,7 @@ def setup_analyses(**analysis_setup) -> dict[str, ILAMBAnalysis]:
     analyses = {
         name: a(variable, variable_cmap=cmap)
         for name, a in DEFAULT_ANALYSES.items()
-        if analysis_setup.get(f"skip_{name}", False) is False
+        if analysis_setup.get(f"skip_{name.lower()}", False) is False
     }
     analyses.update(
         {
@@ -280,7 +299,7 @@ def work_default_analysis(model: Model, **analysis_setup):
     analyses = {
         name: a(variable, variable_cmap=cmap)
         for name, a in DEFAULT_ANALYSES.items()
-        if analysis_setup.get(f"skip_{name}", False) is False
+        if analysis_setup.get(f"skip_{name.lower()}", False) is False
     }
     analyses.update(
         {
