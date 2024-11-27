@@ -322,6 +322,7 @@ class bias_analysis(ILAMBAnalysis):
         axs = [
             {
                 "name": plot,
+                "title": df.loc[plot, "title"],
                 "region": region,
                 "source": source,
                 "axis": (

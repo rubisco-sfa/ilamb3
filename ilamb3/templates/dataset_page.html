@@ -92,14 +92,15 @@ body {
     var RNAME = rsel.options[rsel.selectedIndex].value;
     var msel  = document.getElementById("SelectModel");
     var MNAME = msel.options[msel.selectedIndex].value;
-    var psel  = document.getElementById("SelectPlot");
-    var PNAME = psel.options[psel.selectedIndex].value;
-    var ref_plots = {{ref_plots}};
-    ref_plots.forEach((x, i) => document.getElementById(x + '_Reference').src = 'Reference_' + RNAME + '_' + x + '.png');
-    var mod_plots = {{mod_plots}};
-    mod_plots.forEach((x, i) => document.getElementById(x + '_Model').src = MNAME + '_' + RNAME + '_' + x + '.png');
-    var models = {{model_names}};
-    models.forEach((x, i) => document.getElementById(x).src =  x + '_' + RNAME + '_' + PNAME + '.png');
+{% for aname,analysis in analyses.items() -%}
+{% for pname,plot in analysis.items() -%}
+{% for item in plot -%}
+{%- for mname,pattern in item.items() %}
+    document.getElementById("{{pname}}_{{mname}}").src = "{{pattern}}".replace("MNAME",MNAME).replace("RNAME",RNAME);
+{%- endfor -%}
+{% endfor -%}
+{% endfor -%}
+{% endfor %}
   };
   function formatterValue(cell, formatterParams, onRendered) {
     if (isNaN(Number.parseFloat(cell.getValue()))) {
@@ -213,7 +214,7 @@ body {
 <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
 <span>Model</span>
 </h6>
-<select id="SelectModel" class="form-select" aria-label="ModelSelect" onclick="UpdateImages()">
+<select id="SelectModel" class="form-select" aria-label="ModelSelect" onclick="updateImages()">
 {% for name in model_names %}
 <option value="{{name}}">{{name}}</option>
 {% endfor %}
@@ -223,7 +224,7 @@ body {
 <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
 <span>Region</span>
 </h6>
-<select id="SelectRegion" class="form-select" aria-label="RegionSelect" onclick="UpdateImages()">
+<select id="SelectRegion" class="form-select" aria-label="RegionSelect" onclick="updateImages()">
 {% for label, name in regions.items() %}
 <option value="{{label}}">{{name}}</option>
 {% endfor %}
@@ -307,6 +308,10 @@ All
   <br><h2>All Models</h2>
 </div>
 
+<script>
+  clickAnalysis("Overview");
+  updateImages();
+</script>
 </main>
 
 </div>
