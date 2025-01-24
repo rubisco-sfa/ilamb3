@@ -5,8 +5,8 @@ from typing import Any, Literal
 import numpy as np
 import xarray as xr
 
+import ilamb3.regions as ilreg
 from ilamb3.exceptions import NoSiteDimension
-from ilamb3.regions import Regions
 
 
 def get_dim_name(
@@ -93,8 +93,8 @@ def get_coord_name(
     get_dim_name : A variant when the coordinate is a dimension.
     """
     coord_names = {
-        "lat": ["lat", "latitude", "Latitude", "y"],
-        "lon": ["lon", "longitude", "Longitude", "x"],
+        "lat": ["lat", "latitude", "Latitude", "y", "lat_"],
+        "lon": ["lon", "longitude", "Longitude", "x", "lon_"],
     }
     possible_names = coord_names[coord]
     coord_name = set(dset.coords).intersection(possible_names)
@@ -103,6 +103,28 @@ def get_coord_name(
         msg += f"not in [{','.join(possible_names)}]"
         raise KeyError(msg)
     return str(coord_name.pop())
+
+
+def is_temporal(da: xr.DataArray) -> bool:
+    """
+    Return if the dataarray is temporal.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        The input dataarray.
+
+    Returns
+    -------
+    bool
+        True if time dimension is present, False otherwise.
+    """
+    try:
+        get_dim_name(da, "time")
+        return True
+    except KeyError:
+        pass
+    return False
 
 
 def is_spatial(da: xr.DataArray) -> bool:
@@ -528,7 +550,7 @@ def integrate_space(
     only be done in a single dimension at a time.
     """
     if region is not None:
-        regions = Regions()
+        regions = ilreg.Regions()
         dset = regions.restrict_to_region(dset, region)
     space = [get_dim_name(dset, "lat"), get_dim_name(dset, "lon")]
     if not isinstance(dset, xr.Dataset):

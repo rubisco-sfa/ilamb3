@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+import ilamb3.plot as plt
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis
@@ -28,6 +29,8 @@ class bias_analysis(ILAMBAnalysis):
     ----------
     required_variable : str
         The name of the variable to be used in this analysis.
+    variable_cmap : str
+        The colormap to use in plots of the comparison variable, optional.
 
     Methods
     -------
@@ -37,8 +40,11 @@ class bias_analysis(ILAMBAnalysis):
         The method
     """
 
-    def __init__(self, required_variable: str):  # numpydoc ignore=GL08
+    def __init__(
+        self, required_variable: str, variable_cmap: str = "viridis"
+    ):  # numpydoc ignore=GL08
         self.req_variable = required_variable
+        self.cmap = variable_cmap
 
     def required_variables(self) -> list[str]:
         """
@@ -108,7 +114,6 @@ class bias_analysis(ILAMBAnalysis):
         varname = self.req_variable
         if use_uncertainty and "bounds" not in ref[varname].attrs:
             use_uncertainty = False
-
         # Checks on the database if it is being used
         if method == "RegionalQuantiles":
             check_quantile_database(quantile_dbase)
@@ -195,7 +200,7 @@ class bias_analysis(ILAMBAnalysis):
         if use_uncertainty:
             ref_out["uncert"] = uncert
         com_out = bias.to_dataset(name="bias")
-        com_out["bias_score"] = score
+        com_out["biasscore"] = score
         try:
             lat_name = dset.get_dim_name(com_mean, "lat")
             lon_name = dset.get_dim_name(com_mean, "lon")
@@ -261,7 +266,7 @@ class bias_analysis(ILAMBAnalysis):
                 ]
             )
             # Bias Score
-            bias_scalar_score = _scalar(com_out, "bias_score", region, True, True)
+            bias_scalar_score = _scalar(com_out, "biasscore", region, True, True)
             with warnings.catch_warnings():
                 warnings.filterwarnings(
                     "ignore", "divide by zero encountered in divide", RuntimeWarning
@@ -294,3 +299,48 @@ class bias_analysis(ILAMBAnalysis):
         )
         dfs.attrs = dict(method=method)
         return dfs, ref_out, com_out
+
+    def plots(
+        self,
+        df: pd.DataFrame,
+        ref: xr.Dataset,
+        com: dict[str, xr.Dataset],
+    ) -> pd.DataFrame:
+
+        # Some initialization
+        regions = [None if r == "None" else r for r in df["region"].unique()]
+        com["Reference"] = ref
+
+        # Setup plot data
+        df = plt.determine_plot_limits(com).set_index("name")
+        df.loc["mean", ["cmap", "title"]] = [self.cmap, "Period Mean"]
+        df.loc["bias", ["cmap", "title"]] = ["seismic", "Bias"]
+        df.loc["biasscore", ["cmap", "title"]] = ["plasma", "Bias Score"]
+
+        # Build up a dataframe of matplotlib axes
+        axs = [
+            {
+                "name": plot,
+                "title": df.loc[plot, "title"],
+                "region": region,
+                "source": source,
+                "axis": (
+                    plt.plot_map(
+                        ds[plot],
+                        region=region,
+                        vmin=df.loc[plot, "low"],
+                        vmax=df.loc[plot, "high"],
+                        cmap=df.loc[plot, "cmap"],
+                        title=source + " " + df.loc[plot, "title"],
+                    )
+                    if plot in ds
+                    else pd.NA
+                ),
+            }
+            for plot in ["mean", "bias", "biasscore"]
+            for source, ds in com.items()
+            for region in regions
+        ]
+        axs = pd.DataFrame(axs).dropna(subset=["axis"])
+
+        return axs

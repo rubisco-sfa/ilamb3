@@ -33,6 +33,7 @@ dependencies = [
     "scipy>=1.15.1",
     "matplotlib>=3.10.0",
     "cartopy>=0.24.1",
+    "pyyaml>=6.0.2",
 ]
 
 [dependency-groups]
@@ -65,7 +66,9 @@ version_scheme = "no-guess-dev"
 local_scheme = "node-and-date"
 fallback_version = "0.0.0"
 write_to = "ilamb3/_version.py"
-write_to_template = '__version__ = "{version}"'
+
+[tool.setuptools.package-data]
+ilamb3 = ["templates/*.html"]
 
 [tool.pytest.ini_options]
 console_output_style = "count"
