@@ -651,7 +651,7 @@ wheels = [
 
 [[package]]
 name = "ilamb3"
-version = "2024.5.31.post1.dev7+ge2d377f.d20250124"
+version = "2024.5.31.post1.dev19+g7fa5efe.d20250124"
 source = { editable = "." }
 dependencies = [
     { name = "cartopy" },
@@ -662,6 +662,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pint-xarray" },
     { name = "pooch" },
+    { name = "pyyaml" },
     { name = "scipy" },
     { name = "xarray" },
 ]
@@ -691,6 +692,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "pint-xarray", specifier = ">=0.4" },
     { name = "pooch", specifier = ">=1.8.2" },
+    { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "scipy", specifier = ">=1.15.1" },
     { name = "xarray", specifier = ">=2025.1.1" },
 ]

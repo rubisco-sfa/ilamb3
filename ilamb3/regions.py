@@ -180,17 +180,23 @@ class Regions:
             if isinstance(var, xr.DataArray):
                 out = restrict_to_bbox(var, rlat[0], rlat[1], rlon[0], rlon[1])
             else:
-                out = {
-                    key: restrict_to_bbox(var[key], rlat[0], rlat[1], rlon[0], rlon[1])
-                    for key in var
-                }
+                out = xr.Dataset(
+                    {
+                        key: restrict_to_bbox(
+                            var[key], rlat[0], rlat[1], rlon[0], rlon[1]
+                        )
+                        for key in var
+                    }
+                )
             return out
         if rtype == 1:
             _, _, dar = rdata
             if isinstance(var, xr.DataArray):
                 out = restrict_to_region(var, dar)
             else:
-                out = {key: restrict_to_region(var[key], dar) for key in var}
+                out = xr.Dataset(
+                    {key: restrict_to_region(var[key], dar) for key in var}
+                )
             return out
         raise ValueError(f"Region type #{rtype} not recognized")
 
