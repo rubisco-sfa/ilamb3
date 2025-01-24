@@ -1,8 +1,9 @@
 from pathlib import Path
 
-import intake
 import numpy as np
+import xarray as xr
 
+import ilamb3
 from ilamb3.regions import Regions
 from ilamb3.tests.test_dataset import generate_test_dset
 
@@ -15,10 +16,8 @@ def test_basic():
 
 def test_netcdf():
     # can we add regions via a dataset?
-    cat = intake.open_catalog(
-        "https://raw.githubusercontent.com/nocollier/intake-ilamb/main/ilamb.yaml"
-    )
-    dsr = cat["regions_global_land | ILAMB"].read()
+    cat = ilamb3.ilamb_catalog()
+    dsr = xr.open_dataset(cat.fetch("regions/GlobalLand.nc"))
     reg = Regions()
     lbl = reg.add_netcdf(dsr)
     assert "global" in lbl
