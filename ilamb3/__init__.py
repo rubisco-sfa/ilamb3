@@ -2,8 +2,10 @@
 
 # import these packages so that units via pint will be possible once anything
 # from ilamb is imported.
-import intake
+import importlib
+
 import pint_xarray  # noqa
+import pooch
 import xarray as xr
 from cf_xarray.units import units
 
@@ -15,18 +17,29 @@ units.define("Mg = 1e6 * g")
 units.define("Pg = 1e15 * g")
 
 
-def ilamb_catalog() -> intake.Catalog:
+def ilamb_catalog() -> pooch.Pooch:
     """
-    Return the intake ilamb reference data catalog.
+    Return the pooch ilamb reference data catalog.
 
     Returns
     -------
-    intake.Catalog
+    pooch.Pooch
         The intake ilamb reference data catalog.
     """
-    return intake.open_catalog(
-        "https://raw.githubusercontent.com/nocollier/intake-ilamb/main/ilamb.yaml"
+
+    _ILAMB_DATA_VERSION = (
+        "0.1"  # we don't really have data versions for the collection :/
     )
+    registry = pooch.create(
+        path=pooch.os_cache("ilamb3"),
+        base_url="https://www.ilamb.org/ILAMB-Data/DATA",
+        version=_ILAMB_DATA_VERSION,
+        env="ILAMB_ROOT",
+    )
+    registry.load_registry(
+        importlib.resources.open_binary("ilamb3.registry", "ilamb.txt")
+    )
+    return registry
 
 
 __all__ = ["dataset", "compare", "analysis", "regions", "ilamb_catalog"]
