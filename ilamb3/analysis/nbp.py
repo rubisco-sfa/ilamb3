@@ -6,8 +6,6 @@ See Also
 ILAMBAnalysis : The abstract base class from which this derives.
 """
 
-from typing import Union
-
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -47,7 +45,7 @@ class nbp_analysis(ILAMBAnalysis):
         return ["nbp"]
 
     def __call__(
-        self, ref: xr.Dataset, com: xr.Dataset, evaluation_year: Union[int, None] = None
+        self, ref: xr.Dataset, com: xr.Dataset, evaluation_year: int | None = None
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
         """
         Apply the ILAMB bias methodology on the given datasets.

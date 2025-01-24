@@ -7,7 +7,7 @@ ILAMBAnalysis : The abstract base class from which this derives.
 """
 
 import warnings
-from typing import Literal, Union
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -56,11 +56,11 @@ class bias_analysis(ILAMBAnalysis):
         ref: xr.Dataset,
         com: xr.Dataset,
         method: Literal["Collier2018", "RegionalQuantiles"] = "Collier2018",
-        regions: list[Union[str, None]] = [None],
+        regions: list[str | None] = [None],
         use_uncertainty: bool = True,
         spatial_sum: bool = False,
         mass_weighting: bool = False,
-        quantile_dbase: Union[pd.DataFrame, None] = None,
+        quantile_dbase: pd.DataFrame | None = None,
         quantile_threshold: int = 70,
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
         """

@@ -1,6 +1,6 @@
 """Convenience functions which operate on datasets."""
 
-from typing import Any, Literal, Union
+from typing import Any, Literal
 
 import numpy as np
 import xarray as xr
@@ -10,7 +10,7 @@ from ilamb3.regions import Regions
 
 
 def get_dim_name(
-    dset: Union[xr.Dataset, xr.DataArray],
+    dset: xr.Dataset | xr.DataArray,
     dim: Literal["time", "lat", "lon", "depth", "site"],
 ) -> str:
     """
@@ -70,7 +70,7 @@ def get_dim_name(
 
 
 def get_coord_name(
-    dset: Union[xr.Dataset, xr.DataArray],
+    dset: xr.Dataset | xr.DataArray,
     coord: Literal["lat", "lon"],
 ) -> str:
     """
@@ -163,7 +163,7 @@ def is_site(da: xr.DataArray) -> bool:
 
 
 def get_time_extent(
-    dset: Union[xr.Dataset, xr.DataArray]
+    dset: xr.Dataset | xr.DataArray,
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """
     Return the time extent of the dataset/dataarray.
@@ -190,7 +190,7 @@ def get_time_extent(
     return time.min(), time.max()
 
 
-def compute_time_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray:
+def compute_time_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     """
     Return the length of each time interval.
 
@@ -236,7 +236,7 @@ def compute_time_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray
     return measure
 
 
-def compute_cell_measures(dset: Union[xr.Dataset, xr.DataArray]) -> xr.DataArray:
+def compute_cell_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     """
     Return the area of each spatial cell.
 
@@ -366,8 +366,8 @@ def coarsen_dataset(dset: xr.Dataset, res: float = 0.5) -> xr.Dataset:
 
 
 def integrate_time(
-    dset: Union[xr.Dataset, xr.DataArray],
-    varname: Union[str, None] = None,
+    dset: xr.Dataset | xr.DataArray,
+    varname: str | None = None,
     mean: bool = False,
 ) -> xr.DataArray:
     """
@@ -418,8 +418,8 @@ def integrate_time(
 
 
 def accumulate_time(
-    dset: Union[xr.Dataset, xr.DataArray],
-    varname: Union[str, None] = None,
+    dset: xr.Dataset | xr.DataArray,
+    varname: str | None = None,
 ) -> xr.DataArray:
     """
     Return the time accumulation of the dataset.
@@ -456,7 +456,7 @@ def accumulate_time(
 
 
 def std_time(
-    dset: Union[xr.Dataset, xr.DataArray], varname: Union[str, None] = None
+    dset: xr.Dataset | xr.DataArray, varname: str | None = None
 ) -> xr.DataArray:
     """
     Return the standard deviation of a variable in time.
@@ -489,11 +489,11 @@ def std_time(
 
 
 def integrate_space(
-    dset: Union[xr.DataArray, xr.Dataset],
+    dset: xr.DataArray | xr.Dataset,
     varname: str,
-    region: Union[None, str] = None,
+    region: None | str = None,
     mean: bool = False,
-    weight: Union[xr.DataArray, None] = None,
+    weight: xr.DataArray | None = None,
 ) -> xr.DataArray:
     """
     Return the space integral or mean of the dataset.
@@ -625,8 +625,8 @@ def sel(dset: xr.Dataset, coord: str, cmin: Any, cmax: Any) -> xr.Dataset:
 
 
 def integrate_depth(
-    dset: Union[xr.Dataset, xr.DataArray],
-    varname: Union[str, None] = None,
+    dset: xr.Dataset | xr.DataArray,
+    varname: str | None = None,
     mean: bool = False,
 ) -> xr.DataArray:
     """
@@ -704,10 +704,10 @@ def scale_by_water_density(da: xr.DataArray, target: str) -> xr.DataArray:
 
 
 def convert(
-    dset: Union[xr.Dataset, xr.DataArray],
+    dset: xr.Dataset | xr.DataArray,
     unit: str,
-    varname: Union[str, None] = None,
-) -> Union[xr.Dataset, xr.DataArray]:
+    varname: str | None = None,
+) -> xr.Dataset | xr.DataArray:
     """
     Convert the units of the dataarray.
 

@@ -3,7 +3,6 @@ An abstract class for implementing analysis functions used in ILAMB.
 """
 
 from abc import ABC, abstractmethod
-from typing import Union
 
 import pandas as pd
 import xarray as xr
@@ -21,7 +20,7 @@ class ILAMBAnalysis(ABC):
     """
 
     @abstractmethod
-    def required_variables(self) -> Union[list[str], dict[str, list[str]]]:
+    def required_variables(self) -> list[str] | dict[str, list[str]]:
         """
         Return the variables used in this analysis.
 
