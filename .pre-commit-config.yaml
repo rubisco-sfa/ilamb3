@@ -17,7 +17,3 @@ repos:
     rev: 24.4.2
     hooks:
       - id: black
-  - repo: https://github.com/numpy/numpydoc
-    rev: v1.7.0
-    hooks:
-      - id: numpydoc-validation

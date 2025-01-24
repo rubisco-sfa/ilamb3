@@ -1,14 +1,14 @@
 """Region definitions for use in the ILAMB system."""
 
 import os
-from typing import Literal, Union
+from typing import Literal
 
 import numpy as np
 import xarray as xr
 
 
 def get_dim_name(
-    dset: Union[xr.Dataset, xr.DataArray], dim: Literal["time", "lat", "lon"]
+    dset: xr.Dataset | xr.DataArray, dim: Literal["time", "lat", "lon"]
 ) -> str:
     """Return the name of the `dim` dimension from the dataset.
 
@@ -40,7 +40,7 @@ def get_dim_name(
 
 
 def restrict_to_bbox(
-    var: Union[xr.Dataset, xr.DataArray],
+    var: xr.Dataset | xr.DataArray,
     lat_name: str,
     lon_name: str,
     lat0: float,
@@ -113,7 +113,7 @@ class Regions:
         Regions._regions[label] = [rtype, name, lats, lons]
         Regions._sources[label] = source
 
-    def add_netcdf(self, netcdf: Union[str, xr.Dataset]) -> list[str]:
+    def add_netcdf(self, netcdf: str | xr.Dataset) -> list[str]:
         """Add regions found in a netCDF file or dataset.
 
         Region formatting guidelines can be found
@@ -173,9 +173,9 @@ class Regions:
 
     def restrict_to_region(
         self,
-        var: Union[xr.Dataset, xr.DataArray],
-        label: Union[str, None],
-    ) -> Union[xr.Dataset, xr.DataArray]:
+        var: xr.Dataset | xr.DataArray,
+        label: str | None,
+    ) -> xr.Dataset | xr.DataArray:
         """Given the region label and a variable, return a mask."""
         if label is None:
             return var

@@ -9,10 +9,10 @@ classifiers = [
   "Intended Audience :: Science/Research",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering",
 ]
 description = "Earth system model benchmarking"
@@ -82,9 +82,10 @@ exclude_lines = ["pragma: no cover"]
 
 [tool.ruff]
 extend-exclude = [
-  "doc",
+  "docs",
 ]
-target-version = "py39"
+target-version = "py310"
+[tool.ruff.lint]
 ignore = [
   "E402",
   "E501",
@@ -99,7 +100,7 @@ select = [
   "UP", # Pyupgrade
 ]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["ilamb3"]
 
 [tool.numpydoc_validation]

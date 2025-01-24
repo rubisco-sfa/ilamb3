@@ -651,7 +651,7 @@ wheels = [
 
 [[package]]
 name = "ilamb3"
-version = "2024.5.31.post1.dev7+g22223f4.d20250124"
+version = "2024.5.31.post1.dev7+ge2d377f.d20250124"
 source = { editable = "." }
 dependencies = [
     { name = "cartopy" },

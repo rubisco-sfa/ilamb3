@@ -238,7 +238,7 @@ class relationship_analysis(ILAMBAnalysis):
         self,
         ref: xr.Dataset,
         com: xr.Dataset,
-        regions: list[Union[str, None]] = [None],
+        regions: list[str | None] = [None],
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
         """
         Apply the ILAMB relationship methodology on the given datasets.
