@@ -1,7 +1,5 @@
 """Functions for preparing datasets for comparison."""
 
-from typing import Union
-
 import numpy as np
 import xarray as xr
 
@@ -94,8 +92,8 @@ def is_spatially_aligned(dsa: xr.Dataset, dsb: xr.Dataset) -> bool:
 def pick_grid_aligned(
     ref0: xr.Dataset,
     com0: xr.Dataset,
-    ref: Union[xr.Dataset, None] = None,
-    com: Union[xr.Dataset, None] = None,
+    ref: xr.Dataset | None = None,
+    com: xr.Dataset | None = None,
 ) -> tuple[xr.Dataset, xr.Dataset]:
     """Return a reference and comparison dataset that is spatially grid-aligned.
 
@@ -292,5 +290,5 @@ def rename_dims(*args):
         return out
 
     for arg in args:
-        assert isinstance(arg, (xr.DataArray, xr.Dataset))
+        assert isinstance(arg, xr.DataArray | xr.Dataset)
     return [arg.rename(_populate_renames(arg)) for arg in args]

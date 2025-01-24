@@ -1,7 +1,6 @@
 """Region definitions for use in the ILAMB system."""
 
 import os
-from typing import Union
 
 import numpy as np
 import xarray as xr
@@ -103,7 +102,7 @@ class Regions:
         Regions._regions[label] = [rtype, name, lats, lons]
         Regions._sources[label] = source
 
-    def add_netcdf(self, netcdf: Union[str, xr.Dataset]) -> list[str]:
+    def add_netcdf(self, netcdf: str | xr.Dataset) -> list[str]:
         """Add regions found in a netCDF file or dataset.
 
         Region formatting guidelines can be found
@@ -163,9 +162,9 @@ class Regions:
 
     def restrict_to_region(
         self,
-        var: Union[xr.Dataset, xr.DataArray],
-        label: Union[str, None],
-    ) -> Union[xr.Dataset, xr.DataArray]:
+        var: xr.Dataset | xr.DataArray,
+        label: str | None,
+    ) -> xr.Dataset | xr.DataArray:
         """Given the region label and a variable, return a mask.
 
         ILAMB intermediate netCDF files can contain 2 grids defined by (lat,lon) and

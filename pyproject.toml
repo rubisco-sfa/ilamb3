@@ -1,4 +1,3 @@
-
 [project]
 authors = [
   {name = "Nathan Collier", email = "nathaniel.collier@gmail.com"},
@@ -10,10 +9,10 @@ classifiers = [
   "Intended Audience :: Science/Research",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering",
 ]
 description = "Earth system model benchmarking"
@@ -21,27 +20,35 @@ dynamic = ["version"]
 license = {text = "BSD-3-Clause"}
 name = "ilamb3"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 dependencies = [
-  "numpy",
-  "xarray",
-  "pint-xarray",
-  "cf_xarray",
-  "pandas",
-  "intake",
+    "cf-xarray>=0.10.0",
+    "numpy>=2.2.2",
+    "pandas>=2.2.3",
+    "pint-xarray>=0.4",
+    "xarray>=2025.1.1",
+    "netcdf4>=1.7.2",
+    "pooch>=1.8.2",
+    "scipy>=1.15.1",
+    "matplotlib>=3.10.0",
+    "cartopy>=0.24.1",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-  "pre-commit",
   "pytest",
   "pytest-cov",
-  "ruff",
 ]
-
-[project.urls]
-source-code = "https://github.com/rubisco-sfa/ilamb3"
+doc = [
+    "furo>=2024.8.6",
+    "ipython>=8.31.0",
+    "myst-nb>=1.1.2",
+    "numpydoc>=1.8.0",
+    "sphinx-autodoc-typehints>=3.0.1",
+    "sphinx-autosummary-accessors>=2023.4.0",
+    "sphinx-copybutton>=0.5.2",
+]
 
 [build-system]
 build-backend = "setuptools.build_meta"
@@ -77,15 +84,16 @@ exclude_lines = ["pragma: no cover"]
 
 [tool.ruff]
 extend-exclude = [
-  "doc",
+  "docs",
 ]
-target-version = "py39"
-lint.ignore = [
+target-version = "py310"
+[tool.ruff.lint]
+ignore = [
   "E402",
   "E501",
   "E731",
 ]
-lint.select = [
+select = [
   "F", # Pyflakes
   "E", # Pycodestyle
   "W",
@@ -94,7 +102,7 @@ lint.select = [
   "UP", # Pyupgrade
 ]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-first-party = ["ilamb3"]
 
 [tool.numpydoc_validation]
