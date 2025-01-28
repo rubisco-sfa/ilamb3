@@ -48,13 +48,7 @@ def nest_spatial_grids(*args):
     for arg in args:
         lat_name = dset.get_dim_name(arg, "lat")
         lon_name = dset.get_dim_name(arg, "lon")
-        # the interp function will strip the units off the args, so we do some pint
-        # gymnastics to avoid warnings
-        iarg = (
-            arg.pint.dequantify()
-            .interp({lat_name: lat, lon_name: lon}, method="nearest")
-            .pint.quantify()
-        )
+        iarg = arg.interp({lat_name: lat, lon_name: lon}, method="nearest")
         # if 'bounds' existed, they will now be interpolated and incorrect
         for dim_name in [lat_name, lon_name]:
             dim = iarg[dim_name]
@@ -207,10 +201,12 @@ def make_comparable(
     if dset.is_site(ref[varname]):
         com = extract_sites(ref, com, varname)
 
-    # convert units, will read in memory so do this last
-    ref = ref.pint.quantify()
-    com = dset.convert(com, ref[varname].pint.units, varname=varname)
+    # convert units
+    com = dset.convert(com, ref[varname].attrs["units"], varname=varname)
 
+    # load into memory
+    ref.load()
+    com.load()
     return ref, com
 
 

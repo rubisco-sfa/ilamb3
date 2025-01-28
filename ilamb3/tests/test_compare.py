@@ -40,9 +40,7 @@ def test_nest_spatial_grids():
     ds1 = ds1.cf.add_bounds("lat")
     ds1_, ds2_ = cmp.nest_spatial_grids(ds1, ds2)
     assert cmp.is_spatially_aligned(ds1_, ds2_)
-    assert np.allclose(
-        (ds1_ - ds2_).pint.dequantify().sum()["da"].values, -6.06395917e-08
-    )
+    assert np.allclose((ds1_ - ds2_).sum()["da"], -6.06395917e-08)
     dsa, dsb = cmp.pick_grid_aligned(ds1, ds2, ds1_, ds2_)
     xr.testing.assert_allclose(dsa, ds1_)
     xr.testing.assert_allclose(dsb, ds2_)

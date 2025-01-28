@@ -121,7 +121,7 @@ class bias_analysis(ILAMBAnalysis):
                 quantile_map = create_quantile_map(
                     quantile_dbase, varname, "bias", quantile_threshold
                 )
-                dset.convert(quantile_map, ref[varname].pint.units)
+                dset.convert(quantile_map, ref[varname].attrs["units"])
             except NoDatabaseEntry:
                 # fallback if the variable/type/quantile is not in the database
                 method = "Collier2018"
@@ -130,10 +130,10 @@ class bias_analysis(ILAMBAnalysis):
         if method == "RegionalQuantiles":
             mass_weighting = False
 
-        # Temporal means across the time period
+        # Make the variables comparable and force loading into memory
         ref, com = cmp.make_comparable(ref, com, varname)
-        ref.pint.dequantify().load().pint.quantify()
-        com.pint.dequantify().load().pint.quantify()
+
+        # Temporal means across the time period
         ref_mean = (
             dset.integrate_time(ref, varname, mean=True)
             if "time" in ref[varname].dims
@@ -147,9 +147,10 @@ class bias_analysis(ILAMBAnalysis):
 
         # Get the reference data uncertainty
         uncert = xr.zeros_like(ref_mean)
+        uncert.attrs["units"] = ref[varname].attrs["units"]
         if use_uncertainty:
             uncert = ref[ref[varname].attrs["bounds"]]
-            uncert.attrs["units"] = ref[varname].pint.units
+            uncert.attrs["units"] = ref[varname].attrs["units"]
             uncert = (
                 dset.integrate_time(uncert, mean=True)
                 if "time" in uncert.dims
@@ -182,11 +183,9 @@ class bias_analysis(ILAMBAnalysis):
         if method == "Collier2018":
             score = np.exp(-(np.abs(bias) - uncert_).clip(0) / norm_)
         elif method == "RegionalQuantiles":
-            quantile_map = quantile_map.pint.dequantify()
             norm = quantile_map.interp(
                 lat=bias["lat"], lon=bias["lon"], method="nearest"
             )
-            norm = norm.pint.quantify()
             score = (1 - (np.abs(bias) - uncert_).clip(0) / norm).clip(0, 1)
         else:
             msg = (
@@ -230,9 +229,9 @@ class bias_analysis(ILAMBAnalysis):
                 site_dim = dset.get_dim_name(da, "site")
                 da = da.pint.dequantify()
                 da = da.mean(dim=site_dim)
-                da = da.pint.quantify()
             else:
                 raise ValueError(f"Input is neither spatial nor site: {da}")
+            da = da.pint.quantify()
             return da
 
         # Compute scalars over all regions

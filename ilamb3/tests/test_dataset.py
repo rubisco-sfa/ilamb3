@@ -38,7 +38,7 @@ def generate_test_dset_with_depth(seed: int = 1):
             ),
         }
     )
-    ds["da"].attrs["units"] = "kg m-2 s-1"
+    ds["da"].attrs["units"] = "kg m-3 s-1"
     return ds
 
 
@@ -97,7 +97,6 @@ def test_compute_time_measures():
 def test_coarsen_dataset():
     ds = generate_test_dset()
     ds = dset.coarsen_dataset(ds, res=90.0)
-    ds = ds.pint.dequantify()
     assert np.allclose(ds["da"].values[0, 0, 0], 2.51093204e-09)
 
 
@@ -105,44 +104,44 @@ def test_integrate_time_and_space():
     ds = generate_test_dset()
     da = dset.integrate_space(dset.integrate_time(ds, "da"), "da")
     da = dset.convert(da, "Pg")
-    assert np.isclose(da.pint.dequantify(), 31.53474998108379)
+    assert np.isclose(da, 31.53474998108379)
     da = dset.integrate_time(dset.integrate_space(ds, "da", region="euro"), "da")
     da = dset.convert(da, "Pg")
-    assert np.isclose(da.pint.dequantify(), 8.370451774151613)
+    assert np.isclose(da, 8.370451774151613)
 
 
 def test_integrate_space_weighted():
     ds = generate_test_dset()
     wgt = ds["da"].sum(dim="time")
     da = dset.integrate_space(ds, "da", weight=wgt)
-    assert np.isclose(da.pint.dequantify().sum(), 0.30301439)
+    assert np.isclose(da.sum(), 0.30301439)
 
 
-def test_integreate_depth():
+def test_integrate_depth():
     ds = generate_test_dset_with_depth()
     ds = dset.integrate_space(
         dset.integrate_time(dset.integrate_depth(ds, "da"), "da"), "da"
     )
     ds = ds.to_dataset(name="da")
     ds = dset.convert(ds, "Pg", varname="da")
-    assert np.allclose(ds["da"].pint.dequantify().values, 1002.990371115)
+    assert np.allclose(ds["da"], 1002.990371115)
 
 
 def test_mean():
     ds = generate_test_dset()
     da = dset.integrate_space(dset.integrate_time(ds["da"], mean=True), "da", mean=True)
     da = dset.convert(da, "g m-2 d-1")
-    assert np.isclose(da.pint.dequantify(), 0.4121668497188348)
+    assert np.isclose(da, 0.4121668497188348)
 
 
 def test_std():
     ds = generate_test_dset()
     da = dset.std_time(ds["da"])
-    da = da.pint.dequantify().sum()
-    assert np.isclose(da.pint.dequantify(), 4.343761009115869e-08)
+    da = da.sum()
+    assert np.isclose(da, 4.343761009115869e-08)
     da = dset.std_time(ds, varname="da")
-    da = da.pint.dequantify().sum()
-    assert np.isclose(da.pint.dequantify(), 4.343761009115869e-08)
+    da = da.sum()
+    assert np.isclose(da, 4.343761009115869e-08)
 
 
 def test_sel():
@@ -157,19 +156,16 @@ def test_sel():
 def test_scale_water():
     da = xr.DataArray(1.0)
     da.attrs["units"] = "kg m-2 s-1"
-    da = da.pint.quantify()
     da = dset.scale_by_water_density(da, "mm d-1")
-    assert np.allclose(da.values, 1 / 998.2071)
+    assert np.allclose(da.pint.dequantify(), 1 / 998.2071)  # dequantify needed
     da = xr.DataArray(1.0)
     da.attrs["units"] = "mm d-1"
-    da = da.pint.quantify()
     da = dset.scale_by_water_density(da, "kg m-2 s-1")
-    assert np.allclose(da.values, 998.2071)
+    assert np.allclose(da.pint.dequantify(), 998.2071)
     da = xr.DataArray(1.0)
     da.attrs["units"] = "kg m-2"
-    da = da.pint.quantify()
     da = dset.scale_by_water_density(da, "mm d-1")
-    assert np.allclose(da.values, 1)
+    assert np.allclose(da.pint.dequantify(), 1)
 
 
 def test_is_spatial_or_site():

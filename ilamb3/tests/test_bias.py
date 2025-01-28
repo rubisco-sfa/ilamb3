@@ -50,7 +50,6 @@ def test_bias_collier2018(use_uncertainty: bool, mass_weighting: bool, score: fl
         mass_weighting=mass_weighting,
     )
     df = df[df["type"] == "score"]
-    print(df.iloc[0].value)
     assert len(df) == 1
     assert np.allclose(df.iloc[0].value, score)
 
@@ -61,7 +60,6 @@ def test_bias_site_collier2018():
     analysis = bias_analysis("da")
     df, _, _ = analysis(ref, com)
     df = df[df["type"] == "score"]
-    print(df.iloc[0].value)
     assert len(df) == 1
     assert np.allclose(df.iloc[0].value, 0.665078089592162)
 

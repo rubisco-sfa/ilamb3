@@ -36,5 +36,4 @@ def create_quantile_map(
         {row["region"]: row["value"] for _, row in q.iterrows()}
     )
     scalar_map.attrs["units"] = q.iloc[0]["unit"]
-    scalar_map = scalar_map.pint.quantify()
     return scalar_map
