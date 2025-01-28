@@ -241,7 +241,7 @@ def compute_time_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
         delt = time.diff(dim="time").to_numpy().astype(float) * 1e-9 / 3600 / 24
         delt = np.hstack([delt[0], delt, delt[-1]])
         msr = xr.DataArray(0.5 * (delt[:-1] + delt[1:]), coords=[time], dims=["time"])
-        msr = msr.pint.quantify("d")
+        msr.attrs["units"] = "d"
         return msr
 
     time_name = get_dim_name(dset, "time")
@@ -254,7 +254,7 @@ def compute_time_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     nbnd = delt.dims[-1]
     delt = delt.diff(nbnd).squeeze().compute()
     measure = delt.astype("float") * 1e-9 / 86400  # [ns] to [d]
-    measure = measure.pint.quantify("d")
+    measure.attrs["units"] = "d"
     return measure
 
 
@@ -299,7 +299,6 @@ def compute_cell_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
         dely = earth_radius * dely.diff(other_dims).squeeze()  # type: ignore
         msr = dely * delx
         msr.attrs["units"] = "m2"
-        msr = msr.pint.quantify()
         return msr
     # ...and if they aren't, we assume the lat/lon we have is a cell centroid
     # and compute the area.
@@ -331,7 +330,6 @@ def compute_cell_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     )
     msr = dely * delx
     msr.attrs["units"] = "m2"
-    msr = msr.pint.quantify()
     return msr
 
 
@@ -433,10 +431,13 @@ def integrate_time(
     else:
         var = dset
         msr = compute_time_measures(dset)
-    var = var.pint.quantify()
     if mean:
         return var.weighted(msr.fillna(0)).mean(dim=time_name)
-    return var.weighted(msr.fillna(0)).sum(dim=time_name)
+    var = var.pint.quantify()
+    msr = msr.pint.quantify()
+    out = var.weighted(msr.fillna(0)).sum(dim=time_name)
+    out = out.pint.dequantify()
+    return out
 
 
 def accumulate_time(
@@ -470,10 +471,8 @@ def accumulate_time(
     else:
         var = dset
         msr = compute_time_measures(dset)
-    var = var.pint.quantify() * msr
-    var = var.pint.dequantify()
+    var = (var.pint.quantify() * msr.pint.quantify()).pint.dequantify()
     var = var.cumsum(dim=time_name)
-    var = var.pint.quantify()
     return var
 
 
@@ -506,7 +505,6 @@ def std_time(
     else:
         var = dset
         msr = compute_time_measures(dset)
-    var = var.pint.quantify()
     return var.weighted(msr.fillna(0)).std(dim=time_name)
 
 
@@ -549,6 +547,7 @@ def integrate_space(
     However, as of `v2023.6.0`, this does not handle the `pint` units correctly, and can
     only be done in a single dimension at a time.
     """
+    dset = dset.pint.dequantify()
     if region is not None:
         regions = ilreg.Regions()
         dset = regions.restrict_to_region(dset, region)
@@ -561,14 +560,9 @@ def integrate_space(
         if "cell_measures" in dset
         else compute_cell_measures(dset)
     )
-    # As of v2023.6.0, weighted sums drop units from pint if the weights are
-    # over *all* the dimensions of the dataarray. Will do some pint gymnastics
-    # to avoid the issue.
-    var = var.pint.dequantify()
-    msr = msr.pint.dequantify()
     if weight is not None:
         assert isinstance(weight, xr.DataArray)
-        msr = msr * weight.pint.dequantify()
+        msr = (msr.pint.quantify() * weight.pint.quantify()).pint.dequantify()
     out = var.weighted(msr.fillna(0))
     if mean:
         out = out.mean(dim=space)
@@ -576,7 +570,7 @@ def integrate_space(
     else:
         out = out.sum(dim=space)
         out.attrs["units"] = f"({var.attrs['units']})*({msr.attrs['units']})"
-    return out.pint.quantify()
+    return out
 
 
 def sel(dset: xr.Dataset, coord: str, cmin: Any, cmax: Any) -> xr.Dataset:
@@ -673,7 +667,7 @@ def integrate_depth(
         dset = dset.to_dataset(name=varname)
     else:
         assert varname is not None
-    var = dset[varname].pint.quantify()
+    var = dset[varname]
 
     # do we have a depth dimension
     if "depth" not in dset.dims:
@@ -683,12 +677,22 @@ def integrate_depth(
     if "bounds" not in dset["depth"].attrs or dset["depth"].attrs["bounds"] not in dset:
         dset = dset.cf.add_bounds("depth")
 
-    # compute measures and integrate
+    # compute measures
     msr = dset[dset["depth"].attrs["bounds"]]
     msr = msr.diff(dim=msr.dims[-1])
+    msr.attrs["units"] = (
+        dset["depth"].attrs["units"] if "units" in dset["depth"].attrs else "m"
+    )
+
+    # integrate
+    out = var.weighted(msr.fillna(0))
     if mean:
-        return var.weighted(msr.fillna(0)).mean(dim="depth")
-    return var.weighted(msr.fillna(0)).sum(dim="depth")
+        out = out.mean(dim="depth")
+        out.attrs["units"] = var.attrs["units"]
+    else:
+        out = out.sum(dim="depth")
+        out.attrs["units"] = f"({var.attrs['units']})*({msr.attrs['units']})"
+    return out
 
 
 def scale_by_water_density(da: xr.DataArray, target: str) -> xr.DataArray:
@@ -714,6 +718,7 @@ def scale_by_water_density(da: xr.DataArray, target: str) -> xr.DataArray:
     s-1` to `mm d-1`. This is possible if scaled by the density of water which we do
     here conditionally if needed. Used by our `convert()` routine.
     """
+    da = da.pint.quantify()
     ureg = da.pint.registry
     water_density = 998.2071 * ureg.kilogram / ureg.meter**3
     src = 1.0 * da.pint.units
@@ -756,8 +761,9 @@ def convert(
     da = scale_by_water_density(da, unit)
     da = da.pint.to(unit)
     if isinstance(dset, xr.DataArray):
-        return da
+        return da.pint.dequantify()
     dset[varname] = da
+    dset = dset.pint.dequantify()
     return dset
 
 
@@ -781,11 +787,8 @@ def coarsen_annual(dset: xr.Dataset) -> xr.Dataset:
         bounds = dset[time_name].attrs["bounds"]
         if bounds in dset:
             dset = dset.drop_vars(bounds)
-    # groupby + weighted does not work so we do this.
-    dset = dset.pint.dequantify()
     msr = compute_time_measures(dset).pint.dequantify()
     ann = (dset * msr).groupby(f"{time_name}.year").sum() / msr.groupby(
         f"{time_name}.year"
     ).sum()
-    ann = ann.pint.quantify()
     return ann
