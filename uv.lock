@@ -651,11 +651,12 @@ wheels = [
 
 [[package]]
 name = "ilamb3"
-version = "2024.5.31.post1.dev9+g1c32151"
+version = "2024.5.31.post1.dev10+g1997577.d20250128"
 source = { editable = "." }
 dependencies = [
     { name = "cartopy" },
     { name = "cf-xarray" },
+    { name = "jinja2" },
     { name = "matplotlib" },
     { name = "netcdf4" },
     { name = "numpy" },
@@ -686,6 +687,7 @@ doc = [
 requires-dist = [
     { name = "cartopy", specifier = ">=0.24.1" },
     { name = "cf-xarray", specifier = ">=0.10.0" },
+    { name = "jinja2", specifier = ">=3.1.5" },
     { name = "matplotlib", specifier = ">=3.10.0" },
     { name = "netcdf4", specifier = ">=1.7.2" },
     { name = "numpy", specifier = ">=2.2.2" },

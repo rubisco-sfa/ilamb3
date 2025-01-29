@@ -257,6 +257,10 @@ def extract_sites(
         + (ds_site[lon_site] - ds_spatial[lon_spatial]) ** 2
     )
     assert (dist < model_res).all()
+
+    # Set these are coordinates though so that we can tell this is site data
+    ds_spatial = ds_spatial.set_coords([lat_spatial, lon_spatial])
+
     return ds_spatial
 
 

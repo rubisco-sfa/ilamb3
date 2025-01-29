@@ -43,5 +43,13 @@ def ilamb_catalog() -> pooch.Pooch:
     return registry
 
 
-__all__ = ["dataset", "compare", "analysis", "regions", "ilamb_catalog,", "conf"]
+__all__ = [
+    "dataset",
+    "compare",
+    "analysis",
+    "regions",
+    "output",
+    "ilamb_catalog,",
+    "conf",
+]
 xr.set_options(keep_attrs=True)
