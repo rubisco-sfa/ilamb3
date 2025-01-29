@@ -133,6 +133,14 @@ def trim_time(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]
             raise ValueError("Single element conversions only")
         return (int(da.dt.year), int(da.dt.month), int(da.dt.day))
 
+    def _stamp(t: xr.DataArray, ymd: tuple[int]):
+        cls = t.item().__class__
+        try:
+            stamp = cls(*ymd)
+        except Exception:
+            stamp = np.datetime64(f"{ymd[0]:4d}-{ymd[1]:02d}-{ymd[2]:02d}")
+        return stamp
+
     # Get the time extents in the original calendars
     ta0, taf = dset.get_time_extent(dsa)
     tb0, tbf = dset.get_time_extent(dsb)
@@ -148,12 +156,8 @@ def trim_time(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]
     tmax = min(_to_tuple(taf), _to_tuple(tbf))
 
     # Recast back into native calendar objects and select
-    dsa = dsa.sel(
-        {"time": slice(ta0.item().__class__(*tmin), taf.item().__class__(*tmax))}
-    )
-    dsb = dsb.sel(
-        {"time": slice(tb0.item().__class__(*tmin), tbf.item().__class__(*tmax))}
-    )
+    dsa = dsa.sel({"time": slice(_stamp(ta0, tmin), _stamp(taf, tmax))})
+    dsb = dsb.sel({"time": slice(_stamp(tb0, tmin), _stamp(tbf, tmax))})
     return dsa, dsb
 
 
