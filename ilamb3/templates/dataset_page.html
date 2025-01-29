@@ -306,6 +306,15 @@ All
 <!--- All models mode -->
 <div id="divAllModels">
   <br><h2>All Models</h2>
+  <select id="SelectPlot" class="form-select" aria-label="PlotSelect" onclick="updateImages()">
+{% for plot in all_plots %}
+    <option value="{{plot}}">{{plot}}</option>
+{% endfor %}
+  </select>
+  <img id="divReference" src="Reference_None_mean.png" width="32%">
+{% for mname in model_names %}
+  <img id="div{{mname}}" src="{{mname}}_None_mean.png" width="32%">
+{% endfor %}
 </div>
 
 <script>

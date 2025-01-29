@@ -66,6 +66,7 @@ def generate_html_page(
         analyses[aname][pname] += [{"Model": f"MNAME_RNAME_{pname}.png"}]
     ref_plots = list(df_plots[df_plots["source"] == "Reference"]["name"].unique())
     mod_plots = list(df_plots[df_plots["source"] != "Reference"]["name"].unique())
+    all_plots = list(set(ref_plots) | set(mod_plots))
 
     # Setup template dictionary
     df = df.reset_index(drop=True)  # ?
@@ -76,6 +77,7 @@ def generate_html_page(
         "model_names": [m for m in df["source"].unique() if m != "Reference"],
         "ref_plots": ref_plots,
         "mod_plots": mod_plots,
+        "all_plots": all_plots,
         "regions": {
             (None if key == "None" else key): (
                 "All Data" if key == "None" else ilamb_regions.get_name(key)
