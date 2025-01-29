@@ -7,13 +7,11 @@ ILAMBAnalysis : The abstract base class from which this derives.
 """
 
 from pathlib import Path
-from typing import Union
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import statsmodels.formula.api as smf
 import xarray as xr
-from tqdm import tqdm
 
 import ilamb3
 import ilamb3.dataset as dset
@@ -92,10 +90,7 @@ def compute_runoff_sensitivity(
 
     # Loop over basins and build up the dataframe of sensitivities
     df = []
-    for basin in tqdm(
-        basins, desc="Computing basin sensitivities", unit="basins", disable=quiet
-    ):
-
+    for basin in basins:
         # Compute the regional mean values per basin
         dsb = ilamb_regions.restrict_to_region(ds, basin)
         msr = dsb["cell_measures"].fillna(0)
@@ -163,11 +158,11 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
 
     def __init__(
         self,
-        basin_source: Union[str, Path],
-        sensitivity_frame: Union[None, str, pd.DataFrame] = None,
-        mrro_source: Union[str, Path] = None,
-        tas_source: Union[str, Path] = None,
-        pr_source: Union[str, Path] = None,
+        basin_source: str | Path,
+        sensitivity_frame: None | str | pd.DataFrame = None,
+        mrro_source: str | Path = None,
+        tas_source: str | Path = None,
+        pr_source: str | Path = None,
         timestamp_start: str = "1940-10-01",
         timestamp_end: str = "2014-10-01",
     ):  # numpydoc ignore=GL08
@@ -221,7 +216,7 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
         return ["pr", "tas", "mrro"]
 
     def __call__(
-        self, ref: xr.Dataset, com: xr.Dataset, basins: Union[list[str], None] = None
+        self, ref: xr.Dataset, com: xr.Dataset, basins: list[str] | None = None
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
         """
         Apply the ILAMB bias methodology on the given datasets.
@@ -315,7 +310,6 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
 
 
 if __name__ == "__main__":
-
     from ilamb3.models import ModelESGF
 
     # Initialize the analysis

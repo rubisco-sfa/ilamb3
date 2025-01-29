@@ -1,7 +1,5 @@
 """Post-processing functions used in the ILAMB system."""
 
-from typing import Union
-
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import matplotlib.pyplot as plt
@@ -37,7 +35,7 @@ def get_plots(ds_ref: xr.Dataset, dsd_com: dict[str, xr.Dataset]) -> list[str]:
 def get_plot_limits(
     ds_ref: xr.Dataset,
     dsd_com: dict[str, xr.Dataset],
-    plots: Union[list[str], None] = None,
+    plots: list[str] | None = None,
     outlier_fraction: float = 0.02,
 ) -> dict[str, np.typing.ArrayLike]:
     """
@@ -193,9 +191,9 @@ def _plot_finalize(ax: plt.Axes) -> plt.Axes:
 
 
 def plot_space(
-    ds: Union[xr.Dataset, xr.DataArray],
-    varname: Union[str, None] = None,
-    region: Union[str, None] = None,
+    ds: xr.Dataset | xr.DataArray,
+    varname: str | None = None,
+    region: str | None = None,
     **kwargs,
 ):
     """
