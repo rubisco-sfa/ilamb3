@@ -14,6 +14,7 @@ import pandas as pd
 import xarray as xr
 
 import ilamb3.plot as plt
+import ilamb3.regions as ilr
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis
@@ -226,9 +227,8 @@ class bias_analysis(ILAMBAnalysis):
                     weight=ref_ if (mass_weighting and weight) else None,
                 )
             elif dset.is_site(da):
-                site_dim = dset.get_dim_name(da, "site")
-                da = da.pint.dequantify()
-                da = da.mean(dim=site_dim)
+                da = ilr.Regions().restrict_to_region(da, region)
+                da = da.mean(dim=dset.get_dim_name(da, "site"))
             else:
                 raise ValueError(f"Input is neither spatial nor site: {da}")
             da = da.pint.quantify()
@@ -305,7 +305,6 @@ class bias_analysis(ILAMBAnalysis):
         ref: xr.Dataset,
         com: dict[str, xr.Dataset],
     ) -> pd.DataFrame:
-
         # Some initialization
         regions = [None if r == "None" else r for r in df["region"].unique()]
         com["Reference"] = ref
