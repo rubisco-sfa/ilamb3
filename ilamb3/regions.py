@@ -18,21 +18,33 @@ def restrict_to_bbox(
     work well on unsorted indices.
     """
     assert isinstance(da, xr.DataArray)
-    lat_name = dset.get_dim_name(da, "lat")
-    lon_name = dset.get_dim_name(da, "lon")
-    da = da.sortby(list(da.dims))
-    da = da.sel(
-        {
-            lat_name: slice(
-                da[lat_name].sel({lat_name: lat0}, method="nearest"),
-                da[lat_name].sel({lat_name: latf}, method="nearest"),
-            ),
-            lon_name: slice(
-                da[lon_name].sel({lon_name: lon0}, method="nearest"),
-                da[lon_name].sel({lon_name: lonf}, method="nearest"),
-            ),
-        }
-    )
+    lat_name = dset.get_coord_name(da, "lat")
+    lon_name = dset.get_coord_name(da, "lon")
+    if dset.is_site(da):
+        site_name = dset.get_dim_name(da, "site")
+        da = da.sel(
+            {
+                site_name: (
+                    (da[lat_name] >= lat0)
+                    & (da[lat_name] <= latf)
+                    & (da[lon_name] >= lon0)
+                    & (da[lon_name] <= lonf)
+                )
+            }
+        )
+    else:
+        da = da.sel(
+            {
+                lat_name: slice(
+                    da[lat_name].sel({lat_name: lat0}, method="nearest"),
+                    da[lat_name].sel({lat_name: latf}, method="nearest"),
+                ),
+                lon_name: slice(
+                    da[lon_name].sel({lon_name: lon0}, method="nearest"),
+                    da[lon_name].sel({lon_name: lonf}, method="nearest"),
+                ),
+            }
+        )
     return da
 
 
