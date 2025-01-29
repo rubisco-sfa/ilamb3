@@ -792,3 +792,28 @@ def coarsen_annual(dset: xr.Dataset) -> xr.Dataset:
         f"{time_name}.year"
     ).sum()
     return ann
+
+
+def shift_lon(dset: xr.Dataset) -> xr.Dataset:
+    """
+    Return the dataset with longitudes shifted to [-180,180].
+
+    Parameters
+    ----------
+    dset : xr.Dataset
+        The input dataset.
+
+    Returns
+    -------
+    xr.Dataset
+        The longitude-shifted dataset.
+    """
+    lon_name = get_coord_name(dset, "lon")
+    if (dset[lon_name].min() >= 0) * (dset[lon_name].max() <= 360):
+        dset[lon_name] = (dset[lon_name] + 180) % 360 - 180
+        if "bounds" in dset[lon_name].attrs and dset[lon_name].attrs["bounds"] in dset:
+            dset[dset[lon_name].attrs["bounds"]] = (
+                dset[dset[lon_name].attrs["bounds"]] + 180
+            ) % 360 - 180
+        dset = dset.sortby(lon_name)
+    return dset

@@ -5,10 +5,10 @@ import xarray as xr
 from ilamb3 import dataset as dset
 
 
-def generate_test_dset(seed: int = 1):
+def generate_test_dset(seed: int = 1, shift: bool = False):
     rs = np.random.RandomState(seed)
     lat = [-67.5, -22.5, 22.5, 67.5]
-    lon = [-135.0, -45.0, 45.0, 135.0]
+    lon = [-135.0 + 360 * shift, -45.0 + 360 * shift, 45.0, 135.0]
     time = pd.date_range(start="2000-01-15", periods=5, freq="30D")
     ds = xr.Dataset(
         data_vars={
@@ -175,3 +175,9 @@ def test_is_spatial_or_site():
     ds = generate_test_site_dset()
     assert not dset.is_spatial(ds)
     assert dset.is_site(ds)
+
+
+def test_shift_lon():
+    ds = generate_test_dset(shift=True)
+    ds = dset.shift_lon(ds)
+    assert ds["lon"].min() < -120
