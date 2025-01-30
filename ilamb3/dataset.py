@@ -209,6 +209,7 @@ def get_time_extent(
     if "bounds" in time.attrs:
         if time.attrs["bounds"] in dset:
             time = dset[time.attrs["bounds"]]
+    time.load()
     return time.min(), time.max()
 
 
