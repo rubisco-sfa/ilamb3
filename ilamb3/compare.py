@@ -137,7 +137,7 @@ def trim_time(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]
         cls = t.item().__class__
         try:
             stamp = cls(*ymd)
-        except Exception:
+        except Exception:  # assume it was datetime64
             stamp = np.datetime64(f"{ymd[0]:4d}-{ymd[1]:02d}-{ymd[2]:02d}")
         return stamp
 
