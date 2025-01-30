@@ -35,6 +35,10 @@ def nest_spatial_grids(*args):
             dim = ds.cf.add_bounds(dim_name)[f"{dim_name}_bounds"]
         return dim.to_numpy().flatten()
 
+    # are the arguments all spatial?
+    if not all([dset.is_spatial(arg) for arg in args]):
+        return args
+
     # find the union of all the breaks, and then the centroids of this irregular grid
     lat = np.empty(0)
     lon = np.empty(0)
