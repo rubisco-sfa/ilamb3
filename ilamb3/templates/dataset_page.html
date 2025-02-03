@@ -137,6 +137,10 @@ body {
     });
     table.on("rowClick", function (e, row) {
         var rowData = row.getData();
+        if (rowData["source"] != "Reference") {
+          document.getElementById('SelectModel').value = rowData["source"];
+          updateImages();
+        }
         var cells = row.getCells();
         cells.forEach(function (cell, i) {
             for (const c of cell.getColumn().getCells()) {
