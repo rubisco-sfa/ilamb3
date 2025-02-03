@@ -205,6 +205,12 @@ def make_comparable(
     # ensure longitudes are uniform
     ref, com = adjust_lon(ref, com)
 
+    # ensure the lat/lon dims are sorted
+    if dset.is_spatial(ref):
+        ref = ref.sortby([dset.get_dim_name(ref, "lat"), dset.get_dim_name(ref, "lon")])
+    if dset.is_spatial(com):
+        com = com.sortby([dset.get_dim_name(com, "lat"), dset.get_dim_name(com, "lon")])
+
     # pick just the sites
     if dset.is_site(ref[varname]):
         com = extract_sites(ref, com, varname)

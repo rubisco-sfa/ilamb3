@@ -92,6 +92,8 @@ body {
     var RNAME = rsel.options[rsel.selectedIndex].value;
     var msel  = document.getElementById("SelectModel");
     var MNAME = msel.options[msel.selectedIndex].value;
+    var psel  = document.getElementById("SelectPlot");
+    var PNAME = psel.options[psel.selectedIndex].value;
 {% for aname,analysis in analyses.items() -%}
 {% for pname,plot in analysis.items() -%}
 {% for item in plot -%}
@@ -101,6 +103,15 @@ body {
 {% endfor -%}
 {% endfor -%}
 {% endfor %}
+    var model_names = {{model_names}};
+    var ref_plots = {{ref_plots}};
+    if (ref_plots.includes(PNAME)) {
+      model_names.unshift("Reference");
+      document.getElementById("divReference").style.opacity = 100;
+    }else{
+      document.getElementById("divReference").style.opacity = 0;
+    }
+    model_names.forEach((x, i) => document.getElementById("div" + x).src = x + "_" + RNAME + "_" + PNAME + ".png");
   };
   function formatterValue(cell, formatterParams, onRendered) {
     if (isNaN(Number.parseFloat(cell.getValue()))) {
@@ -137,6 +148,10 @@ body {
     });
     table.on("rowClick", function (e, row) {
         var rowData = row.getData();
+        if (rowData["source"] != "Reference") {
+          document.getElementById('SelectModel').value = rowData["source"];
+          updateImages();
+        }
         var cells = row.getCells();
         cells.forEach(function (cell, i) {
             for (const c of cell.getColumn().getCells()) {
