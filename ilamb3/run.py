@@ -1,7 +1,9 @@
 """Functions for rendering ilamb3 output."""
 
 import importlib
+from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import xarray as xr
 from jinja2 import Template
@@ -13,7 +15,7 @@ from ilamb3.analysis.base import ILAMBAnalysis
 
 def run_analyses(
     ref: xr.Dataset, com: xr.Dataset, analyses: dict[str, ILAMBAnalysis]
-) -> None:
+) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
     dfs = []
     ds_refs = []
     ds_coms = []
@@ -34,7 +36,9 @@ def plot_analyses(
     ref: xr.Dataset,
     com: dict[str, xr.Dataset],
     analyses: dict[str, ILAMBAnalysis],
+    plot_path: Path,
 ) -> pd.DataFrame:
+    plot_path.mkdir(exist_ok=True, parents=True)
     df_plots = []
     for name, a in analyses.items():
         dfp = a.plots(df, ref, com)
@@ -43,8 +47,9 @@ def plot_analyses(
     df_plots = pd.concat(df_plots)
     for _, row in df_plots.iterrows():
         row["axis"].get_figure().savefig(
-            f"{row['source']}_{row['region']}_{row['name']}.png"
+            plot_path / f"{row['source']}_{row['region']}_{row['name']}.png"
         )
+    plt.close("all")
     return df_plots
 
 
