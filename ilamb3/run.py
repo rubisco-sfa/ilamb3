@@ -63,7 +63,7 @@ def generate_html_page(
     ilamb_regions = ilr.Regions()
 
     # Setup template analyses and plots
-    analyses = {analysis: {} for analysis in df["analysis"].unique()}
+    analyses = {analysis: {} for analysis in df["analysis"].dropna().unique()}
     for (aname, pname), df_grp in df_plots.groupby(["analysis", "name"], sort=False):
         analyses[aname][pname] = []
         if "Reference" in df_grp["source"].unique():
