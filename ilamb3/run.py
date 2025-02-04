@@ -97,7 +97,7 @@ def generate_html_page(
         },
         "table_data": str(
             [row.to_dict() for _, row in df.drop(columns="units").iterrows()]
-        ),
+        ).replace("nan", "NaN"),
     }
 
     # Generate the html from the template
