@@ -1,7 +1,9 @@
 """Functions for rendering ilamb3 output."""
 
 import importlib
+from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import xarray as xr
 from jinja2 import Template
@@ -13,7 +15,25 @@ from ilamb3.analysis.base import ILAMBAnalysis
 
 def run_analyses(
     ref: xr.Dataset, com: xr.Dataset, analyses: dict[str, ILAMBAnalysis]
-) -> None:
+) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
+    """
+    Run the input analyses on the given reference and comparison datasets.
+
+    Parameters
+    ----------
+    ref : xr.Dataset
+        The dataset which will be considered as the reference.
+    com : xr.Dataset
+        The dataset which will be considered as the comparison.
+    analyses: dict[str, ILAMBAnalysis]
+        A dictionary of analyses to run.
+
+    Returns
+    -------
+    pd.DataFrame, xr.Dataset, xr.Dataset
+        Analysis output, dataframe with scalar information and datasets with
+        reference and comparison information for plotting.
+    """
     dfs = []
     ds_refs = []
     ds_coms = []
@@ -34,7 +54,30 @@ def plot_analyses(
     ref: xr.Dataset,
     com: dict[str, xr.Dataset],
     analyses: dict[str, ILAMBAnalysis],
+    plot_path: Path,
 ) -> pd.DataFrame:
+    """
+    Plot analysis output encoded in each analysis.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        A dataframe of all scalars from the analyses.
+    ref : xr.Dataset
+        A dataset containing reference data for plotting.
+    com : dict[str,xr.Dataset]
+        A dictionary of the comparison datasets whose keys are the model names.
+    analyses : dict[str, ILAMBAnalysis]
+        A dictionary of analyses to run.
+    plot_path : Path
+        A path to prepend all filenames.
+
+    Returns
+    -------
+    pd.DataFrame
+        A dataframe containing plot information and matplotlib axes.
+    """
+    plot_path.mkdir(exist_ok=True, parents=True)
     df_plots = []
     for name, a in analyses.items():
         dfp = a.plots(df, ref, com)
@@ -43,8 +86,9 @@ def plot_analyses(
     df_plots = pd.concat(df_plots)
     for _, row in df_plots.iterrows():
         row["axis"].get_figure().savefig(
-            f"{row['source']}_{row['region']}_{row['name']}.png"
+            plot_path / f"{row['source']}_{row['region']}_{row['name']}.png"
         )
+    plt.close("all")
     return df_plots
 
 
@@ -54,11 +98,29 @@ def generate_html_page(
     com: dict[str, xr.Dataset],
     df_plots: pd.DataFrame,
 ) -> str:
-    """."""
+    """
+    Generate an html page encoding all analysis data.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        A dataframe of all scalars from the analyses.
+    ref : xr.Dataset
+        A dataset containing reference data for plotting.
+    com : dict[str,xr.Dataset]
+        A dictionary of the comparison datasets whose keys are the model names.
+    df_plots : pd.DataFrame
+        A dataframe containing plot information and matplotlib axes.
+
+    Returns
+    -------
+    str
+        The html page.
+    """
     ilamb_regions = ilr.Regions()
 
     # Setup template analyses and plots
-    analyses = {analysis: {} for analysis in df["analysis"].unique()}
+    analyses = {analysis: {} for analysis in df["analysis"].dropna().unique()}
     for (aname, pname), df_grp in df_plots.groupby(["analysis", "name"], sort=False):
         analyses[aname][pname] = []
         if "Reference" in df_grp["source"].unique():
@@ -92,7 +154,7 @@ def generate_html_page(
         },
         "table_data": str(
             [row.to_dict() for _, row in df.drop(columns="units").iterrows()]
-        ),
+        ).replace("nan", "NaN"),
     }
 
     # Generate the html from the template

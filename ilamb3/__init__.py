@@ -48,7 +48,7 @@ __all__ = [
     "compare",
     "analysis",
     "regions",
-    "output",
+    "run",
     "ilamb_catalog,",
     "conf",
 ]
