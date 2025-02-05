@@ -16,6 +16,24 @@ from ilamb3.analysis.base import ILAMBAnalysis
 def run_analyses(
     ref: xr.Dataset, com: xr.Dataset, analyses: dict[str, ILAMBAnalysis]
 ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
+    """
+    Run the input analyses on the given reference and comparison datasets.
+
+    Parameters
+    ----------
+    ref : xr.Dataset
+        The dataset which will be considered as the reference.
+    com : xr.Dataset
+        The dataset which will be considered as the comparison.
+    analyses: dict[str, ILAMBAnalysis]
+        A dictionary of analyses to run.
+
+    Returns
+    -------
+    pd.DataFrame, xr.Dataset, xr.Dataset
+        Analysis output, dataframe with scalar information and datasets with
+        reference and comparison information for plotting.
+    """
     dfs = []
     ds_refs = []
     ds_coms = []
@@ -38,6 +56,27 @@ def plot_analyses(
     analyses: dict[str, ILAMBAnalysis],
     plot_path: Path,
 ) -> pd.DataFrame:
+    """
+    Plot analysis output encoded in each analysis.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        A dataframe of all scalars from the analyses.
+    ref : xr.Dataset
+        A dataset containing reference data for plotting.
+    com : dict[str,xr.Dataset]
+        A dictionary of the comparison datasets whose keys are the model names.
+    analyses : dict[str, ILAMBAnalysis]
+        A dictionary of analyses to run.
+    plot_path : Path
+        A path to prepend all filenames.
+
+    Returns
+    -------
+    pd.DataFrame
+        A dataframe containing plot information and matplotlib axes.
+    """
     plot_path.mkdir(exist_ok=True, parents=True)
     df_plots = []
     for name, a in analyses.items():
@@ -59,7 +98,25 @@ def generate_html_page(
     com: dict[str, xr.Dataset],
     df_plots: pd.DataFrame,
 ) -> str:
-    """."""
+    """
+    Generate an html page encoding all analysis data.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        A dataframe of all scalars from the analyses.
+    ref : xr.Dataset
+        A dataset containing reference data for plotting.
+    com : dict[str,xr.Dataset]
+        A dictionary of the comparison datasets whose keys are the model names.
+    df_plots : pd.DataFrame
+        A dataframe containing plot information and matplotlib axes.
+
+    Returns
+    -------
+    str
+        The html page.
+    """
     ilamb_regions = ilr.Regions()
 
     # Setup template analyses and plots

@@ -37,21 +37,13 @@ class AnalysisFailure(ILAMBException):
     ----------
     analysis : str
         The name of the analysis which has failed.
-    variable : str
-        The name of the variable associated with this analysis.
-    source : str
-        The name of the source of the reference data.
     model : str
         The name of the model whose analysis failed.
     """
 
-    def __init__(
-        self, analysis: str, variable: str, source: str, model: str
-    ):  # numpydoc ignore=GL08
+    def __init__(self, analysis: str, model: str):  # numpydoc ignore=GL08
         self.analysis = analysis
-        self.variable = variable
-        self.source = source
         self.model = model
 
     def __str__(self):  # numpydoc ignore=GL08
-        return f"The '{self.analysis}' analysis failed for '{self.variable} | {self.source}' against '{self.model}'"
+        return f"The '{self.analysis}' analysis failed for '{self.model}'"
