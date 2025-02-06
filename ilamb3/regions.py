@@ -192,14 +192,15 @@ class Regions:
             if isinstance(var, xr.DataArray):
                 out = restrict_to_bbox(var, rlat[0], rlat[1], rlon[0], rlon[1])
             else:
-                out = xr.Dataset(
-                    {
-                        key: restrict_to_bbox(
+                out = {}
+                for key in var:
+                    try:
+                        out[key] = restrict_to_bbox(
                             var[key], rlat[0], rlat[1], rlon[0], rlon[1]
                         )
-                        for key in var
-                    }
-                )
+                    except KeyError:
+                        continue
+                out = xr.Dataset(out)
             return out
         if rtype == 1:
             _, _, dar = rdata

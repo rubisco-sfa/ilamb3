@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
+from matplotlib.colors import LogNorm
 
 import ilamb3.dataset as dset
 from ilamb3.regions import Regions
@@ -62,7 +63,6 @@ def finalize_plot(ax: plt.Axes, extents: list[float]) -> plt.Axes:
 
 
 def plot_map(da: xr.DataArray, **kwargs):
-
     # Process some options
     kwargs["cmap"] = plt.get_cmap(kwargs["cmap"] if "cmap" in kwargs else "viridis", 9)
     title = kwargs.pop("title") if "title" in kwargs else ""
@@ -111,6 +111,20 @@ def plot_map(da: xr.DataArray, **kwargs):
         raise ValueError("plotting error")
     ax.set_title(title)
     ax = finalize_plot(ax, extents)
+    return ax
+
+
+def plot_distribution(da: xr.DataArray, **kwargs):
+    _, ax = plt.subplots(dpi=200, tight_layout=True, figsize=(6, 5.25))
+    da.plot(
+        ax=ax,
+        norm=LogNorm(),
+        vmin=1e-4,
+        vmax=1e-1,
+        cmap="plasma",
+        cbar_kwargs={"label": "Fraction of total data"},
+    )
+    ax.set_title(kwargs.pop("title") if "title" in kwargs else "")
     return ax
 
 
