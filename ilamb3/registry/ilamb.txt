@@ -120,3 +120,4 @@ swe/CanSISE/swe.nc sha1:af973dff1213aa289290ea741d8d5137dc8cee2f
 rhums/ERA5/rhums.nc sha1:2e22d185031de30f1bc073000d1e842ebc04c90d
 rhums/CRU4.02/rhums.nc sha1:8267af22eeeaafb956b95b553397e285295ef79e
 test/Test/tas.nc sha1:3e757c9feadea581a92e6f4afb402b86168e113a
+quantiles/quantiles_Whittaker_cmip5v6.parquet sha1:fefe159d6c8b2720be81d08026eecf5cc6d3b1d7

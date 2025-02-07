@@ -9,8 +9,9 @@ import yaml
 import ilamb3.regions as reg
 
 defaults = {
-    "build_dir": "./_build",
     "regions": [None],
+    "prefer_regional_quantiles": True,
+    "quantile_database": "quantiles/quantiles_Whittaker_cmip5v6.parquet",
 }
 
 
@@ -64,7 +65,7 @@ class Config(dict):
             does_not_exist = set(regions) - set(ilamb_regions._regions) - set([None])
             if does_not_exist:
                 raise ValueError(
-                    f"Cannot run ILAMB over these regions [{list(does_not_exist)}] which are not registered in our system [{list(ilamb_regions._regions)}]"
+                    f"Cannot run ILAMB over these regions {list(does_not_exist)} which are not registered in our system {list(ilamb_regions._regions)}"
                 )
             self["regions"] = regions
         return self._unset(temp)

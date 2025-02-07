@@ -206,10 +206,15 @@ class Regions:
             _, _, dar = rdata
             if isinstance(var, xr.DataArray):
                 out = restrict_to_region(var, dar)
+                out.name = var.name
             else:
-                out = xr.Dataset(
-                    {key: restrict_to_region(var[key], dar) for key in var}
-                )
+                out = {}
+                for key in var:
+                    try:
+                        out[key] = restrict_to_region(var[key], dar)
+                    except KeyError:
+                        continue
+                out = xr.Dataset(out)
             return out
         raise ValueError(f"Region type #{rtype} not recognized")
 

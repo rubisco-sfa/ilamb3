@@ -5,12 +5,53 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import pooch
 import xarray as xr
 from jinja2 import Template
 
 import ilamb3
+import ilamb3.analysis as anl
 import ilamb3.regions as ilr
 from ilamb3.analysis.base import ILAMBAnalysis
+
+
+def setup_analyses(
+    registry: pooch.Pooch, **analysis_setup
+) -> tuple[dict[str, xr.Dataset], str, dict[str, ILAMBAnalysis]]:
+    # Check on inputs
+    sources = analysis_setup.get("sources", {})
+    relationships = analysis_setup.get("relationships", {})
+    if len(sources) != 1:
+        raise ValueError(
+            f"The default ILAMB analysis requires a single variable and source, but I found: {sources}"
+        )
+    variable = list(sources.keys())[0]
+
+    # Setup the default analysis
+    cmap = (
+        analysis_setup.pop("variable_cmap")
+        if "variable_cmap" in analysis_setup
+        else "viridis"
+    )
+    analyses = {
+        name: a(variable, variable_cmap=cmap)
+        for name, a in anl.DEFAULT_ANALYSES.items()
+        if analysis_setup.get(f"skip_{name.lower()}", False) is False
+    }
+    analyses.update(
+        {
+            f"rel_{ind_variable}": anl.relationship_analysis(variable, ind_variable)
+            for ind_variable in relationships
+        }
+    )
+
+    # Setup reference data
+    ref = sources.copy()
+    ref.update(relationships)
+    ref = {
+        key: xr.open_dataset(registry.fetch(filename)) for key, filename in ref.items()
+    }
+    return ref, variable, analyses
 
 
 def run_analyses(
@@ -80,6 +121,7 @@ def plot_analyses(
     plot_path.mkdir(exist_ok=True, parents=True)
     df_plots = []
     for name, a in analyses.items():
+        name = "Relationship" if "Relationship" in name else name
         dfp = a.plots(df, ref, com)
         dfp["analysis"] = name
         df_plots.append(dfp)
