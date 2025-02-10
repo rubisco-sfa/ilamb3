@@ -7,7 +7,7 @@ ILAMBAnalysis : The abstract base class from which this derives.
 """
 
 import warnings
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -32,6 +32,27 @@ class bias_analysis(ILAMBAnalysis):
         The name of the variable to be used in this analysis.
     variable_cmap : str
         The colormap to use in plots of the comparison variable, optional.
+    method : str
+        The name of the scoring methodology to use, either `Collier2018` or
+        `RegionalQuantiles`.
+    regions : list
+        A list of region labels over which to apply the analysis.
+    use_uncertainty : bool
+        Enable to utilize uncertainty information from the reference product if
+        present.
+    spatial_sum : bool
+        Enable to report a spatial sum in the period mean as opposed to a
+        spatial mean. This is often preferred in carbon variables where the
+        total global carbon is of interest.
+    mass_weighting : bool
+        Enable to weight the score map integrals by the temporal mean of the
+        reference dataset.
+    quantile_dbase : pd.DataFrame
+        If using `method='RegionalQuantiles'`, the dataframe containing the
+        regional quantiles to be used to score the datasets.
+    quantile_threshold : int
+        If using `method='RegionalQuantiles'`, the threshold values to use from
+        the `quantile_dbase`.
 
     Methods
     -------
@@ -42,10 +63,28 @@ class bias_analysis(ILAMBAnalysis):
     """
 
     def __init__(
-        self, required_variable: str, variable_cmap: str = "viridis"
-    ):  # numpydoc ignore=GL08
+        self,
+        required_variable: str,
+        variable_cmap: str = "viridis",
+        method: Literal["Collier2018", "RegionalQuantiles"] = "Collier2018",
+        regions: list[str | None] = [None],
+        use_uncertainty: bool = True,
+        spatial_sum: bool = False,
+        mass_weighting: bool = False,
+        quantile_dbase: pd.DataFrame | None = None,
+        quantile_threshold: int = 70,
+        **kwargs: Any,  # this is so we can pass extra arguments without failure
+    ):
         self.req_variable = required_variable
         self.cmap = variable_cmap
+        self.method = method
+        self.regions = regions
+        self.use_uncertainty = use_uncertainty
+        self.spatial_sum = spatial_sum
+        self.mass_weighting = mass_weighting
+        self.quantile_dbase = quantile_dbase
+        self.quantile_threshold = quantile_threshold
+        self.kwargs = kwargs
 
     def required_variables(self) -> list[str]:
         """
@@ -62,13 +101,6 @@ class bias_analysis(ILAMBAnalysis):
         self,
         ref: xr.Dataset,
         com: xr.Dataset,
-        method: Literal["Collier2018", "RegionalQuantiles"] = "Collier2018",
-        regions: list[str | None] = [None],
-        use_uncertainty: bool = True,
-        spatial_sum: bool = False,
-        mass_weighting: bool = False,
-        quantile_dbase: pd.DataFrame | None = None,
-        quantile_threshold: int = 70,
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
         """
         Apply the ILAMB bias methodology on the given datasets.
@@ -79,27 +111,6 @@ class bias_analysis(ILAMBAnalysis):
             The reference dataset.
         com : xr.Dataset
             The comparison dataset.
-        method : str
-            The name of the scoring methodology to use, either `Collier2018` or
-            `RegionalQuantiles`.
-        regions : list
-            A list of region labels over which to apply the analysis.
-        use_uncertainty : bool
-            Enable to utilize uncertainty information from the reference product if
-            present.
-        spatial_sum : bool
-            Enable to report a spatial sum in the period mean as opposed to a spatial
-            mean. This is often preferred in carbon variables where the total global
-            carbon is of interest.
-        mass_weighting : bool
-            Enable to weight the score map integrals by the temporal mean of the
-            reference dataset.
-        quantile_dbase : pd.DataFrame
-            If using `method='RegionalQuantiles'`, the dataframe containing the regional
-            quantiles to be used to score the datasets.
-        quantile_threshold : int
-            If using `method='RegionalQuantiles'`, the threshold values to use from the
-            `quantile_dbase`.
 
         Returns
         -------
@@ -113,23 +124,24 @@ class bias_analysis(ILAMBAnalysis):
         # Initialize
         analysis_name = "Bias"
         varname = self.req_variable
-        if use_uncertainty and "bounds" not in ref[varname].attrs:
-            use_uncertainty = False
-        # Checks on the database if it is being used
-        if method == "RegionalQuantiles":
-            check_quantile_database(quantile_dbase)
+        if self.use_uncertainty and "bounds" not in ref[varname].attrs:
+            self.use_uncertainty = False
+
+        # Checks on the quantile database if used
+        if self.method == "RegionalQuantiles":
+            check_quantile_database(self.quantile_dbase)
             try:
                 quantile_map = create_quantile_map(
-                    quantile_dbase, varname, "bias", quantile_threshold
+                    self.quantile_dbase, varname, "bias", self.quantile_threshold
                 )
                 dset.convert(quantile_map, ref[varname].attrs["units"])
             except NoDatabaseEntry:
                 # fallback if the variable/type/quantile is not in the database
-                method = "Collier2018"
+                self.method = "Collier2018"
 
         # Never mass weight if regional quantiles are used
-        if method == "RegionalQuantiles":
-            mass_weighting = False
+        if self.method == "RegionalQuantiles":
+            self.mass_weighting = False
 
         # Make the variables comparable and force loading into memory
         ref, com = cmp.make_comparable(ref, com, varname)
@@ -149,7 +161,7 @@ class bias_analysis(ILAMBAnalysis):
         # Get the reference data uncertainty
         uncert = xr.zeros_like(ref_mean)
         uncert.attrs["units"] = ref[varname].attrs["units"]
-        if use_uncertainty:
+        if self.use_uncertainty:
             uncert = ref[ref[varname].attrs["bounds"]]
             uncert.attrs["units"] = ref[varname].attrs["units"]
             uncert = (
@@ -181,9 +193,9 @@ class bias_analysis(ILAMBAnalysis):
         # Compute score by different methods
         ref_, com_, norm_, uncert_ = cmp.rename_dims(ref_, com_, norm_, uncert_)
         bias = com_ - ref_
-        if method == "Collier2018":
+        if self.method == "Collier2018":
             score = np.exp(-(np.abs(bias) - uncert_).clip(0) / norm_)
-        elif method == "RegionalQuantiles":
+        elif self.method == "RegionalQuantiles":
             norm = quantile_map.interp(
                 lat=bias["lat"], lon=bias["lon"], method="nearest"
             )
@@ -191,13 +203,13 @@ class bias_analysis(ILAMBAnalysis):
         else:
             msg = (
                 "The method used to score the bias must be 'Collier2018' or "
-                f"'RegionalQuantiles' but found {method=}"
+                f"'RegionalQuantiles' but found {self.method=}"
             )
             raise ValueError(msg)
 
         # Build output datasets
         ref_out = ref_mean.to_dataset(name="mean")
-        if use_uncertainty:
+        if self.use_uncertainty:
             ref_out["uncert"] = uncert
         com_out = bias.to_dataset(name="bias")
         com_out["biasscore"] = score
@@ -224,7 +236,7 @@ class bias_analysis(ILAMBAnalysis):
                     varname,
                     region=region,
                     mean=mean,
-                    weight=ref_ if (mass_weighting and weight) else None,
+                    weight=ref_ if (self.mass_weighting and weight) else None,
                 )
             elif dset.is_site(da):
                 da = ilr.Regions().restrict_to_region(da, region)
@@ -236,10 +248,10 @@ class bias_analysis(ILAMBAnalysis):
 
         # Compute scalars over all regions
         dfs = []
-        for region in regions:
+        for region in self.regions:
             # Period mean
             for src, var in zip(["Reference", "Comparison"], [ref_mean, com_mean]):
-                var = _scalar(var, varname, region, not spatial_sum)
+                var = _scalar(var, varname, region, not self.spatial_sum)
                 dfs.append(
                     [
                         src,
@@ -296,7 +308,7 @@ class bias_analysis(ILAMBAnalysis):
                 "value",
             ],
         )
-        dfs.attrs = dict(method=method)
+        dfs.attrs = self.__dict__.copy()
         return dfs, ref_out, com_out
 
     def plots(

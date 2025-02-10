@@ -41,14 +41,13 @@ def test_bias_collier2018(use_uncertainty: bool, mass_weighting: bool, score: fl
     ref["da_bnds"] = generate_test_dset(seed=2, **grid)["da"] * 1e-2
     ref["da"].attrs["bounds"] = "da_bnds"
     com = generate_test_dset(seed=3, **grid)
-    analysis = bias_analysis("da")
-    df, _, _ = analysis(
-        ref,
-        com,
+    analysis = bias_analysis(
+        "da",
         method="Collier2018",
         use_uncertainty=use_uncertainty,
         mass_weighting=mass_weighting,
     )
+    df, _, _ = analysis(ref, com)
     df = df[df["type"] == "score"]
     assert len(df) == 1
     assert np.allclose(df.iloc[0].value, score)
@@ -80,15 +79,14 @@ def test_bias_regionalquantiles(
     ref["da_bnds"] = generate_test_dset(**grid)["da"] * 1e-2
     ref["da"].attrs["bounds"] = "da_bnds"
     com = generate_test_dset(seed=2, **grid)
-    analysis = bias_analysis("da")
-    df, _, _ = analysis(
-        ref,
-        com,
+    analysis = bias_analysis(
+        "da",
         method="RegionalQuantiles",
         use_uncertainty=use_uncertainty,
         quantile_dbase=gen_quantile_dbase(),
         quantile_threshold=quantile_threshold,
     )
+    df, _, _ = analysis(ref, com)
     df = df[df["type"] == "score"]
     print(df.iloc[0].value)
     assert len(df) == 1
