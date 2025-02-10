@@ -19,6 +19,12 @@ class nbp_analysis(ILAMBAnalysis):
     """
     The ILAMB net biome production scoring methodology.
 
+    Parameters
+    ----------
+    evaluation_year : int, optional
+        The year at which to report a difference and score. If not given, the
+        last year of the reference dataset.
+
     Methods
     -------
     required_variables
@@ -26,6 +32,9 @@ class nbp_analysis(ILAMBAnalysis):
     __call__
         The method
     """
+
+    def __init__(self, evaluation_year: int | None = None):
+        self.evaluation_year = evaluation_year
 
     def required_variables(self) -> list[str]:
         """
@@ -45,7 +54,7 @@ class nbp_analysis(ILAMBAnalysis):
         return ["nbp"]
 
     def __call__(
-        self, ref: xr.Dataset, com: xr.Dataset, evaluation_year: int | None = None
+        self, ref: xr.Dataset, com: xr.Dataset
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
         """
         Apply the ILAMB bias methodology on the given datasets.
@@ -56,9 +65,6 @@ class nbp_analysis(ILAMBAnalysis):
             The reference dataset.
         com : xr.Dataset
             The comparison dataset.
-        evaluation_year : int, optional
-            The year at which to report a difference and score. If not given, the last
-            year of the reference dataset.
 
         Returns
         -------
@@ -70,8 +76,8 @@ class nbp_analysis(ILAMBAnalysis):
             A dataset containing comparison grided information from the comparison.
         """
         # Default year to evaluate if none given
-        if evaluation_year is None:
-            evaluation_year = int(ref["time"][-1].dt.year)
+        if self.evaluation_year is None:
+            self.evaluation_year = int(ref["time"][-1].dt.year)
 
         # Check that the comparison starts in the appropriate year
         if com["time"][0].dt.year > ref["time"][0].dt.year:
@@ -85,7 +91,6 @@ class nbp_analysis(ILAMBAnalysis):
         if "nbp" not in com:
             msg = "`nbp` or `netAtmosLandCO2Flux` needs to be in the `com` Dataset."
             raise MissingVariable(msg)
-        ref = ref.pint.quantify()
         for var in ref:
             if not var.startswith("nbp"):
                 ref = ref.drop_vars(var)
@@ -96,11 +101,7 @@ class nbp_analysis(ILAMBAnalysis):
         # Integrate globally
         if dset.is_spatial(com):
             com["nbp"] = dset.integrate_space(com, "nbp")
-
-        # Load into memory, not sure this is the right place for this
-        com = com.pint.dequantify()
         com.load()
-        com = com.pint.quantify()
 
         # Accumulate
         def _cumsum(ds):  # numpydoc ignore=GL08
@@ -123,9 +124,9 @@ class nbp_analysis(ILAMBAnalysis):
         com = dset.coarsen_annual(com)
 
         # Trajectory score
+        ref = ref.pint.quantify()
         out_units = f"{ref['nbp'].pint.units:~cf}"
         ref = ref.pint.dequantify()
-        com = com.pint.dequantify()
         nbp_low = ref["nbp"]
         nbp_high = ref["nbp"]
         if "bounds" in ref["nbp"].attrs and ref["nbp"].attrs["bounds"] in ref:
@@ -142,12 +143,12 @@ class nbp_analysis(ILAMBAnalysis):
         traj_score = float(traj_score.mean())
 
         # Difference score
-        ref_val = float(ref["nbp"].sel(year=evaluation_year))
+        ref_val = float(ref["nbp"].sel(year=self.evaluation_year))
         try:
-            com_val = float(com["nbp"].sel(year=evaluation_year))
+            com_val = float(com["nbp"].sel(year=self.evaluation_year))
         except KeyError:
             com_val = np.nan
-        uncert_val = float(uncert.sel(year=evaluation_year))
+        uncert_val = float(uncert.sel(year=self.evaluation_year))
         scale = -np.log(0.5) / 1  # outside of the uncertainty window? score < 50%
         diff_score = np.exp(-scale * np.abs(com_val - ref_val) / uncert_val)
 
@@ -158,7 +159,7 @@ class nbp_analysis(ILAMBAnalysis):
                     "source": "Reference",
                     "region": "None",
                     "analysis": "nbp",
-                    "name": f"nbp({evaluation_year})",
+                    "name": f"nbp({self.evaluation_year})",
                     "type": "scalar",
                     "units": out_units,
                     "value": ref_val,
@@ -167,7 +168,7 @@ class nbp_analysis(ILAMBAnalysis):
                     "source": "Comparison",
                     "region": "None",
                     "analysis": "nbp",
-                    "name": f"nbp({evaluation_year})",
+                    "name": f"nbp({self.evaluation_year})",
                     "type": "scalar",
                     "units": out_units,
                     "value": com_val,
@@ -176,7 +177,7 @@ class nbp_analysis(ILAMBAnalysis):
                     "source": "Comparison",
                     "region": "None",
                     "analysis": "nbp",
-                    "name": f"diff({evaluation_year})",
+                    "name": f"diff({self.evaluation_year})",
                     "type": "scalar",
                     "units": out_units,
                     "value": com_val - ref_val,
@@ -202,3 +203,11 @@ class nbp_analysis(ILAMBAnalysis):
             ]
         )
         return df, ref, com
+
+    def plots(
+        self,
+        df: pd.DataFrame,
+        ref: xr.Dataset,
+        com: dict[str, xr.Dataset],
+    ) -> pd.DataFrame:
+        pass
