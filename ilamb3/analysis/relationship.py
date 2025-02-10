@@ -6,12 +6,13 @@ then later create a ILAMBAnalysis which uses it.
 """
 
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Any, Union
 
 import numpy as np
 import pandas as pd
 import xarray as xr
 
+import ilamb3.plot as plt
 from ilamb3 import compare as cmp
 from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.regions import Regions
@@ -28,8 +29,10 @@ class Relationship:
     color: xr.DataArray = None
     dep_log: bool = False
     ind_log: bool = False
-    dep_label: str = ""
-    ind_label: str = ""
+    dep_var: str = "dep"
+    ind_var: str = "ind"
+    dep_label: str = "dep"
+    ind_label: str = "ind"
     order: int = 1
     _dep_limits: list[float] = field(init=False, default_factory=lambda: None)
     _ind_limits: list[float] = field(init=False, default_factory=lambda: None)
@@ -121,10 +124,7 @@ class Relationship:
         """
         # if no limits have been created, make them now
         if self._dep_limits is None or self._ind_limits is None:
-            self._dep_limits, self._ind_limits = self.compute_limits(
-                dep_lim=self._dep_limits,
-                ind_lim=self._ind_limits,
-            )
+            self.compute_limits(None)
 
         # compute the 2d distribution
         ind = np.ma.masked_invalid(self.ind.values).compressed()
@@ -199,6 +199,32 @@ class Relationship:
         score = np.exp(-rel_error)
         return score
 
+    def to_dataset(self) -> xr.Dataset:
+        """
+        Convert internal relationship representation to a dataset.
+        """
+        ds = xr.Dataset(
+            data_vars=dict(
+                distribution=([self.dep_var, self.ind_var], self._dist2d),
+                response=([self.ind_var], self._response_mean),
+                response_variability=([self.ind_var], self._response_std),
+            ),
+            coords={
+                self.ind_var: (
+                    self.ind_var,
+                    0.5 * (self._ind_edges[1:] + self._ind_edges[:-1]),
+                ),
+                self.dep_var: (
+                    self.dep_var,
+                    0.5 * (self._dep_edges[1:] + self._dep_edges[:-1]),
+                ),
+            },
+        )
+        ds["response"].attrs = {"ancillary_variables": "response_variability"}
+        ds[self.ind_var].attrs = {"standard_name": self.ind_label}
+        ds[self.dep_var].attrs = {"standard_name": self.dep_label}
+        return ds
+
 
 class relationship_analysis(ILAMBAnalysis):
     """
@@ -210,6 +236,8 @@ class relationship_analysis(ILAMBAnalysis):
         The name of the dependent variable to be used in this analysis.
     ind_variable : str
         The name of the independent variable to be used in this analysis.
+    regions: list[str | None] = [None],
+        The regions overwhich to perform the analysis.
 
     Methods
     -------
@@ -219,9 +247,16 @@ class relationship_analysis(ILAMBAnalysis):
         The method
     """
 
-    def __init__(self, dep_variable: str, ind_variable: str):  # numpydoc ignore=GL08
+    def __init__(
+        self,
+        dep_variable: str,
+        ind_variable: str,
+        regions: list[str | None] = [None],
+        **kwargs: Any,
+    ):  # numpydoc ignore=GL08
         self.dep_variable = dep_variable
         self.ind_variable = ind_variable
+        self.regions = regions
 
     def required_variables(self) -> list[str]:
         """
@@ -235,10 +270,7 @@ class relationship_analysis(ILAMBAnalysis):
         return [self.dep_variable, self.ind_variable]
 
     def __call__(
-        self,
-        ref: xr.Dataset,
-        com: xr.Dataset,
-        regions: list[str | None] = [None],
+        self, ref: xr.Dataset, com: xr.Dataset
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
         """
         Apply the ILAMB relationship methodology on the given datasets.
@@ -249,8 +281,6 @@ class relationship_analysis(ILAMBAnalysis):
             The reference dataset.
         com : xr.Dataset
             The comparison dataset.
-        regions : list
-            A list of region labels over which to apply the analysis.
 
         Returns
         -------
@@ -261,25 +291,54 @@ class relationship_analysis(ILAMBAnalysis):
         xr.Dataset
             A dataset containing comparison grided information from the comparison.
         """
-        # Initialize
+
+        def _regionify(ds: xr.Dataset, region: str | None):
+            """Postpend the region name to the variables/dimenions"""
+            ds = ds.rename({v: f"{v}_{region}" for v in list(ds.variables)})
+            for key, da in ds.items():
+                if "ancillary_variables" in da.attrs:
+                    ds[key].attrs[
+                        "ancillary_variables"
+                    ] = f"{da.attrs['ancillary_variables']}_{region}"
+            return ds
+
+        # Initialize and make comparable
         analysis_name = "Relationship"
         var_ind = self.ind_variable
         var_dep = self.dep_variable
         for var in self.required_variables():
             ref, com = cmp.make_comparable(ref, com, var)
-        ref = ref.pint.dequantify()
-        com = com.pint.dequantify()
-        ilamb_regions = Regions()
+
+        # Create and score relationships per region
         dfs = []
-        for region in regions:
+        ds_ref = []
+        ds_com = []
+        ilamb_regions = Regions()
+        for region in self.regions:
             refr = ilamb_regions.restrict_to_region(ref, region)
             comr = ilamb_regions.restrict_to_region(com, region)
-            rel_ref = Relationship(refr[var_dep], refr[var_ind])
-            rel_com = Relationship(comr[var_dep], comr[var_ind])
+            rel_ref = Relationship(
+                refr[var_dep],
+                refr[var_ind],
+                dep_var=var_dep,
+                ind_var=var_ind,
+                dep_label=var_dep,
+                ind_label=var_ind,
+            )
+            rel_com = Relationship(
+                comr[var_dep],
+                comr[var_ind],
+                dep_var=var_dep,
+                ind_var=var_ind,
+                dep_label=var_dep,
+                ind_label=var_ind,
+            )
             rel_com = rel_ref.compute_limits(rel_com)
             rel_ref.build_response()
             rel_com.build_response()
             score = rel_ref.score_response(rel_com)
+            ds_ref.append(_regionify(rel_ref.to_dataset(), region))
+            ds_com.append(_regionify(rel_com.to_dataset(), region))
             dfs.append(
                 [
                     "Comparison",
@@ -292,7 +351,7 @@ class relationship_analysis(ILAMBAnalysis):
                 ]
             )
 
-        # Convert to dataframe
+        # Conversions and output
         dfs = pd.DataFrame(
             dfs,
             columns=[
@@ -305,4 +364,38 @@ class relationship_analysis(ILAMBAnalysis):
                 "value",
             ],
         )
-        return dfs, xr.Dataset(), xr.Dataset()
+        ds_ref = xr.merge(ds_ref)
+        ds_com = xr.merge(ds_com)
+        return dfs, ds_ref, ds_com
+
+    def plots(
+        self,
+        df: pd.DataFrame,
+        ref: xr.Dataset,
+        com: dict[str, xr.Dataset],
+    ) -> pd.DataFrame:
+        # Some initialization
+        com["Reference"] = ref
+
+        # Build up a dataframe of matplotlib axes, first the distribution plots
+        axs = [
+            {
+                "name": "dist",
+                "title": f"{self.dep_variable} vs. {self.ind_variable}",
+                "region": region,
+                "source": source,
+                "axis": (
+                    plt.plot_distribution(
+                        ds[f"distribution_{region}"],
+                        title=f"{source} {self.dep_variable} vs. {self.ind_variable}",
+                    )
+                    if f"distribution_{region}" in ds
+                    else pd.NA
+                ),
+            }
+            for region in self.regions
+            for source, ds in com.items()
+        ]
+        axs = pd.DataFrame(axs).dropna(subset=["axis"])
+
+        return axs

@@ -4,6 +4,7 @@ import numpy as np
 import xarray as xr
 
 from ilamb3 import dataset as dset
+from ilamb3.exceptions import TemporalOverlapIssue
 
 
 def nest_spatial_grids(*args):
@@ -129,7 +130,7 @@ def pick_grid_aligned(
     return nest_spatial_grids(ref0, com0)
 
 
-def trim_time(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]:
+def trim_time(*args: xr.Dataset, **kwargs: xr.Dataset) -> tuple[xr.Dataset]:
     """Return the datasets trimmed to maximal temporal overlap."""
 
     def _to_tuple(da: xr.DataArray) -> tuple[int]:
@@ -146,23 +147,74 @@ def trim_time(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]
         return stamp
 
     # Get the time extents in the original calendars
-    ta0, taf = dset.get_time_extent(dsa)
-    tb0, tbf = dset.get_time_extent(dsb)
-
-    # At this point we need actual data, so load
-    ta0.load()
-    taf.load()
-    tb0.load()
-    tbf.load()
+    t0 = []
+    tf = []
+    for arg in args:
+        tbegin, tend = dset.get_time_extent(arg)
+        t0.append(tbegin)
+        tf.append(tend)
+    for _, arg in kwargs.items():
+        tbegin, tend = dset.get_time_extent(arg)
+        t0.append(tbegin)
+        tf.append(tend)
 
     # Convert to a date tuple (year, month, day) and find the maximal overlap
-    tmin = max(_to_tuple(ta0), _to_tuple(tb0))
-    tmax = min(_to_tuple(taf), _to_tuple(tbf))
+    tmin = max(*[_to_tuple(t) for t in t0])
+    tmax = min(*[_to_tuple(t) for t in tf])
+    if tmax < tmin:
+        raise TemporalOverlapIssue(
+            f"Minimum final time {tmax} is after maximum initial time {tmin}"
+        )
 
     # Recast back into native calendar objects and select
-    dsa = dsa.sel({"time": slice(_stamp(ta0, tmin), _stamp(taf, tmax))})
-    dsb = dsb.sel({"time": slice(_stamp(tb0, tmin), _stamp(tbf, tmax))})
-    return dsa, dsb
+    args = list(args)
+    for i, arg in enumerate(args):
+        args[i] = arg.sel({"time": slice(_stamp(t0[i], tmin), _stamp(tf[i], tmax))})
+    i = len(args)
+    for key, arg in kwargs.items():
+        kwargs[key] = arg.sel({"time": slice(_stamp(t0[i], tmin), _stamp(tf[i], tmax))})
+        i += 1
+
+    # Conditional returns based on what was passed in
+    if args and not kwargs:
+        return args
+    if kwargs and not args:
+        return kwargs
+    return args, kwargs
+
+
+def same_spatial_grid(
+    grid: xr.DataArray | xr.Dataset, *args: xr.Dataset, **kwargs: xr.Dataset
+) -> tuple[xr.Dataset]:
+    """."""
+    args = list(args)
+    lat = grid[dset.get_dim_name(grid, "lat")]
+    lon = grid[dset.get_dim_name(grid, "lon")]
+    for i, arg in enumerate(args):
+        _, arg = adjust_lon(grid, arg)
+        args[i] = arg.interp(
+            {
+                dset.get_dim_name(arg, "lat"): lat,
+                dset.get_dim_name(arg, "lon"): lon,
+            },
+            method="nearest",
+        )
+    for key, arg in kwargs.items():
+        _, arg = adjust_lon(grid, arg)
+        kwargs[key] = arg.interp(
+            {
+                dset.get_dim_name(arg, "lat"): lat,
+                dset.get_dim_name(arg, "lon"): lon,
+            },
+            method="nearest",
+        )
+
+    # Conditional returns based on what was passed in
+    if args and not kwargs:
+        return args
+    if kwargs and not args:
+        return kwargs
+    return args, kwargs
 
 
 def adjust_lon(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]:
