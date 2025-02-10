@@ -12,10 +12,10 @@ import ilamb3.regions as reg
 
 defaults = {
     "regions": [None],
-    "prefer_regional_quantiles": True,
+    "prefer_regional_quantiles": False,
     "quantile_database": "quantiles/quantiles_Whittaker_cmip5v6.parquet",
     "quantile_threshold": 70,
-    "use_uncertainty": True,
+    "use_uncertainty": False,
 }
 
 
