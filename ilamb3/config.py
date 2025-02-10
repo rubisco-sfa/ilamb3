@@ -8,10 +8,14 @@ import yaml
 
 import ilamb3.regions as reg
 
+# how do we add data collections?
+
 defaults = {
     "regions": [None],
     "prefer_regional_quantiles": True,
     "quantile_database": "quantiles/quantiles_Whittaker_cmip5v6.parquet",
+    "quantile_threshold": 70,
+    "use_uncertainty": True,
 }
 
 
@@ -55,6 +59,8 @@ class Config(dict):
         *,
         build_dir: str | None = None,
         regions: list[str] | None = None,
+        prefer_regional_quantiles: bool | None = None,
+        use_uncertainty: bool | None = None,
     ):
         """Change ilamb3 configuration options."""
         temp = copy.deepcopy(self)
@@ -68,6 +74,10 @@ class Config(dict):
                     f"Cannot run ILAMB over these regions {list(does_not_exist)} which are not registered in our system {list(ilamb_regions._regions)}"
                 )
             self["regions"] = regions
+        if prefer_regional_quantiles is not None:
+            self["prefer_regional_quantiles"] = bool(prefer_regional_quantiles)
+        if use_uncertainty is not None:
+            self["use_uncertainty"] = bool(use_uncertainty)
         return self._unset(temp)
 
     def __getitem__(self, item):

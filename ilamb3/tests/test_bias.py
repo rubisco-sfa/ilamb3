@@ -83,7 +83,7 @@ def test_bias_regionalquantiles(
         "da",
         method="RegionalQuantiles",
         use_uncertainty=use_uncertainty,
-        quantile_dbase=gen_quantile_dbase(),
+        quantile_database=gen_quantile_dbase(),
         quantile_threshold=quantile_threshold,
     )
     df, _, _ = analysis(ref, com)

@@ -71,7 +71,7 @@ class bias_analysis(ILAMBAnalysis):
         use_uncertainty: bool = True,
         spatial_sum: bool = False,
         mass_weighting: bool = False,
-        quantile_dbase: pd.DataFrame | None = None,
+        quantile_database: pd.DataFrame | None = None,
         quantile_threshold: int = 70,
         **kwargs: Any,  # this is so we can pass extra arguments without failure
     ):
@@ -82,7 +82,7 @@ class bias_analysis(ILAMBAnalysis):
         self.use_uncertainty = use_uncertainty
         self.spatial_sum = spatial_sum
         self.mass_weighting = mass_weighting
-        self.quantile_dbase = quantile_dbase
+        self.quantile_database = quantile_database
         self.quantile_threshold = quantile_threshold
         self.kwargs = kwargs
 
@@ -129,10 +129,10 @@ class bias_analysis(ILAMBAnalysis):
 
         # Checks on the quantile database if used
         if self.method == "RegionalQuantiles":
-            check_quantile_database(self.quantile_dbase)
+            check_quantile_database(self.quantile_database)
             try:
                 quantile_map = create_quantile_map(
-                    self.quantile_dbase, varname, "bias", self.quantile_threshold
+                    self.quantile_database, varname, "bias", self.quantile_threshold
                 )
                 dset.convert(quantile_map, ref[varname].attrs["units"])
             except NoDatabaseEntry:

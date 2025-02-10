@@ -6,7 +6,7 @@ then later create a ILAMBAnalysis which uses it.
 """
 
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Any, Union
 
 import numpy as np
 import pandas as pd
@@ -236,6 +236,8 @@ class relationship_analysis(ILAMBAnalysis):
         The name of the dependent variable to be used in this analysis.
     ind_variable : str
         The name of the independent variable to be used in this analysis.
+    regions: list[str | None] = [None],
+        The regions overwhich to perform the analysis.
 
     Methods
     -------
@@ -245,9 +247,16 @@ class relationship_analysis(ILAMBAnalysis):
         The method
     """
 
-    def __init__(self, dep_variable: str, ind_variable: str):  # numpydoc ignore=GL08
+    def __init__(
+        self,
+        dep_variable: str,
+        ind_variable: str,
+        regions: list[str | None] = [None],
+        **kwargs: Any,
+    ):  # numpydoc ignore=GL08
         self.dep_variable = dep_variable
         self.ind_variable = ind_variable
+        self.regions = regions
 
     def required_variables(self) -> list[str]:
         """
@@ -261,10 +270,7 @@ class relationship_analysis(ILAMBAnalysis):
         return [self.dep_variable, self.ind_variable]
 
     def __call__(
-        self,
-        ref: xr.Dataset,
-        com: xr.Dataset,
-        regions: list[str | None] = [None],
+        self, ref: xr.Dataset, com: xr.Dataset
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
         """
         Apply the ILAMB relationship methodology on the given datasets.
@@ -275,8 +281,6 @@ class relationship_analysis(ILAMBAnalysis):
             The reference dataset.
         com : xr.Dataset
             The comparison dataset.
-        regions : list
-            A list of region labels over which to apply the analysis.
 
         Returns
         -------
@@ -310,7 +314,7 @@ class relationship_analysis(ILAMBAnalysis):
         ds_ref = []
         ds_com = []
         ilamb_regions = Regions()
-        for region in regions:
+        for region in self.regions:
             refr = ilamb_regions.restrict_to_region(ref, region)
             comr = ilamb_regions.restrict_to_region(com, region)
             rel_ref = Relationship(
@@ -371,11 +375,7 @@ class relationship_analysis(ILAMBAnalysis):
         com: dict[str, xr.Dataset],
     ) -> pd.DataFrame:
         # Some initialization
-        regions = [None if r == "None" else r for r in df["region"].unique()]
         com["Reference"] = ref
-
-        # Setup plot data
-        df = plt.determine_plot_limits(com).set_index("name")
 
         # Build up a dataframe of matplotlib axes, first the distribution plots
         axs = [
@@ -393,7 +393,7 @@ class relationship_analysis(ILAMBAnalysis):
                     else pd.NA
                 ),
             }
-            for region in regions
+            for region in self.regions
             for source, ds in com.items()
         ]
         axs = pd.DataFrame(axs).dropna(subset=["axis"])

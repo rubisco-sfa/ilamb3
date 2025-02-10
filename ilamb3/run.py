@@ -2,6 +2,7 @@
 
 import importlib
 from pathlib import Path
+from typing import Any
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -16,9 +17,18 @@ from ilamb3.analysis.base import ILAMBAnalysis
 
 
 def setup_analyses(
-    registry: pooch.Pooch, **analysis_setup
-) -> tuple[dict[str, xr.Dataset], str, dict[str, ILAMBAnalysis]]:
-    # Check on inputs
+    registry: pooch.Pooch, **analysis_setup: Any
+) -> tuple[str, dict[str, ILAMBAnalysis]]:
+    """.
+
+    sources
+    relationships
+
+    variable_cmap
+    skip_XXX
+
+    """
+    # Check on sources
     sources = analysis_setup.get("sources", {})
     relationships = analysis_setup.get("relationships", {})
     if len(sources) != 1:
@@ -27,31 +37,39 @@ def setup_analyses(
         )
     variable = list(sources.keys())[0]
 
+    # Augment options with things in the global options
+    if "regions" not in analysis_setup:
+        analysis_setup["regions"] = ilamb3.conf["regions"]
+    if "method" not in analysis_setup:
+        if ilamb3.conf["prefer_regional_quantiles"]:
+            analysis_setup["method"] = "RegionalQuantiles"
+            analysis_setup["quantile_database"] = pd.read_parquet(
+                registry.fetch(ilamb3.conf["quantile_database"])
+            )
+            analysis_setup["quantile_threshold"] = ilamb3.conf["quantile_threshold"]
+            ilr.Regions().add_netcdf(
+                xr.load_dataset(registry.fetch("regions/Whittaker.nc"))
+            )
+        else:
+            analysis_setup["method"] = "Collier2018"
+    if "use_uncertainty" not in analysis_setup:
+        analysis_setup["use_uncertainty"] = ilamb3.conf["use_uncertainty"]
+
     # Setup the default analysis
-    cmap = (
-        analysis_setup.pop("variable_cmap")
-        if "variable_cmap" in analysis_setup
-        else "viridis"
-    )
     analyses = {
-        name: a(variable, variable_cmap=cmap)
+        name: a(variable, **analysis_setup)
         for name, a in anl.DEFAULT_ANALYSES.items()
         if analysis_setup.get(f"skip_{name.lower()}", False) is False
     }
     analyses.update(
         {
-            f"rel_{ind_variable}": anl.relationship_analysis(variable, ind_variable)
+            f"{ind_variable} Relationship": anl.relationship_analysis(
+                variable, ind_variable, **analysis_setup
+            )
             for ind_variable in relationships
         }
     )
-
-    # Setup reference data
-    ref = sources.copy()
-    ref.update(relationships)
-    ref = {
-        key: xr.open_dataset(registry.fetch(filename)) for key, filename in ref.items()
-    }
-    return ref, variable, analyses
+    return variable, analyses
 
 
 def run_analyses(
@@ -78,13 +96,13 @@ def run_analyses(
     dfs = []
     ds_refs = []
     ds_coms = []
-    for _, a in analyses.items():
-        df, ds_ref, ds_com = a(ref, com, regions=ilamb3.conf["regions"])
+    for aname, a in analyses.items():
+        df, ds_ref, ds_com = a(ref, com)
         dfs.append(df)
         ds_refs.append(ds_ref)
         ds_coms.append(ds_com)
-    dfs = pd.concat(dfs)
-    dfs["name"] = dfs["name"] + " [" + df["units"] + "]"
+    dfs = pd.concat(dfs, ignore_index=True)
+    dfs["name"] = dfs["name"] + " [" + dfs["units"] + "]"
     ds_ref = xr.merge(ds_refs)
     ds_com = xr.merge(ds_coms)
     return dfs, ds_ref, ds_com
