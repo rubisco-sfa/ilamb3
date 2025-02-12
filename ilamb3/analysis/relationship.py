@@ -14,6 +14,7 @@ import xarray as xr
 
 import ilamb3.plot as plt
 from ilamb3 import compare as cmp
+from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.regions import Regions
 
@@ -316,6 +317,10 @@ class relationship_analysis(ILAMBAnalysis):
         var_dep = self.dep_variable
         for var in self.required_variables():
             ref, com = cmp.make_comparable(ref, com, var)
+            if dset.is_temporal(ref[var]):
+                ref[var] = dset.integrate_time(ref[var], mean=True)
+            if dset.is_temporal(com[var]):
+                com[var] = dset.integrate_time(com[var], mean=True)
 
         # Create and score relationships per region
         dfs = []
