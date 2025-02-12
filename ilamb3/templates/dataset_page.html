@@ -211,6 +211,21 @@ body {
     var RNAME = rsel.options[rsel.selectedIndex].value;
     setTable(RNAME, (analysis=="Overview") ? null : analysis);
   };
+  function updateRegion() {
+    /* which analysis is active? */
+    var analysis = "Overview"
+    for (const a of atypes) {
+      if(document.getElementById(a).classList.contains("active")){
+        analysis = a;
+        break;
+      }
+    }
+    /* update the table */
+    var rsel = document.getElementById("SelectRegion");
+    var RNAME = rsel.options[rsel.selectedIndex].value;
+    setTable(RNAME, (analysis=="Overview") ? null : analysis);
+    updateImages();
+  };
 </script>
 </head>
 <body>
@@ -239,7 +254,7 @@ body {
 <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
 <span>Region</span>
 </h6>
-<select id="SelectRegion" class="form-select" aria-label="RegionSelect" onclick="updateImages()">
+<select id="SelectRegion" class="form-select" aria-label="RegionSelect" onclick="updateRegion()">
 {% for label, name in regions.items() %}
 <option value="{{label}}">{{name}}</option>
 {% endfor %}
