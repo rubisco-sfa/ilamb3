@@ -204,11 +204,17 @@ class Relationship:
         Convert internal relationship representation to a dataset.
         """
         ds = xr.Dataset(
-            data_vars=dict(
-                distribution=([self.dep_var, self.ind_var], self._dist2d),
-                response=([self.ind_var], self._response_mean),
-                response_variability=([self.ind_var], self._response_std),
-            ),
+            data_vars={
+                f"distribution_{self.ind_var}": (
+                    [self.dep_var, self.ind_var],
+                    self._dist2d,
+                ),
+                f"response_{self.ind_var}": ([self.ind_var], self._response_mean),
+                f"response_{self.ind_var}_variability": (
+                    [self.ind_var],
+                    self._response_std,
+                ),
+            },
             coords={
                 self.ind_var: (
                     self.ind_var,
@@ -220,7 +226,9 @@ class Relationship:
                 ),
             },
         )
-        ds["response"].attrs = {"ancillary_variables": "response_variability"}
+        ds[f"response_{self.ind_var}"].attrs = {
+            "ancillary_variables": f"response_{self.ind_var}_variability"
+        }
         ds[self.ind_var].attrs = {"standard_name": self.ind_label}
         ds[self.dep_var].attrs = {"standard_name": self.dep_label}
         return ds
@@ -344,7 +352,7 @@ class relationship_analysis(ILAMBAnalysis):
                     "Comparison",
                     str(region),
                     analysis_name,
-                    f"Score {var_dep} vs {var_ind}",
+                    f"Relationship Score {var_ind}",
                     "score",
                     "1",
                     score,
@@ -380,16 +388,16 @@ class relationship_analysis(ILAMBAnalysis):
         # Build up a dataframe of matplotlib axes, first the distribution plots
         axs = [
             {
-                "name": "dist",
+                "name": f"distribution_{self.ind_variable}",
                 "title": f"{self.dep_variable} vs. {self.ind_variable}",
                 "region": region,
                 "source": source,
                 "axis": (
                     plt.plot_distribution(
-                        ds[f"distribution_{region}"],
+                        ds[f"distribution_{self.ind_variable}_{region}"],
                         title=f"{source} {self.dep_variable} vs. {self.ind_variable}",
                     )
-                    if f"distribution_{region}" in ds
+                    if f"distribution_{self.ind_variable}_{region}" in ds
                     else pd.NA
                 ),
             }
