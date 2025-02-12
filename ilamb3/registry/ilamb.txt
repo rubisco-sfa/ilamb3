@@ -83,6 +83,7 @@ regions/Whittaker.nc sha1:46364050ab75f564cb39140c1100de70248d99ec
 regions/LandRegions.nc sha1:f29f9b312d077f2edfaee063fad3cbeaec4b379c
 regions/ABoVE.nc sha1:e37b628657c879d19b84759e78196c187e5fb796
 regions/Koppen.nc sha1:78df0cc91e143dc903c6c6c0f1901f982fb42857
+regions/Koppen_coarse.nc sha1:e464030db49f0295a6a22a81ca602b0f3c499b72
 regions/IPCCRegions.nc sha1:0213a8606336bd9964959a2462f250a934200608
 regions/GlobalLand.nc sha1:2f987d44fdba6ad0e72d14d6a2fecb7e8df2a9c5
 regions/GlobalLandNoAnt.nc sha1:71668afcb0017fbe31c62000cac9bd8202426ce9

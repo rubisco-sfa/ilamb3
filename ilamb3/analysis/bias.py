@@ -12,6 +12,7 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 import xarray as xr
+from matplotlib import rcParams
 
 import ilamb3.plot as plt
 import ilamb3.regions as ilr
@@ -328,6 +329,7 @@ class bias_analysis(ILAMBAnalysis):
         df.loc["biasscore", ["cmap", "title"]] = ["plasma", "Bias Score"]
 
         # Build up a dataframe of matplotlib axes
+        rcParams.update({"figure.max_open_warning": len(regions) * len(com) * 3})
         axs = [
             {
                 "name": plot,
