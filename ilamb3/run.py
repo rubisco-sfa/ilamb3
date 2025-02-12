@@ -188,7 +188,7 @@ def generate_html_page(
         analyses[aname][pname] += [{"Model": f"MNAME_RNAME_{pname}.png"}]
     ref_plots = list(df_plots[df_plots["source"] == "Reference"]["name"].unique())
     mod_plots = list(df_plots[df_plots["source"] != "Reference"]["name"].unique())
-    all_plots = list(set(ref_plots) | set(mod_plots))
+    all_plots = sorted(list(set(ref_plots) | set(mod_plots)))
 
     # Setup template dictionary
     df = df.reset_index(drop=True)  # ?
