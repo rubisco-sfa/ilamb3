@@ -14,6 +14,7 @@ import xarray as xr
 
 import ilamb3.plot as plt
 from ilamb3 import compare as cmp
+from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.regions import Regions
 
@@ -204,11 +205,17 @@ class Relationship:
         Convert internal relationship representation to a dataset.
         """
         ds = xr.Dataset(
-            data_vars=dict(
-                distribution=([self.dep_var, self.ind_var], self._dist2d),
-                response=([self.ind_var], self._response_mean),
-                response_variability=([self.ind_var], self._response_std),
-            ),
+            data_vars={
+                f"distribution_{self.ind_var}": (
+                    [self.dep_var, self.ind_var],
+                    self._dist2d,
+                ),
+                f"response_{self.ind_var}": ([self.ind_var], self._response_mean),
+                f"response_{self.ind_var}_variability": (
+                    [self.ind_var],
+                    self._response_std,
+                ),
+            },
             coords={
                 self.ind_var: (
                     self.ind_var,
@@ -220,7 +227,9 @@ class Relationship:
                 ),
             },
         )
-        ds["response"].attrs = {"ancillary_variables": "response_variability"}
+        ds[f"response_{self.ind_var}"].attrs = {
+            "ancillary_variables": f"response_{self.ind_var}_variability"
+        }
         ds[self.ind_var].attrs = {"standard_name": self.ind_label}
         ds[self.dep_var].attrs = {"standard_name": self.dep_label}
         return ds
@@ -303,11 +312,15 @@ class relationship_analysis(ILAMBAnalysis):
             return ds
 
         # Initialize and make comparable
-        analysis_name = "Relationship"
+        analysis_name = f"Relationship {self.ind_variable}"
         var_ind = self.ind_variable
         var_dep = self.dep_variable
         for var in self.required_variables():
             ref, com = cmp.make_comparable(ref, com, var)
+            if dset.is_temporal(ref[var]):
+                ref[var] = dset.integrate_time(ref[var], mean=True)
+            if dset.is_temporal(com[var]):
+                com[var] = dset.integrate_time(com[var], mean=True)
 
         # Create and score relationships per region
         dfs = []
@@ -344,7 +357,7 @@ class relationship_analysis(ILAMBAnalysis):
                     "Comparison",
                     str(region),
                     analysis_name,
-                    f"Score {var_dep} vs {var_ind}",
+                    f"Relationship Score {var_ind}",
                     "score",
                     "1",
                     score,
@@ -380,16 +393,39 @@ class relationship_analysis(ILAMBAnalysis):
         # Build up a dataframe of matplotlib axes, first the distribution plots
         axs = [
             {
-                "name": "dist",
+                "name": f"distribution_{self.ind_variable}",
                 "title": f"{self.dep_variable} vs. {self.ind_variable}",
                 "region": region,
                 "source": source,
                 "axis": (
                     plt.plot_distribution(
-                        ds[f"distribution_{region}"],
+                        ds[f"distribution_{self.ind_variable}_{region}"],
                         title=f"{source} {self.dep_variable} vs. {self.ind_variable}",
                     )
-                    if f"distribution_{region}" in ds
+                    if f"distribution_{self.ind_variable}_{region}" in ds
+                    else pd.NA
+                ),
+            }
+            for region in self.regions
+            for source, ds in com.items()
+        ]
+        com.pop("Reference")
+        axs += [
+            {
+                "name": f"response_{self.ind_variable}",
+                "title": f"{self.dep_variable} vs. {self.ind_variable}",
+                "region": region,
+                "source": source,
+                "axis": (
+                    plt.plot_response(
+                        ref[f"response_{self.ind_variable}_{region}"],
+                        ref[f"response_{self.ind_variable}_variability_{region}"],
+                        ds[f"response_{self.ind_variable}_{region}"],
+                        ds[f"response_{self.ind_variable}_variability_{region}"],
+                        source,
+                        title=f"{source} {self.dep_variable} vs. {self.ind_variable}",
+                    )
+                    if f"response_{self.ind_variable}_{region}" in ds
                     else pd.NA
                 ),
             }

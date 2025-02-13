@@ -22,10 +22,10 @@ def pick_projection(extents: list[float]) -> tuple[ccrs.Projection, float]:
     if (extents[1] - extents[0]) > 300:
         aspect_ratio = 2.0
         proj = ccrs.Robinson(central_longitude=0)
-        if (extents[2] > 0) and (extents[3] > 75):
+        if (extents[2] > 0) and (extents[3] > 60):
             aspect_ratio = 1.0
             proj = ccrs.Orthographic(central_latitude=+90, central_longitude=0)
-        if (extents[2] < -75) and (extents[3] < 0):
+        if (extents[2] < -60) and (extents[3] < 0):
             aspect_ratio = 1.0
             proj = ccrs.Orthographic(central_latitude=-90, central_longitude=0)
     else:
@@ -51,13 +51,18 @@ def finalize_plot(ax: plt.Axes, extents: list[float]) -> plt.Axes:
     )
     # cleanup plotting extents
     percent_pad = 0.1
-    if (extents[1] - extents[0]) > 330:
+    if (extents[1] - extents[0]) > 300:
         extents[:2] = [-180, 180]  # set_extent doesn't like (0,360)
         extents[2:] = [-90, 90]
     else:
         dx = percent_pad * (extents[1] - extents[0])
         dy = percent_pad * (extents[3] - extents[2])
-        extents = [extents[0] - dx, extents[1] + dx, extents[2] - dy, extents[3] + dy]
+        extents = [
+            max(extents[0] - dx, -180),
+            min(extents[1] + dx, 180),
+            max(extents[2] - dy, -90),
+            min(extents[3] + dy, 90),
+        ]
     ax.set_extent(extents, ccrs.PlateCarree())
     return ax
 
@@ -124,6 +129,35 @@ def plot_distribution(da: xr.DataArray, **kwargs):
         cmap="plasma",
         cbar_kwargs={"label": "Fraction of total data"},
     )
+    ax.set_title(kwargs.pop("title") if "title" in kwargs else "")
+    return ax
+
+
+def plot_response(
+    ref_mean: xr.DataArray,
+    ref_std: xr.DataArray,
+    mean: xr.DataArray,
+    std: xr.DataArray,
+    comparison_name: str,
+    **kwargs,
+):
+    def _plot(ax, m, s, c="k", lbl="Reference"):
+        ax.fill_between(
+            m[m.dims[0]].values,
+            m - s,
+            m + s,
+            color=c,
+            alpha=0.1,
+            lw=0,
+            label=f"{lbl} variability",
+        )
+        m.plot(ax=ax, color=c, label=f"{lbl} mean")
+        return ax
+
+    _, ax = plt.subplots(dpi=200, tight_layout=True, figsize=(6, 5.25))
+    ax = _plot(ax, ref_mean, ref_std)
+    ax = _plot(ax, mean, std, "r", comparison_name)
+    ax.legend()
     ax.set_title(kwargs.pop("title") if "title" in kwargs else "")
     return ax
 

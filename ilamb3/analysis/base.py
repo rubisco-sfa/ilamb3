@@ -107,3 +107,20 @@ class ILAMBAnalysis(ABC):
             The dataframe of plots.
         """
         raise NotImplementedError()
+
+
+def add_overall_score(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Synthesize an average 'Overall' score from all scores in the dataframe.
+    """
+    add = (
+        df[df["type"] == "score"]
+        .groupby(["source", "region"])
+        .mean(numeric_only=True)
+        .reset_index()
+    )
+    add["name"] = "Overall Score [1]"
+    add["type"] = "score"
+    add["units"] = "1"
+    df = pd.concat([df, add]).reset_index(drop=True)
+    return df
