@@ -63,7 +63,7 @@ def setup_analyses(
     }
     analyses.update(
         {
-            f"{ind_variable} Relationship": anl.relationship_analysis(
+            f"Relationship {ind_variable}": anl.relationship_analysis(
                 variable, ind_variable, **analysis_setup
             )
             for ind_variable in relationships
@@ -139,7 +139,6 @@ def plot_analyses(
     plot_path.mkdir(exist_ok=True, parents=True)
     df_plots = []
     for name, a in analyses.items():
-        name = "Relationship" if "Relationship" in name else name
         dfp = a.plots(df, ref, com)
         dfp["analysis"] = name
         df_plots.append(dfp)

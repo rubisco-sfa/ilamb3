@@ -133,6 +133,35 @@ def plot_distribution(da: xr.DataArray, **kwargs):
     return ax
 
 
+def plot_response(
+    ref_mean: xr.DataArray,
+    ref_std: xr.DataArray,
+    mean: xr.DataArray,
+    std: xr.DataArray,
+    comparison_name: str,
+    **kwargs,
+):
+    def _plot(ax, m, s, c="k", lbl="Reference"):
+        ax.fill_between(
+            m[m.dims[0]].values,
+            m - s,
+            m + s,
+            color=c,
+            alpha=0.1,
+            lw=0,
+            label=f"{lbl} variability",
+        )
+        m.plot(ax=ax, color=c, label=f"{lbl} mean")
+        return ax
+
+    _, ax = plt.subplots(dpi=200, tight_layout=True, figsize=(6, 5.25))
+    ax = _plot(ax, ref_mean, ref_std)
+    ax = _plot(ax, mean, std, "r", comparison_name)
+    ax.legend()
+    ax.set_title(kwargs.pop("title") if "title" in kwargs else "")
+    return ax
+
+
 def determine_plot_limits(
     dsd: xr.Dataset | dict[str, xr.Dataset],
     percent_pad: float = 1.0,

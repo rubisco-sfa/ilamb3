@@ -312,7 +312,7 @@ class relationship_analysis(ILAMBAnalysis):
             return ds
 
         # Initialize and make comparable
-        analysis_name = "Relationship"
+        analysis_name = f"Relationship {self.ind_variable}"
         var_ind = self.ind_variable
         var_dep = self.dep_variable
         for var in self.required_variables():
@@ -403,6 +403,29 @@ class relationship_analysis(ILAMBAnalysis):
                         title=f"{source} {self.dep_variable} vs. {self.ind_variable}",
                     )
                     if f"distribution_{self.ind_variable}_{region}" in ds
+                    else pd.NA
+                ),
+            }
+            for region in self.regions
+            for source, ds in com.items()
+        ]
+        com.pop("Reference")
+        axs += [
+            {
+                "name": f"response_{self.ind_variable}",
+                "title": f"{self.dep_variable} vs. {self.ind_variable}",
+                "region": region,
+                "source": source,
+                "axis": (
+                    plt.plot_response(
+                        ref[f"response_{self.ind_variable}_{region}"],
+                        ref[f"response_{self.ind_variable}_variability_{region}"],
+                        ds[f"response_{self.ind_variable}_{region}"],
+                        ds[f"response_{self.ind_variable}_variability_{region}"],
+                        source,
+                        title=f"{source} {self.dep_variable} vs. {self.ind_variable}",
+                    )
+                    if f"response_{self.ind_variable}_{region}" in ds
                     else pd.NA
                 ),
             }
