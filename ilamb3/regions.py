@@ -51,8 +51,8 @@ def restrict_to_bbox(
 def restrict_to_region(da: xr.DataArray, dar: xr.DataArray):
     """."""
     assert isinstance(da, xr.DataArray)
-    lat_name = dset.get_dim_name(da, "lat")
-    lon_name = dset.get_dim_name(da, "lon")
+    lat_name = dset.get_coord_name(da, "lat")
+    lon_name = dset.get_coord_name(da, "lon")
     rlat_name = dset.get_dim_name(dar, "lat")
     rlon_name = dset.get_dim_name(dar, "lon")
     dar = dar.rename({rlat_name: lat_name, rlon_name: lon_name})
