@@ -37,6 +37,15 @@ def setup_analyses(
         )
     variable = list(sources.keys())[0]
 
+    # If specialized analyses are given, setup those and return
+    if "analyses" in analysis_setup:
+        analyses = {
+            a: anl.ALL_ANALYSES[a](variable, **analysis_setup)
+            for a in analysis_setup.pop("analyses", [])
+            if a in anl.ALL_ANALYSES
+        }
+        return variable, analyses
+
     # Augment options with things in the global options
     if "regions" not in analysis_setup:
         analysis_setup["regions"] = ilamb3.conf["regions"]
