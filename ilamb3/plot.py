@@ -178,16 +178,21 @@ def determine_plot_limits(
             out.append({"name": plot, "low": 0, "high": 1})
             continue
         # Otherwise pick a quantile across all data sources
-        data = np.quantile(
-            np.hstack(
-                [
-                    np.ma.masked_invalid(ds[plot].to_numpy()).compressed()
-                    for _, ds in dsd.items()
-                    if plot in ds
-                ]
-            ),
-            [percent_pad * 0.01, 1 - percent_pad * 0.01],
-        )
+        try:
+            data = np.quantile(
+                np.hstack(
+                    [
+                        np.ma.masked_invalid(ds[plot].to_numpy()).compressed()
+                        for _, ds in dsd.items()
+                        if plot in ds
+                    ]
+                ),
+                [percent_pad * 0.01, 1 - percent_pad * 0.01],
+            )
+        except IndexError:
+            # In rare instances no model has any valid data and so it doesn't
+            # matter what we make the plot limits
+            data = np.asarray([0.0, 1.0])
         # symmetrize
         if plot in symmetrize:
             vmax = max(np.abs(data))
