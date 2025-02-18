@@ -14,7 +14,11 @@ def get_extents(da: xr.DataArray) -> list[float]:
     """Find the extent of the non-null data."""
     lat = xr.where(da.notnull(), da[dset.get_coord_name(da, "lat")], np.nan)
     lon = xr.where(da.notnull(), da[dset.get_coord_name(da, "lon")], np.nan)
-    return [float(lon.min()), float(lon.max()), float(lat.min()), float(lat.max())]
+    extents = [float(lon.min()), float(lon.max()), float(lat.min()), float(lat.max())]
+    # if a da is all nan, then the extents cause trouble downstream in plotting.
+    if np.isnan(extents).any():
+        return [-180.0, 180.0, -90.0, 90.0]
+    return extents
 
 
 def pick_projection(extents: list[float]) -> tuple[ccrs.Projection, float]:
