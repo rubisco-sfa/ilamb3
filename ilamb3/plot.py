@@ -198,7 +198,7 @@ def determine_plot_limits(
             # matter what we make the plot limits
             data = np.asarray([0.0, 1.0])
         # symmetrize
-        if plot in symmetrize:
+        if [tag for tag in symmetrize if tag in plot]:
             vmax = max(np.abs(data))
             data[0] = -vmax
             data[1] = vmax

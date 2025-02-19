@@ -72,6 +72,29 @@ def metric_maps(
     return xr.Dataset(out)
 
 
+def score_difference(ref: xr.Dataset, com: xr.Dataset) -> xr.Dataset:
+    # Compute differences and scores
+    ref_, com_ = cmp.nest_spatial_grids(ref, com)
+    diff = com_ - ref_
+    diff = diff.rename_vars({v: f"{v}_difference" for v in diff})
+    # Add scores to the means that also have std's
+    diff = diff.merge(
+        {
+            v.replace("_difference", "_score"): np.exp(
+                -np.abs(diff[v])
+                / ref_[v.replace("_mean", "_std").replace("_difference", "")]
+            )
+            for v in diff
+            if "mean" in v and v.replace("_mean_", "_std_") in diff
+        }
+    )
+    # Rename the lat dimension for merging with the comparison on return
+    lat_name = dset.get_dim_name(diff, "lat")
+    lon_name = dset.get_dim_name(diff, "lon")
+    com = com.merge(diff.rename({lat_name: f"{lat_name}_", lon_name: f"{lon_name}_"}))
+    return com
+
+
 def scalarify(
     var: xr.DataArray | xr.Dataset, varname: str, region: str | None, mean: bool
 ) -> tuple[float, str]:
@@ -98,38 +121,60 @@ def scalarify(
 
 
 class hydro_analysis(ILAMBAnalysis):
-    def __init__(self, required_variable: str, **kwargs: Any):
+    def __init__(
+        self, required_variable: str, regions: list[str | None] = [None], **kwargs: Any
+    ):
         self.req_variable = required_variable
+        self.regions = regions
         self.kwargs = kwargs
 
         # This analysis will split plots/scalars into sections as organized below
         self.sections = {
             "Annual": [
                 "annual_mean",
+                "annual_mean_difference",
+                "annual_mean_score",
                 "annual_std",
+                "annual_std_difference",
             ],
             "Amplitude": [
                 "amplitude_mean",
+                "amplitude_mean_difference",
+                "amplitude_mean_score",
                 "amplitude_std",
+                "amplitude_std_difference",
             ],
             "Seasonal DJF": [
                 "seasonal_mean_DJF",
+                "seasonal_mean_DJF_difference",
+                "seasonal_mean_DJF_score",
                 "seasonal_std_DJF",
+                "seasonal_std_DJF_difference",
             ],
             "Seasonal MAM": [
                 "seasonal_mean_MAM",
+                "seasonal_mean_MAM_difference",
+                "seasonal_mean_MAM_score",
                 "seasonal_std_MAM",
+                "seasonal_std_MAM_difference",
             ],
             "Seasonal JJA": [
                 "seasonal_mean_JJA",
+                "seasonal_mean_JJA_difference",
+                "seasonal_mean_JJA_score",
                 "seasonal_std_JJA",
+                "seasonal_std_JJA_difference",
             ],
             "Seasonal SON": [
                 "seasonal_mean_SON",
+                "seasonal_mean_SON_difference",
+                "seasonal_mean_SON_score",
                 "seasonal_std_SON",
+                "seasonal_std_SON_difference",
             ],
             "Cycle": [
                 "peak_timing",
+                "peak_timing_difference",
             ],
         }
 
@@ -168,12 +213,13 @@ class hydro_analysis(ILAMBAnalysis):
         # Run the hydro metrics
         ref = metric_maps(ref, varname)
         com = metric_maps(com, varname)
+        com = score_difference(ref, com)
 
         # Create scalars
         df = []
         for source, ds in {"Reference": ref, "Comparison": com}.items():
             for vname, da in ds.items():
-                for region in [None]:
+                for region in self.regions:
                     scalar, unit = scalarify(da, vname, region=region, mean=True)
                     df.append(
                         [
@@ -186,7 +232,7 @@ class hydro_analysis(ILAMBAnalysis):
                                     for v in vname.split("_")
                                 ]
                             ),
-                            "scalar",
+                            "score" if "score" in vname else "scalar",
                             unit,
                             scalar,
                         ]
@@ -216,16 +262,24 @@ class hydro_analysis(ILAMBAnalysis):
     ) -> pd.DataFrame:
         com["Reference"] = ref
 
+        def _choose_cmap(plot_name):
+            if "score" in plot_name:
+                return "plasma"
+            if "difference" in plot_name:
+                return "bwr"
+            return "viridis"
+
         # Which plots are we handling in here?
         plots = list(chain(*[vs for _, vs in self.sections.items()]))
-        com = {key: ds[plots] for key, ds in com.items()}
+        com = {key: ds[set(ds) & set(plots)] for key, ds in com.items()}
 
         # Setup plots
-        df = plt.determine_plot_limits(com).set_index("name")
+        df = plt.determine_plot_limits(com, symmetrize=["difference"]).set_index("name")
         df["title"] = [
             " ".join([v.capitalize() if v.islower() else v for v in plot.split("_")])
             for plot in df.index
         ]
+        df["cmap"] = df.index.map(_choose_cmap)
 
         # Build up a dataframe of matplotlib axes
         axs = [
@@ -241,7 +295,7 @@ class hydro_analysis(ILAMBAnalysis):
                         region=region,
                         vmin=df.loc[plot, "low"],
                         vmax=df.loc[plot, "high"],
-                        cmap="viridis",
+                        cmap=df.loc[plot, "cmap"],
                         title=source + " " + df.loc[plot, "title"],
                     )
                     if plot in ds
