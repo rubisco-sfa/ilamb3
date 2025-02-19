@@ -149,7 +149,8 @@ def plot_analyses(
     df_plots = []
     for name, a in analyses.items():
         dfp = a.plots(df, ref, com)
-        dfp["analysis"] = name
+        if "analysis" not in dfp.columns:
+            dfp["analysis"] = name
         df_plots.append(dfp)
     df_plots = pd.concat(df_plots)
     for _, row in df_plots.iterrows():

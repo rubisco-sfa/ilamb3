@@ -1,3 +1,4 @@
+from itertools import chain
 from typing import Any
 
 import numpy as np
@@ -101,6 +102,37 @@ class hydro_analysis(ILAMBAnalysis):
         self.req_variable = required_variable
         self.kwargs = kwargs
 
+        # This analysis will split plots/scalars into sections as organized below
+        self.sections = {
+            "Annual": [
+                "annual_mean",
+                "annual_std",
+            ],
+            "Amplitude": [
+                "amplitude_mean",
+                "amplitude_std",
+            ],
+            "Seasonal DJF": [
+                "seasonal_mean_DJF",
+                "seasonal_std_DJF",
+            ],
+            "Seasonal MAM": [
+                "seasonal_mean_MAM",
+                "seasonal_std_MAM",
+            ],
+            "Seasonal JJA": [
+                "seasonal_mean_JJA",
+                "seasonal_std_JJA",
+            ],
+            "Seasonal SON": [
+                "seasonal_mean_SON",
+                "seasonal_std_SON",
+            ],
+            "Cycle": [
+                "peak_timing",
+            ],
+        }
+
     def required_variables(self) -> list[str]:
         """
         Return the list of variables required for this analysis.
@@ -112,6 +144,13 @@ class hydro_analysis(ILAMBAnalysis):
         """
         return [self.req_variable]
 
+    def _get_analysis_section(self, varname: str) -> str:
+        """Given the plot/variable, return from which section it belongs."""
+        section = [s for s, vs in self.sections.items() if varname in vs]
+        if not section:
+            raise ValueError(f"Could not find {varname} in {self.sections}.")
+        return section[0]
+
     def __call__(
         self,
         ref: xr.Dataset,
@@ -121,7 +160,6 @@ class hydro_analysis(ILAMBAnalysis):
         Apply the ILAMB bias methodology on the given datasets.
         """
         # Initialize
-        analysis_name = "Hydro"
         varname = self.req_variable
 
         # Make the variables comparable and force loading into memory
@@ -141,7 +179,7 @@ class hydro_analysis(ILAMBAnalysis):
                         [
                             source,
                             str(region),
-                            analysis_name,
+                            self._get_analysis_section(vname),
                             " ".join(
                                 [
                                     v.capitalize() if v.islower() else v
@@ -179,21 +217,7 @@ class hydro_analysis(ILAMBAnalysis):
         com["Reference"] = ref
 
         # Which plots are we handling in here?
-        plots = [
-            "annual_mean",
-            "annual_std",
-            "amplitude_mean",
-            "amplitude_std",
-            "seasonal_mean_DJF",
-            "seasonal_mean_JJA",
-            "seasonal_mean_MAM",
-            "seasonal_mean_SON",
-            "seasonal_std_DJF",
-            "seasonal_std_JJA",
-            "seasonal_std_MAM",
-            "seasonal_std_SON",
-            "peak_timing",
-        ]
+        plots = list(chain(*[vs for _, vs in self.sections.items()]))
         com = {key: ds[plots] for key, ds in com.items()}
 
         # Setup plots
@@ -210,6 +234,7 @@ class hydro_analysis(ILAMBAnalysis):
                 "title": df.loc[plot, "title"],
                 "region": region,
                 "source": source,
+                "analysis": self._get_analysis_section(plot),
                 "axis": (
                     plt.plot_map(
                         ds[plot],
