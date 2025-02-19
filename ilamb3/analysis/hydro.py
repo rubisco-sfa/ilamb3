@@ -304,13 +304,21 @@ class hydro_analysis(ILAMBAnalysis):
             }
             for plot in plots
             for source, ds in com.items()
-            for region in [None]
+            for region in self.regions
         ]
         axs = pd.DataFrame(axs).dropna(subset=["axis"])
         return axs
 
 
 if __name__ == "__main__":
+    """
+    [x] Separate it out into sections (Annual, Amplitude, Season, Cycle) maybe?
+    [ ] Fix the timing plot to read months on the labels
+    [x] Compute differences in model-reference
+    [x] Add more models, especially the models you want to show
+    [x] Generate synthesis scores? I would suggest for each aspect we compute a relative error as eps = (reference_mean - model_mean) / reference_std and then score = exp(-|eps|) but we can chat.
+    [x] Use the US regions we developed
+    """
     import ilamb3
 
     ref = xr.open_dataset(ilamb3.ilamb_catalog().fetch("tas/CRU4.02/tas.nc"))
