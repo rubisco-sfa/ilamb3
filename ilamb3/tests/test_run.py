@@ -46,11 +46,12 @@ def generate_test_dset(seed: int = 1, nyear=None, nlat=None, nlon=None):
 def test_run():
     reg = ilamb3.ilamb_catalog()
     ilamb3.conf.set(prefer_regional_quantiles=False, use_uncertainty=False)
-    print(ilamb3.conf)
     com = generate_test_dset(1, nyear=35, nlat=10, nlon=20)
     tmp = Path(tempfile.gettempdir())
     ds_com = {}
-    _, anl = run.setup_analyses(reg, sources={"tas": "test/Test/tas.nc"})
+    _, anl = run.setup_analyses(
+        run._registry_to_dataframe(reg), sources={"tas": "test/Test/tas.nc"}
+    )
     ref = xr.open_dataset(reg.fetch("test/Test/tas.nc"))
     df, ds_ref, ds_com["Comparison"] = run.run_analyses(ref, com, anl)
     dfp = run.plot_analyses(df, ds_ref, ds_com, anl, tmp)
