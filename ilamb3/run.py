@@ -9,11 +9,136 @@ import pandas as pd
 import pooch
 import xarray as xr
 from jinja2 import Template
+from loguru import logger
 
 import ilamb3
 import ilamb3.analysis as anl
+import ilamb3.compare as cmp
 import ilamb3.regions as ilr
-from ilamb3.analysis.base import ILAMBAnalysis
+from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
+
+
+def _load_reference_data(
+    variable_id: str,
+    registry: pooch.Pooch,
+    sources: dict[str, str],
+    relationships: dict[str, str] | None = None,
+) -> xr.Dataset:
+    """
+    Load the reference data into containers and merge if more than 1 variable is
+    used.
+    """
+    if relationships is not None:  # pragma: no cover
+        sources = sources | relationships
+    ref = {
+        key: xr.open_dataset(registry.fetch(str(filename)))
+        for key, filename in sources.items()
+    }
+    if len(ref) > 1:
+        ref = cmp.trim_time(**ref)
+        ref = cmp.same_spatial_grid(ref[variable_id], **ref)
+        ds_ref = xr.merge([v for _, v in ref.items()], compat="override")
+    else:
+        ds_ref = ref[variable_id]
+    return ds_ref
+
+
+def _load_comparison_data(variable_id: str, df: pd.DataFrame) -> xr.Dataset:
+    """
+    Load the comparison (model) data into containers and merge if more than 1
+    variable is used.
+    """
+    com = {
+        var: xr.open_mfdataset(sorted((df[df["variable_id"] == var]["path"]).to_list()))
+        for var in df["variable_id"].unique()
+    }
+    if len(com) > 1:
+        ds_com = xr.merge([v for _, v in com.items()], compat="override")
+    else:
+        ds_com = com[variable_id]
+    return ds_com
+
+
+def run_simple(
+    registry: pooch.Pooch,
+    analysis_name: str,
+    df_datasets: pd.DataFrame,
+    output_path: Path,
+    **setup: Any,
+):
+    """
+    Run the ILAMB standard analysis.
+    """
+    if "relationships" not in setup:
+        setup["relationships"] = {}
+    variable, analyses = setup_analyses(registry, **setup)
+
+    # Phase I: loop over each model in the group and run an analysis function
+    df_all = []
+    ds_com = {}
+    ds_ref = None
+    for _, grp in df_datasets.groupby(["source_id", "member_id", "grid_label"]):
+        row = grp.iloc[0]
+
+        # Define what we will call the output artifacts
+        source_name = "{source_id}-{member_id}-{grid_label}".format(**row.to_dict())
+        csv_file = output_path / f"{source_name}.csv"
+        ref_file = output_path / "Reference.nc"
+        com_file = output_path / f"{source_name}.nc"
+        log_file = output_path / f"{source_name}.log"
+        log_id = logger.add(log_file, backtrace=True, diagnose=True)
+
+        try:
+            # Load data and run comparison
+            ref = _load_reference_data(
+                variable, registry, setup["sources"], setup["relationships"]
+            )
+            com = _load_comparison_data(variable, grp)
+            dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
+            dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
+
+            # Write out artifacts
+            dfs.to_csv(csv_file, index=False)
+            if not ref_file.is_file():  # pragma: no cover
+                ds_ref.to_netcdf(ref_file)
+            ds_com[source_name].to_netcdf(com_file)
+            df_all.append(dfs)
+        except Exception:  # pragma: no cover
+            logger.exception(
+                f"ILAMB analysis '{analysis_name}' failed for '{source_name}'."
+            )
+            continue
+
+        # Pop log and remove zero size files
+        logger.remove(log_id)
+        if log_file.stat().st_size == 0:  # pragma: no cover
+            log_file.unlink()
+
+    # Check that the reference intermediate data really was generated.
+    if ds_ref is None:
+        raise ValueError(
+            "Reference intermediate data was not generated."
+        )  # pragma: no cover
+    ds_ref.attrs = ref.attrs
+
+    # Phase 2: get plots and combine scalars and save
+    plt.rcParams.update({"figure.max_open_warning": 0})
+    df = pd.concat(df_all).drop_duplicates(
+        subset=["source", "region", "analysis", "name"]
+    )
+    df = add_overall_score(df)
+    df_plots = plot_analyses(df, ds_ref, ds_com, analyses, output_path)
+    for _, row in df_plots.iterrows():
+        row["axis"].get_figure().savefig(
+            output_path / f"{row['source']}_{row['region']}_{row['name']}.png"
+        )
+    plt.close("all")
+
+    # Generate an output page
+    ds_ref.attrs["header"] = analysis_name
+    html = generate_html_page(df, ds_ref, ds_com, df_plots)
+    with open(output_path / "index.html", mode="w") as out:
+        out.write(html)
 
 
 def setup_analyses(
@@ -55,6 +180,15 @@ def setup_analyses(
     if "use_uncertainty" not in analysis_setup:
         analysis_setup["use_uncertainty"] = ilamb3.conf["use_uncertainty"]
 
+    # If specialized analyses are given, setup those and return
+    if "analyses" in analysis_setup:
+        analyses = {
+            a: anl.ALL_ANALYSES[a](variable, **analysis_setup)
+            for a in analysis_setup.pop("analyses", [])
+            if a in anl.ALL_ANALYSES
+        }
+        return variable, analyses
+
     # Setup the default analysis
     analyses = {
         name: a(variable, **analysis_setup)
@@ -85,7 +219,7 @@ def run_analyses(
     com : xr.Dataset
         The dataset which will be considered as the comparison.
     analyses: dict[str, ILAMBAnalysis]
-        A dictionary of analyses to run.
+        A dictionary of analyses to
 
     Returns
     -------
@@ -127,7 +261,7 @@ def plot_analyses(
     com : dict[str,xr.Dataset]
         A dictionary of the comparison datasets whose keys are the model names.
     analyses : dict[str, ILAMBAnalysis]
-        A dictionary of analyses to run.
+        A dictionary of analyses to
     plot_path : Path
         A path to prepend all filenames.
 
@@ -140,7 +274,8 @@ def plot_analyses(
     df_plots = []
     for name, a in analyses.items():
         dfp = a.plots(df, ref, com)
-        dfp["analysis"] = name
+        if "analysis" not in dfp.columns:
+            dfp["analysis"] = name
         df_plots.append(dfp)
     df_plots = pd.concat(df_plots)
     for _, row in df_plots.iterrows():

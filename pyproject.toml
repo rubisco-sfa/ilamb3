@@ -1,7 +1,5 @@
 [project]
-authors = [
-  {name = "Nathan Collier", email = "nathaniel.collier@gmail.com"},
-]
+authors = [{ name = "Nathan Collier", email = "nathaniel.collier@gmail.com" }]
 classifiers = [
   "Development Status :: 4 - Beta",
   "License :: OSI Approved :: BSD License",
@@ -17,49 +15,43 @@ classifiers = [
 ]
 description = "Earth system model benchmarking"
 dynamic = ["version"]
-license = {text = "BSD-3-Clause"}
+license = { text = "BSD-3-Clause" }
 name = "ilamb3"
 readme = "README.md"
 requires-python = ">=3.10"
 
 dependencies = [
-    "cf-xarray>=0.10.0",
-    "numpy>=2.2.2",
-    "pandas>=2.2.3",
-    "pint-xarray>=0.4",
-    "xarray>=2025.1.1",
-    "netcdf4>=1.7.2",
-    "pooch>=1.8.2",
-    "scipy>=1.15.1",
-    "matplotlib>=3.10.0",
-    "cartopy>=0.24.1",
-    "pyyaml>=6.0.2",
-    "jinja2>=3.1.5",
-    "statsmodels>=0.14.4",
-    "loguru>=0.7.3",
+  "cf-xarray>=0.10.0",
+  "numpy>=2.2.2",
+  "pandas>=2.2.3",
+  "pint-xarray>=0.4",
+  "xarray>=2025.1.1",
+  "netcdf4>=1.7.2",
+  "pooch>=1.8.2",
+  "scipy>=1.15.1",
+  "matplotlib>=3.10.0",
+  "cartopy>=0.24.1",
+  "pyyaml>=6.0.2",
+  "jinja2>=3.1.5",
+  "statsmodels>=0.14.4",
+  "loguru>=0.7.3",
 ]
 
 [dependency-groups]
-dev = [
-  "pytest",
-  "pytest-cov",
-]
+dev = ["pytest", "pytest-cov"]
 doc = [
-    "furo>=2024.8.6",
-    "ipython>=8.31.0",
-    "myst-nb>=1.1.2",
-    "numpydoc>=1.8.0",
-    "sphinx-autodoc-typehints>=3.0.1",
-    "sphinx-autosummary-accessors>=2023.4.0",
-    "sphinx-copybutton>=0.5.2",
+  "furo>=2024.8.6",
+  "ipython>=8.31.0",
+  "myst-nb>=1.1.2",
+  "numpydoc>=1.8.0",
+  "sphinx-autodoc-typehints>=3.0.1",
+  "sphinx-autosummary-accessors>=2023.4.0",
+  "sphinx-copybutton>=0.5.2",
 ]
 
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = [
-  "setuptools>=42",
-  "setuptools-scm>=7",
-]
+requires = ["setuptools>=42", "setuptools-scm>=7"]
 
 [tool.setuptools]
 packages = ["ilamb3"]
@@ -78,32 +70,25 @@ console_output_style = "count"
 addopts = "--cov=ilamb3 --cov-report=xml --verbose"
 
 [tool.coverage.run]
-omit = [
-  "*/ilamb3/tests/*"
-]
+omit = ["*/ilamb3/tests/*"]
 source = ["ilamb3"]
 
 [tool.coverage.report]
 exclude_lines = ["pragma: no cover"]
+fail_under = 50.0
 
 [tool.ruff]
-extend-exclude = [
-  "docs",
-]
+extend-exclude = ["docs"]
 target-version = "py310"
 [tool.ruff.lint]
-ignore = [
-  "E402",
-  "E501",
-  "E731",
-]
+ignore = ["E402", "E501", "E731"]
 select = [
-  "F", # Pyflakes
-  "E", # Pycodestyle
+  "F",   # Pyflakes
+  "E",   # Pycodestyle
   "W",
   "TID", # flake8-tidy-imports (absolute imports)
-  "I", # isort
-  "UP", # Pyupgrade
+  "I",   # isort
+  "UP",  # Pyupgrade
 ]
 
 [tool.ruff.lint.isort]
@@ -111,11 +96,9 @@ known-first-party = ["ilamb3"]
 
 [tool.numpydoc_validation]
 checks = [
-  "all",   # report on all checks, except the below
+  "all",  # report on all checks, except the below
   "EX01",
   "SA01",
   "ES01",
 ]
-exclude = [
-  'test_.*',
-]
+exclude = ['test_.*']
