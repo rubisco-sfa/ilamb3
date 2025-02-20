@@ -21,21 +21,49 @@ def get_extents(da: xr.DataArray) -> list[float]:
     return extents
 
 
-def pick_projection(extents: list[float]) -> tuple[ccrs.Projection, float]:
+def compute_overlap_fracs(
+    extents_a: list[float], extents_b: list[float]
+) -> tuple[float, float]:
+    """Return the fractions of overlap."""
+
+    def _area(extents):
+        return (extents[1] - extents[0]) * (extents[3] - extents[2])
+
+    overlap = [op(a, b) for op, a, b in zip([max, min, max, min], extents_a, extents_b)]
+    area_O = (
+        _area(overlap)
+        if (
+            (extents_a[0] < extents_b[1])
+            & (extents_a[1] > extents_b[0])
+            & (extents_a[2] < extents_b[3])
+            & (extents_a[3] > extents_b[2])
+        )
+        else 0.0
+    )
+    area_A = _area(extents_a)
+    area_B = _area(extents_b)
+    return area_O / area_A, area_O / area_B
+
+
+def pick_projection(
+    extents: list[float], fraction_threshold: float = 0.85
+) -> tuple[ccrs.Projection, float]:
     """Given plot extents choose projection and aspect ratio."""
-    if (extents[1] - extents[0]) > 300:
-        aspect_ratio = 2.0
-        proj = ccrs.Robinson(central_longitude=0)
-        if (extents[2] > 0) and (extents[3] > 60):
-            aspect_ratio = 1.0
-            proj = ccrs.Orthographic(central_latitude=+90, central_longitude=0)
-        if (extents[2] < -60) and (extents[3] < 0):
-            aspect_ratio = 1.0
-            proj = ccrs.Orthographic(central_latitude=-90, central_longitude=0)
-    else:
-        aspect_ratio = max(extents[1], extents[0]) - min(extents[1], extents[0])
-        aspect_ratio /= max(extents[3], extents[2]) - min(extents[3], extents[2])
-        proj = ccrs.PlateCarree(central_longitude=np.array(extents)[:2].mean())
+    if compute_overlap_fracs([-180, 180, 60, 90], extents)[1] > fraction_threshold:
+        return ccrs.Orthographic(central_latitude=+90, central_longitude=0), 1.0
+    if compute_overlap_fracs([-180, 180, -90, -60], extents)[1] > fraction_threshold:
+        return ccrs.Orthographic(central_latitude=-90, central_longitude=0), 1.0
+    if compute_overlap_fracs([-125, -66.5, 20, 50], extents)[1] > fraction_threshold:
+        return ccrs.LambertConformal(), 2.05  # USA
+    if (
+        compute_overlap_fracs([-180, -180, extents[2], extents[3]], extents)[0]
+        > fraction_threshold
+    ):
+        return ccrs.Robinson(central_longitude=0), 2.0  # Global
+    # If none of above, use cyclindrical
+    aspect_ratio = max(extents[1], extents[0]) - min(extents[1], extents[0])
+    aspect_ratio /= max(extents[3], extents[2]) - min(extents[3], extents[2])
+    proj = ccrs.PlateCarree(central_longitude=np.array(extents)[:2].mean())
     return proj, aspect_ratio
 
 
