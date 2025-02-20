@@ -20,7 +20,7 @@ from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
 
 def _load_reference_data(
     variable_id: str,
-    registry: pooch.Pooch,
+    reference_data: pd.DataFrame,
     sources: dict[str, str],
     relationships: dict[str, str] | None = None,
 ) -> xr.Dataset:
@@ -31,7 +31,7 @@ def _load_reference_data(
     if relationships is not None:  # pragma: no cover
         sources = sources | relationships
     ref = {
-        key: xr.open_dataset(registry.fetch(str(filename)))
+        key: xr.open_dataset(reference_data.loc[str(filename), "path"])
         for key, filename in sources.items()
     }
     if len(ref) > 1:
@@ -59,6 +59,32 @@ def _load_comparison_data(variable_id: str, df: pd.DataFrame) -> xr.Dataset:
     return ds_com
 
 
+def _registry_to_dataframe(registry: pooch.Pooch) -> pd.DataFrame:
+    """
+    Convert a ILAMB/IOMB registry to a DatasetCollection for use in REF.
+
+    Parameters
+    ----------
+    registry : pooch.Pooch
+        The pooch registry.
+
+    Returns
+    -------
+    DatasetCollection
+        The converted collection.
+    """
+    df = pd.DataFrame(
+        [
+            {
+                "key": key,
+                "path": registry.abspath / Path(key),
+            }
+            for key in registry.registry.keys()
+        ]
+    )
+    return df
+
+
 def run_simple(
     registry: pooch.Pooch,
     analysis_name: str,
@@ -69,9 +95,11 @@ def run_simple(
     """
     Run the ILAMB standard analysis.
     """
+    reference_data = _registry_to_dataframe(registry)
+
     if "relationships" not in setup:
         setup["relationships"] = {}
-    variable, analyses = setup_analyses(registry, **setup)
+    variable, analyses = setup_analyses(reference_data, **setup)
 
     # Phase I: loop over each model in the group and run an analysis function
     df_all = []
@@ -91,7 +119,7 @@ def run_simple(
         try:
             # Load data and run comparison
             ref = _load_reference_data(
-                variable, registry, setup["sources"], setup["relationships"]
+                variable, reference_data, setup["sources"], setup["relationships"]
             )
             com = _load_comparison_data(variable, grp)
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
@@ -142,7 +170,7 @@ def run_simple(
 
 
 def setup_analyses(
-    registry: pooch.Pooch, **analysis_setup: Any
+    reference_data: pd.DataFrame, **analysis_setup: Any
 ) -> tuple[str, dict[str, ILAMBAnalysis]]:
     """.
 
@@ -153,6 +181,9 @@ def setup_analyses(
     skip_XXX
 
     """
+    # Make sure we can index the reference data
+    reference_data = reference_data.set_index("key")
+
     # Check on sources
     sources = analysis_setup.get("sources", {})
     relationships = analysis_setup.get("relationships", {})
@@ -169,11 +200,11 @@ def setup_analyses(
         if ilamb3.conf["prefer_regional_quantiles"]:
             analysis_setup["method"] = "RegionalQuantiles"
             analysis_setup["quantile_database"] = pd.read_parquet(
-                registry.fetch(ilamb3.conf["quantile_database"])
+                reference_data.loc[ilamb3.conf["quantile_database"], "path"]
             )
             analysis_setup["quantile_threshold"] = ilamb3.conf["quantile_threshold"]
             ilr.Regions().add_netcdf(
-                xr.load_dataset(registry.fetch("regions/Whittaker.nc"))
+                xr.load_dataset(reference_data.loc["regions/Whittaker.nc", "path"])
             )
         else:
             analysis_setup["method"] = "Collier2018"
