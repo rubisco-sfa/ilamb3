@@ -42,7 +42,9 @@ def compute_overlap_fracs(
     )
     area_A = _area(extents_a)
     area_B = _area(extents_b)
-    return area_O / area_A, area_O / area_B
+    frac_A = area_O / area_A if area_A > 0 else 0.0
+    frac_B = area_O / area_B if area_B > 0 else 0.0
+    return frac_A, frac_B
 
 
 def pick_projection(
