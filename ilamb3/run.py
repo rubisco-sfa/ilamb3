@@ -53,6 +53,8 @@ def _load_comparison_data(variable_id: str, df: pd.DataFrame) -> xr.Dataset:
         for var in df["variable_id"].unique()
     }
     if len(com) > 1:
+        # sometimes, models have very small differences in lat/lon
+        com = cmp.same_spatial_grid(com[variable_id], **com)
         ds_com = xr.merge([v for _, v in com.items()], compat="override")
     else:
         ds_com = com[variable_id]
@@ -82,7 +84,7 @@ def _registry_to_dataframe(registry: pooch.Pooch) -> pd.DataFrame:
             for key in registry.registry.keys()
         ]
     )
-    return df
+    return df.set_index("key")
 
 
 def run_simple(
@@ -182,7 +184,8 @@ def setup_analyses(
 
     """
     # Make sure we can index the reference data
-    reference_data = reference_data.set_index("key")
+    if reference_data.index.name != "key":
+        reference_data = reference_data.set_index("key")
 
     # Check on sources
     sources = analysis_setup.get("sources", {})
