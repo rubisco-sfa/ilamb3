@@ -21,17 +21,18 @@ def get_extents(da: xr.DataArray) -> list[float]:
     return extents
 
 
+def compute_extent_area(extents):
+    return (extents[1] - extents[0]) * (extents[3] - extents[2])
+
+
 def compute_overlap_fracs(
     extents_a: list[float], extents_b: list[float]
 ) -> tuple[float, float]:
     """Return the fractions of overlap."""
 
-    def _area(extents):
-        return (extents[1] - extents[0]) * (extents[3] - extents[2])
-
     overlap = [op(a, b) for op, a, b in zip([max, min, max, min], extents_a, extents_b)]
     area_O = (
-        _area(overlap)
+        compute_extent_area(overlap)
         if (
             (extents_a[0] < extents_b[1])
             & (extents_a[1] > extents_b[0])
@@ -40,8 +41,8 @@ def compute_overlap_fracs(
         )
         else 0.0
     )
-    area_A = _area(extents_a)
-    area_B = _area(extents_b)
+    area_A = compute_extent_area(extents_a)
+    area_B = compute_extent_area(extents_b)
     frac_A = area_O / area_A if area_A > 0 else 0.0
     frac_B = area_O / area_B if area_B > 0 else 0.0
     return frac_A, frac_B
@@ -57,10 +58,7 @@ def pick_projection(
         return ccrs.Orthographic(central_latitude=-90, central_longitude=0), 1.0
     if compute_overlap_fracs([-125, -66.5, 20, 50], extents)[1] > fraction_threshold:
         return ccrs.LambertConformal(), 2.05  # USA
-    if (
-        compute_overlap_fracs([-180, -180, extents[2], extents[3]], extents)[0]
-        > fraction_threshold
-    ):
+    if compute_extent_area(extents) / compute_extent_area([-180, 180, -90, 90]) > 0.5:
         return ccrs.Robinson(central_longitude=0), 2.0  # Global
     # If none of above, use cyclindrical
     aspect_ratio = max(extents[1], extents[0]) - min(extents[1], extents[0])
