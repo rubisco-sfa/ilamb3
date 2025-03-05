@@ -50,7 +50,7 @@ def test_run():
     tmp = Path(tempfile.gettempdir())
     ds_com = {}
     _, anl = run.setup_analyses(
-        run._registry_to_dataframe(reg), sources={"tas": "test/Test/tas.nc"}
+        run.registry_to_dataframe(reg), sources={"tas": "test/Test/tas.nc"}
     )
     ref = xr.open_dataset(reg.fetch("test/Test/tas.nc"))
     df, ds_ref, ds_com["Comparison"] = run.run_analyses(ref, com, anl)

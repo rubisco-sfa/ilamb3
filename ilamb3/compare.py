@@ -254,6 +254,10 @@ def make_comparable(
     except KeyError:
         pass  # no time dimension
 
+    # latlon needs to be 1D arrays
+    if dset.is_latlon2d(com[varname]):
+        com = dset.latlon2d_to_1d(ref, com[varname]).to_dataset(name=varname)
+
     # ensure longitudes are uniform
     ref, com = adjust_lon(ref, com)
 

@@ -4,6 +4,7 @@ from typing import Any, Literal
 
 import numpy as np
 import xarray as xr
+from scipy.interpolate import NearestNDInterpolator
 
 import ilamb3.regions as ilreg
 from ilamb3.exceptions import NoSiteDimension
@@ -43,7 +44,7 @@ def get_dim_name(
         "time": ["time"],
         "lat": ["lat", "latitude", "Latitude", "y", "lat_"],
         "lon": ["lon", "longitude", "Longitude", "x", "lon_"],
-        "depth": ["depth"],
+        "depth": ["depth", "lev"],
     }
     # Assumption: the 'site' dimension is what is left over after all others are removed
     if dim == "site":
@@ -147,6 +148,9 @@ def is_spatial(da: xr.DataArray) -> bool:
         return True
     except KeyError:
         pass
+    # Ocean grids have 2D lat/lons sometimes stored in their coordinates
+    if is_latlon2d(da):
+        return True
     return False
 
 
@@ -182,6 +186,94 @@ def is_site(da: xr.DataArray) -> bool:
     ):
         return True
     return False
+
+
+def is_layered(da: xr.DataArray) -> bool:
+    """
+    Return if the dataarray is layered.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        The input dataarray.
+
+    Returns
+    -------
+    bool
+        True if a depth dimension is present, False otherwise.
+    """
+    try:
+        get_dim_name(da, "depth")
+        return True
+    except KeyError:
+        pass
+    return False
+
+
+def get_integer_dims(da: xr.DataArray) -> list[str]:
+    """
+    Return which dimensions are integers and therefore likely indices.
+    """
+    return [d for d in da.dims if d in da.coords and da[d].dtype.kind == "i"]
+
+
+def is_latlon2d(da: xr.DataArray) -> bool:
+    """
+    Return if the dataarray has 2D latitudes and longitudes.
+    """
+    try:
+        lat_coord = get_coord_name(da, "lat")
+        lon_coord = get_coord_name(da, "lon")
+    except KeyError:
+        return False
+    index_dims = get_integer_dims(da)
+    if not index_dims:
+        return False
+    # Are the index dimensions of da also the dimensions of the the coordinates?
+    if set(da[lon_coord].dims) == set(da[lat_coord].dims) == set(index_dims):
+        return True
+    return False
+
+
+def latlon2d_to_1d(grid: xr.Dataset | xr.DataArray, da: xr.DataArray) -> xr.DataArray:
+    """
+    Return the da with 2D lat/lon interpolated at the grid resolution.
+    """
+    if not is_latlon2d(da):
+        raise ValueError("Input dataarray is not a 2D lat/lon.")
+    lat_dim = get_dim_name(grid, "lat")
+    lon_dim = get_dim_name(grid, "lon")
+    lat_coord = get_coord_name(da, "lat")
+    lon_coord = get_coord_name(da, "lon")
+    index_dims = get_integer_dims(da)
+    da[lon_coord] = xr.where(da[lon_coord] > 180, da[lon_coord] - 360, da[lon_coord])
+    # Create an interpolator that maps lat,lon --> i,j
+    index_map = NearestNDInterpolator(
+        np.array([da[lat_coord].values.flatten(), da[lon_coord].values.flatten()]).T,
+        np.array(
+            [
+                (da[index_dims[0]] * xr.ones_like(da[index_dims[1]])).values.flatten(),
+                (xr.ones_like(da[index_dims[0]]) * da[index_dims[1]]).values.flatten(),
+            ]
+        ).T,
+    )
+    # Then use the interpolator to find index arrays at the input regular grid.
+    ids = index_map(
+        (grid[lat_dim] * xr.ones_like(grid[lon_dim])).values.flatten(),
+        (xr.ones_like(grid[lat_dim]) * grid[lon_dim]).values.flatten(),
+    ).astype(int)
+    # Create a new dataarray
+    not_index_dims = [d for d in da.dims if d not in index_dims]
+    coords = {c: da[c] for c in not_index_dims if c in da.coords}
+    coords.update({"lat": grid["lat"], "lon": grid["lon"]})
+    shp = (grid[lat_dim].size, grid[lon_dim].size)
+    out = xr.DataArray(
+        data=da.to_numpy()[..., ids[:, 0].reshape(shp), ids[:, 1].reshape(shp)],
+        coords=coords,
+        dims=not_index_dims + [lat_dim, lon_dim],
+        attrs=da.attrs,
+    )
+    return out
 
 
 def get_time_extent(
