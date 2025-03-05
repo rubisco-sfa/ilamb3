@@ -14,6 +14,7 @@ from loguru import logger
 import ilamb3
 import ilamb3.analysis as anl
 import ilamb3.compare as cmp
+import ilamb3.dataset as dset
 import ilamb3.regions as ilr
 from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
 
@@ -23,6 +24,7 @@ def _load_reference_data(
     reference_data: pd.DataFrame,
     sources: dict[str, str],
     relationships: dict[str, str] | None = None,
+    depth: float | None = None,
 ) -> xr.Dataset:
     """
     Load the reference data into containers and merge if more than 1 variable is
@@ -34,6 +36,16 @@ def _load_reference_data(
         key: xr.open_dataset(reference_data.loc[str(filename), "path"])
         for key, filename in sources.items()
     }
+    # If a depth is given and present in the dims, select the nearest slice
+    if depth is not None:
+        ref = {
+            key: (
+                ds.sel({dset.get_dim_name(ds, "depth"): depth}, method="nearest")
+                if "depth" in ds.dims
+                else ds
+            )
+            for key, ds in ref.items()
+        }
     if len(ref) > 1:
         ref = cmp.trim_time(**ref)
         ref = cmp.same_spatial_grid(ref[variable_id], **ref)
@@ -43,7 +55,9 @@ def _load_reference_data(
     return ds_ref
 
 
-def _load_comparison_data(variable_id: str, df: pd.DataFrame) -> xr.Dataset:
+def _load_comparison_data(
+    variable_id: str, df: pd.DataFrame, depth: float | None = None
+) -> xr.Dataset:
     """
     Load the comparison (model) data into containers and merge if more than 1
     variable is used.
@@ -52,6 +66,15 @@ def _load_comparison_data(variable_id: str, df: pd.DataFrame) -> xr.Dataset:
         var: xr.open_mfdataset(sorted((df[df["variable_id"] == var]["path"]).to_list()))
         for var in df["variable_id"].unique()
     }
+    if depth is not None:
+        com = {
+            key: (
+                ds.sel({dset.get_dim_name(ds, "depth"): depth}, method="nearest")
+                if dset.is_layered(ds)
+                else ds
+            )
+            for key, ds in com.items()
+        }
     if len(com) > 1:
         # sometimes, models have very small differences in lat/lon
         com = cmp.same_spatial_grid(com[variable_id], **com)
@@ -102,6 +125,7 @@ def run_simple(
     if "relationships" not in setup:
         setup["relationships"] = {}
     variable, analyses = setup_analyses(reference_data, **setup)
+    depth = setup.get("depth", None)
 
     # Phase I: loop over each model in the group and run an analysis function
     df_all = []
@@ -121,9 +145,13 @@ def run_simple(
         try:
             # Load data and run comparison
             ref = _load_reference_data(
-                variable, reference_data, setup["sources"], setup["relationships"]
+                variable,
+                reference_data,
+                setup["sources"],
+                setup["relationships"],
+                depth=depth,
             )
-            com = _load_comparison_data(variable, grp)
+            com = _load_comparison_data(variable, grp, depth=depth)
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
             dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
 
