@@ -84,7 +84,7 @@ def _load_comparison_data(
     return ds_com
 
 
-def _registry_to_dataframe(registry: pooch.Pooch) -> pd.DataFrame:
+def registry_to_dataframe(registry: pooch.Pooch) -> pd.DataFrame:
     """
     Convert a ILAMB/IOMB registry to a DatasetCollection for use in REF.
 
@@ -111,17 +111,15 @@ def _registry_to_dataframe(registry: pooch.Pooch) -> pd.DataFrame:
 
 
 def run_simple(
-    registry: pooch.Pooch,
+    reference_data: pd.DataFrame,
     analysis_name: str,
-    df_datasets: pd.DataFrame,
+    comparison_data: pd.DataFrame,
     output_path: Path,
     **setup: Any,
 ):
     """
     Run the ILAMB standard analysis.
     """
-    reference_data = _registry_to_dataframe(registry)
-
     if "relationships" not in setup:
         setup["relationships"] = {}
     variable, analyses = setup_analyses(reference_data, **setup)
@@ -131,7 +129,7 @@ def run_simple(
     df_all = []
     ds_com = {}
     ds_ref = None
-    for _, grp in df_datasets.groupby(["source_id", "member_id", "grid_label"]):
+    for _, grp in comparison_data.groupby(["source_id", "member_id", "grid_label"]):
         row = grp.iloc[0]
 
         # Define what we will call the output artifacts
