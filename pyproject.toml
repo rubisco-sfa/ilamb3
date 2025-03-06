@@ -75,7 +75,7 @@ source = ["ilamb3"]
 
 [tool.coverage.report]
 exclude_lines = ["pragma: no cover"]
-fail_under = 50.0
+fail_under = 90.0
 
 [tool.ruff]
 extend-exclude = ["docs"]
