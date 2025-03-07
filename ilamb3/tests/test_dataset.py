@@ -181,3 +181,22 @@ def test_shift_lon():
     ds = generate_test_dset(shift=True)
     ds = dset.shift_lon(ds)
     assert ds["lon"].min() < -120
+
+
+def test_cell_measures():
+    lats = np.linspace(-90, 90, 4)
+    lons = np.linspace(-180, 180, 7)
+    ds = xr.DataArray(
+        np.random.rand(3, 6),
+        coords={
+            "lat": 0.5 * (lats[:-1] + lats[1:]),
+            "lon": 0.5 * (lons[:-1] + lons[1:]),
+        },
+        dims=["lat", "lon"],
+        name="da",
+    ).to_dataset()
+    ds["lat_bnds"] = (("lat", "nb"), np.array([lats[:-1], lats[1:]]).T)
+    ds["lon_bnds"] = (("lon", "nb"), np.array([lons[:-1], lons[1:]]).T)
+    ds["lat"].attrs["bounds"] = "lat_bnds"
+    ds["lon"].attrs["bounds"] = "lon_bnds"
+    assert np.allclose(dset.compute_cell_measures(ds).mean(), 2.83369151e13)

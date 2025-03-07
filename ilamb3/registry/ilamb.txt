@@ -120,5 +120,7 @@ rsus/WRMC.BSRN/rsus.nc sha1:d33e72f493703a0f05d7e6016b9e554d6c40362b
 swe/CanSISE/swe.nc sha1:af973dff1213aa289290ea741d8d5137dc8cee2f
 rhums/ERA5/rhums.nc sha1:2e22d185031de30f1bc073000d1e842ebc04c90d
 rhums/CRU4.02/rhums.nc sha1:8267af22eeeaafb956b95b553397e285295ef79e
-test/Test/tas.nc sha1:3e757c9feadea581a92e6f4afb402b86168e113a
 quantiles/quantiles_Whittaker_cmip5v6.parquet sha1:fefe159d6c8b2720be81d08026eecf5cc6d3b1d7
+test/Site/tas.nc sha1:3e757c9feadea581a92e6f4afb402b86168e113a
+test/Grid/gpp.nc sha1:2688085f95fa13617b20c723c66b0009bd661847
+test/Grid/pr.nc sha1:d667eb216939f5797d59b59cb4ade5ec31e67659

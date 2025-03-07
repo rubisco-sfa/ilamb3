@@ -17,6 +17,9 @@ units.define("kg = 1e3 * g")
 units.define("Mg = 1e6 * g")
 units.define("Pg = 1e15 * g")
 
+# we don't really have data versions for the collection :/
+ILAMB_DATA_VERSION = "0.1"
+
 
 def ilamb_catalog() -> pooch.Pooch:
     """
@@ -27,14 +30,10 @@ def ilamb_catalog() -> pooch.Pooch:
     pooch.Pooch
         The intake ilamb reference data catalog.
     """
-
-    _ILAMB_DATA_VERSION = (
-        "0.1"  # we don't really have data versions for the collection :/
-    )
     registry = pooch.create(
         path=pooch.os_cache("ilamb3"),
         base_url="https://www.ilamb.org/ILAMB-Data/DATA",
-        version=_ILAMB_DATA_VERSION,
+        version=ILAMB_DATA_VERSION,
         env="ILAMB_ROOT",
     )
     registry.load_registry(
@@ -52,14 +51,10 @@ def iomb_catalog() -> pooch.Pooch:
     pooch.Pooch
         The intake ilamb reference data catalog.
     """
-
-    _ILAMB_DATA_VERSION = (
-        "0.1"  # we don't really have data versions for the collection :/
-    )
     registry = pooch.create(
         path=pooch.os_cache("ilamb3"),
         base_url="https://www.ilamb.org/IOMB-Data/DATA",
-        version=_ILAMB_DATA_VERSION,
+        version=ILAMB_DATA_VERSION,
         env="ILAMB_ROOT",
     )
     registry.load_registry(
@@ -76,5 +71,6 @@ __all__ = [
     "run",
     "ilamb_catalog,",
     "conf",
+    "ILAMB_DATA_VERSION",
 ]
 xr.set_options(keep_attrs=True)
