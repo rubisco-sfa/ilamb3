@@ -71,7 +71,7 @@ console_output_style = "count"
 addopts = "--cov=ilamb3 --cov-report=xml --verbose"
 
 [tool.coverage.run]
-omit = ["*/ilamb3/tests/*"]
+omit = ["*/ilamb3/tests/*", "*/ilamb3/_version.py"]
 source = ["ilamb3"]
 
 [tool.coverage.report]

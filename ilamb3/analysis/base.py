@@ -29,7 +29,7 @@ class ILAMBAnalysis(ABC):
         analysis method will require should be input and stored here as
         keywords.
         """
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     @abstractmethod
     def required_variables(self) -> list[str] | dict[str, list[str]]:
@@ -44,7 +44,7 @@ class ILAMBAnalysis(ABC):
         return a dictionary of lists where they keys are the experiment names
         from which the lists of variables are required.
         """
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     @abstractmethod
     def __call__(
@@ -76,7 +76,7 @@ class ILAMBAnalysis(ABC):
         xr.Dataset
             The comparison intermediate maps and curves to plot
         """
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
     @abstractmethod
     def plots(
@@ -106,7 +106,7 @@ class ILAMBAnalysis(ABC):
         pd.DataFrame
             The dataframe of plots.
         """
-        raise NotImplementedError()
+        raise NotImplementedError()  # pragma: no cover
 
 
 def add_overall_score(df: pd.DataFrame) -> pd.DataFrame:

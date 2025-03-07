@@ -308,24 +308,3 @@ class hydro_analysis(ILAMBAnalysis):
         ]
         axs = pd.DataFrame(axs).dropna(subset=["axis"])
         return axs
-
-
-if __name__ == "__main__":
-    """
-    [x] Separate it out into sections (Annual, Amplitude, Season, Cycle) maybe?
-    [ ] Fix the timing plot to read months on the labels
-    [x] Compute differences in model-reference
-    [x] Add more models, especially the models you want to show
-    [x] Generate synthesis scores? I would suggest for each aspect we compute a relative error as eps = (reference_mean - model_mean) / reference_std and then score = exp(-|eps|) but we can chat.
-    [x] Use the US regions we developed
-    """
-    import ilamb3
-
-    ref = xr.open_dataset(ilamb3.ilamb_catalog().fetch("tas/CRU4.02/tas.nc"))
-    com = xr.open_dataset(
-        "/home/nate/.esgf/CMIP6/CMIP/CCCma/CanESM5/historical/r1i1p1f1/Amon/tas/gn/v20190429/tas_Amon_CanESM5_historical_r1i1p1f1_gn_185001-201412.nc"
-    )
-    anl = hydro_analysis("tas")
-    ds_com = {}
-    df, ds_ref, ds_com["Comparison"] = anl(ref, com)
-    dfp = anl.plots(df, ds_ref, ds_com)

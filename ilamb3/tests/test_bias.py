@@ -57,6 +57,7 @@ def test_bias_site_collier2018():
     ref = generate_test_site_dset().mean(dim="time")
     com = generate_test_dset(nlat=10, nlon=20)
     analysis = bias_analysis("da")
+    assert set(["da"]) == set(analysis.required_variables())
     df, _, _ = analysis(ref, com)
     df = df[df["type"] == "score"]
     assert len(df) == 1
