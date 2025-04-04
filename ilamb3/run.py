@@ -56,7 +56,10 @@ def _load_reference_data(
 
 
 def _load_comparison_data(
-    variable_id: str, df: pd.DataFrame, depth: float | None = None
+    variable_id: str,
+    df: pd.DataFrame,
+    depth: float | None = None,
+    alternate_vars: list[str] | None = None,
 ) -> xr.Dataset:
     """
     Load the comparison (model) data into containers and merge if more than 1
@@ -66,6 +69,11 @@ def _load_comparison_data(
         var: xr.open_mfdataset(sorted((df[df["variable_id"] == var]["path"]).to_list()))
         for var in df["variable_id"].unique()
     }
+    if alternate_vars is not None and variable_id not in com:
+        found = [v for v in alternate_vars if v in com]
+        if found:
+            com[variable_id] = com[found[0]].rename_vars({found[0]: variable_id})
+            com.pop(found[0])
     if depth is not None:
         com = {
             key: (
@@ -110,6 +118,20 @@ def registry_to_dataframe(registry: pooch.Pooch) -> pd.DataFrame:
     return df.set_index("key")
 
 
+def remove_irrelevant_variables(df: pd.DataFrame, **setup: Any) -> pd.DataFrame:
+    """
+    Remove unused variables from the dataframe.
+    """
+    reduce = df[
+        df["variable_id"].isin(
+            list(setup["sources"].keys())
+            + list(setup.get("relationships", {}).keys())
+            + setup.get("alternate_vars", [])
+        )
+    ]
+    return reduce
+
+
 def run_simple(
     reference_data: pd.DataFrame,
     analysis_name: str,
@@ -124,6 +146,10 @@ def run_simple(
         setup["relationships"] = {}
     variable, analyses = setup_analyses(reference_data, **setup)
     depth = setup.get("depth", None)
+    alternate_vars = setup.get("alternate_vars", [])
+
+    # Thin out the dataframe to only contain possible variables we are using
+    comparison_data = remove_irrelevant_variables(comparison_data, **setup)
 
     # Phase I: loop over each model in the group and run an analysis function
     df_all = []
@@ -149,7 +175,9 @@ def run_simple(
                 setup["relationships"],
                 depth=depth,
             )
-            com = _load_comparison_data(variable, grp, depth=depth)
+            com = _load_comparison_data(
+                variable, grp, depth=depth, alternate_vars=alternate_vars
+            )
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
             dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
 
