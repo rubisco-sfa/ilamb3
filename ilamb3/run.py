@@ -271,7 +271,7 @@ def setup_analyses(
     # If specialized analyses are given, setup those and return
     if "analyses" in analysis_setup:
         analyses = {
-            a: anl.ALL_ANALYSES[a](variable, **analysis_setup)
+            a: anl.ALL_ANALYSES[a](**analysis_setup)
             for a in analysis_setup.pop("analyses", [])
             if a in anl.ALL_ANALYSES
         }
