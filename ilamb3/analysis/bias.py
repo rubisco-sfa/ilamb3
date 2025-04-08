@@ -149,12 +149,12 @@ class bias_analysis(ILAMBAnalysis):
         # Temporal means across the time period
         ref_mean = (
             dset.integrate_time(ref, varname, mean=True)
-            if "time" in ref[varname].dims
+            if dset.is_temporal(ref[varname])
             else ref[varname]
         )
         com_mean = (
             dset.integrate_time(com, varname, mean=True)
-            if "time" in com[varname].dims
+            if dset.is_temporal(com[varname])
             else com[varname]
         )
 
@@ -166,7 +166,7 @@ class bias_analysis(ILAMBAnalysis):
             uncert.attrs["units"] = ref[varname].attrs["units"]
             uncert = (
                 dset.integrate_time(uncert, mean=True)
-                if "time" in uncert.dims
+                if dset.is_temporal(uncert)
                 else uncert
             )
 
@@ -174,8 +174,10 @@ class bias_analysis(ILAMBAnalysis):
         # standard deviation of the reference. If not, we revert to the traditional
         # definition of relative error.
         norm = ref_mean
-        if "time" in ref.dims and ref["time"].size > 1:
-            norm = dset.std_time(ref, varname)
+        if dset.is_temporal(ref):
+            time_dim = dset.get_dim_name(ref, "time")
+            if ref[time_dim].size > 1:
+                norm = dset.std_time(ref, varname)
 
         # Nest the grids for comparison, we postpend composite grid variables with "_"
         if dset.is_spatial(ref) and dset.is_spatial(com):
@@ -216,9 +218,7 @@ class bias_analysis(ILAMBAnalysis):
         try:
             lat_name = dset.get_dim_name(com_mean, "lat")
             lon_name = dset.get_dim_name(com_mean, "lon")
-            com_mean = com_mean.rename(
-                {lat_name: f"{lat_name}_", lon_name: f"{lon_name}_"}
-            )
+            com_mean = com_mean.rename({lat_name: "lat_", lon_name: "lon_"})
         except KeyError:
             pass
         com_out["mean"] = com_mean
