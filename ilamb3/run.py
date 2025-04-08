@@ -159,7 +159,7 @@ def run_simple(
         row = grp.iloc[0]
 
         # Define what we will call the output artifacts
-        source_name = "{source_id}-{member_id}-{grid_label}".format(**row.to_dict())
+        source_name = "-".join([row[f] for f in ilamb3.conf["model_name_facets"]])
         csv_file = output_path / f"{source_name}.csv"
         ref_file = output_path / "Reference.nc"
         com_file = output_path / f"{source_name}.nc"

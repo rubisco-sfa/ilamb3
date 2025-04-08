@@ -16,6 +16,7 @@ defaults = {
     "quantile_database": "quantiles/quantiles_Whittaker_cmip5v6.parquet",
     "quantile_threshold": 70,
     "use_uncertainty": False,
+    "model_name_facets": ["source_id", "member_id", "grid_label"],
 }
 
 
@@ -61,6 +62,7 @@ class Config(dict):
         regions: list[str] | None = None,
         prefer_regional_quantiles: bool | None = None,
         use_uncertainty: bool | None = None,
+        model_name_facets: list[str] | None = None,
     ):
         """Change ilamb3 configuration options."""
         temp = copy.deepcopy(self)
@@ -78,6 +80,8 @@ class Config(dict):
             self["prefer_regional_quantiles"] = bool(prefer_regional_quantiles)
         if use_uncertainty is not None:
             self["use_uncertainty"] = bool(use_uncertainty)
+        if model_name_facets is not None:
+            self["model_name_facets"] = model_name_facets
         return self._unset(temp)
 
     def __getitem__(self, item):
