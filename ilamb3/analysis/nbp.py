@@ -14,7 +14,6 @@ import pandas as pd
 import xarray as xr
 
 from ilamb3 import dataset as dset
-from ilamb3 import plot as plt
 from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.exceptions import MissingVariable, TemporalOverlapIssue
 
@@ -87,7 +86,8 @@ class nbp_analysis(ILAMBAnalysis):
         if com["time"][0].dt.year > ref["time"][0].dt.year:
             raise TemporalOverlapIssue()
         tstart = min([t for t in com["time"] if t.dt.year == ref["time"][0].dt.year])
-        com = com.sel({"time": slice(tstart, com["time"][-1])})
+        tend = max([t for t in com["time"] if t.dt.year == self.evaluation_year])
+        com = com.sel({"time": slice(tstart, tend)})
 
         # Fixes to data names and checks for required variables
         if "netAtmosLandCO2Flux" in com:
@@ -105,7 +105,6 @@ class nbp_analysis(ILAMBAnalysis):
         # Integrate globally
         if dset.is_spatial(com):
             com["nbp"] = dset.integrate_space(com, "nbp")
-            # com["nbp"] = dset.convert(com["nbp"], ref["nbp"].attrs["units"])
         com.load()
 
         # Accumulate
@@ -215,21 +214,24 @@ class nbp_analysis(ILAMBAnalysis):
         ref: xr.Dataset,
         com: dict[str, xr.Dataset],
     ) -> pd.DataFrame:
-        limits = plt.determine_plot_limits(com).set_index("name")
+        # plot over the reference limits
+        vmin = ref["nbp"].min()
+        vmax = ref["nbp"].max()
+        if "bounds" in ref["nbp"].attrs and ref["nbp"].attrs["bounds"] in ref:
+            bnd_name = ref["nbp"].attrs["bounds"]
+            vmin = ref[bnd_name].min()
+            vmax = ref[bnd_name].max()
+        vmin = float(vmin)
+        vmax = float(vmax)
         com["Reference"] = ref
-
         return pd.DataFrame(
             [
                 {
                     "name": "accumulation",
                     "title": "nbp_accumulation",
                     "region": None,
-                    "source": None,
-                    "axis": plot_accumulated_nbp(
-                        com,
-                        vmin=limits.loc["nbp", "low"],
-                        vmax=limits.loc["nbp", "high"],
-                    ),
+                    "source": "Reference",
+                    "axis": plot_accumulated_nbp(com, ref, vmin=vmin, vmax=vmax),
                 }
             ]
         )
@@ -239,7 +241,8 @@ def _space_labels(
     dsd: dict[str, xr.Dataset], ymin: float, maxit: int = 10
 ) -> dict[str, float]:
     """
-    Space out the model labels for the nbp plot.
+    Space out the model labels for the nbp plot using a modified Laplacian
+    smoothing.
     """
     sorted_dsd = {key: float(ds.isel(year=-1)["nbp"]) for key, ds in dsd.items()}
     sorted_dsd = dict(sorted(sorted_dsd.items(), key=lambda item: item[1]))
@@ -254,35 +257,57 @@ def _space_labels(
     return sorted_dsd
 
 
-def plot_accumulated_nbp(dsd: dict[str, xr.Dataset], vmin: float, vmax: float):
-    fig = mpl.figure(figsize=(11.8, 5.8))
-    ax = fig.add_subplot(1, 1, 1, position=[0.06, 0.06, 0.8, 0.92])
-    data_range = vmax - vmin
-    fig_height = fig.get_figheight()
-    FONT_SIZE = 10
-    pad = 0.05 * data_range
-    y_text = _space_labels(dsd, data_range / fig_height * FONT_SIZE / 50.0)
-    for key, ds in dsd.items():
-        ds["nbp"].plot(
-            ax=ax,
-            lw=2,
-            color=get_model_color(key),
+def plot_accumulated_nbp(
+    dsd: dict[str, xr.Dataset], ref: xr.Dataset, vmin: float, vmax: float
+):
+    FONT_SIZE = 16
+    with mpl.rc_context({"font.size": FONT_SIZE}):
+        fig = mpl.figure(figsize=(12.8, 5.8))
+        ax = fig.add_subplot(1, 1, 1, position=[0.1, 0.1, 0.7, 0.85])
+        data_range = vmax - vmin
+        fig_height = fig.get_figheight()
+        pad = 0.05 * data_range
+        if "bounds" in ref["nbp"].attrs and ref["nbp"].attrs["bounds"] in ref:
+            print(ref)
+            da = ref[ref["nbp"].attrs["bounds"]]
+            ax.fill_between(
+                ref["year"],
+                da.values[:, 0],
+                da.values[:, 1],
+                color="k",
+                alpha=0.2,
+                lw=0,
+            )
+        y_text = _space_labels(dsd, data_range / fig_height * FONT_SIZE / 50.0)
+        for key, ds in dsd.items():
+            ds["nbp"].plot(
+                ax=ax,
+                lw=2,
+                color=get_model_color(key),
+            )
+            ax.text(
+                ds.year[-1] + 2,
+                y_text[key],
+                key,
+                color=get_model_color(key),
+                va="center",
+                size=FONT_SIZE,
+            )
+        ax.text(
+            0.02,
+            0.95,
+            "Land Source",
+            transform=ax.transAxes,
+            size=FONT_SIZE,
+            alpha=0.5,
+            va="top",
         )
         ax.text(
-            ds.year[-1] + 2,
-            y_text[key],
-            key,
-            color=get_model_color(key),
-            va="center",
-            size=FONT_SIZE,
+            0.02, 0.05, "Land Sink", transform=ax.transAxes, size=FONT_SIZE, alpha=0.5
         )
-
-    ax.text(
-        0.02, 0.95, "Land Source", transform=ax.transAxes, size=20, alpha=0.5, va="top"
-    )
-    ax.text(0.02, 0.05, "Land Sink", transform=ax.transAxes, size=20, alpha=0.5)
-    ax.set_ylabel("[Pg]")
-    ax.set_ylim(vmin - pad, vmax + pad)
+        ax.set_ylabel("[Pg]")
+        ax.set_ylim(vmin - pad, vmax + pad)
+        ax.spines[["top", "right"]].set_visible(False)
     return ax
 
 
