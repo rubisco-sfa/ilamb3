@@ -1,6 +1,7 @@
 """Functions for rendering ilamb3 output."""
 
 import importlib
+import re
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import pooch
 import xarray as xr
+import yaml
 from jinja2 import Template
 from loguru import logger
 
@@ -445,3 +447,108 @@ def generate_html_page(
     ).read()
     html = Template(template).render(data)
     return html
+
+
+def _flatten_dict(d: dict, parent_key: str = "", sep: str = "/") -> dict:
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, dict) and "sources" not in v:
+            items.extend(_flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
+def _clean_pathname(filename: str) -> str:
+    """Removes characters we do not want in our paths."""
+    invalid_chars = r'[\\/:*?"<>|\s]'
+    cleaned_filename = re.sub(invalid_chars, "", filename)
+    return cleaned_filename
+
+
+def _is_leaf(current: dict) -> bool:
+    """Is the current item in the nested dictionary a leaf?"""
+    if not isinstance(current, dict):
+        return False
+    if "sources" in current:
+        return True
+    return False
+
+
+def _add_path(current: dict, path: Path | None = None) -> dict:
+    """Recursively add the nested dictionary headings as a `path` in the leaves."""
+    path = Path() if path is None else path
+    for key, val in current.items():
+        if not isinstance(val, dict):
+            continue
+        key_path = path / Path(_clean_pathname(key))
+        if _is_leaf(val):
+            val["path"] = str(key_path)
+        else:
+            current[key] = _add_path(val, key_path)
+    return current
+
+
+def _to_leaf_list(current: dict, leaf_list: list | None = None) -> list:
+    """Recursively flatten the nested dictionary only returning the leaves."""
+    leaf_list = [] if leaf_list is None else leaf_list
+    for _, val in current.items():
+        if not isinstance(val, dict):
+            continue
+        if _is_leaf(val):
+            leaf_list.append(val)
+        else:
+            _to_leaf_list(val, leaf_list)
+    return leaf_list
+
+
+def _create_paths(current: dict, root: Path = Path("_build")):
+    """Recursively ensure paths in the leaves are created."""
+    for _, val in current.items():
+        if not isinstance(val, dict):
+            continue
+        if _is_leaf(val):
+            if "path" in val:
+                (root / Path(val["path"])).mkdir(parents=True, exist_ok=True)
+        else:
+            _create_paths(val, root)
+
+
+def parse_benchmark_setup(yaml_file: str | Path) -> dict:
+    """Parse the file which is analagous to the old configure file."""
+    yaml_file = Path(yaml_file)
+    with open(yaml_file) as fin:
+        analyses = yaml.safe_load(fin)
+    assert isinstance(analyses, dict)
+    return analyses
+
+
+def run_study(study_setup: str, df_datasets: pd.DataFrame):
+    # Some yaml text that would get parsed like a dictionary.
+    analyses = parse_benchmark_setup(study_setup)
+
+    # The yaml analysis setup can be as structured as the user needs. We are no longer
+    # limited to the `h1` and `h2` headers from ILAMB 2.x. We will detect leaf nodes by
+    # the presence of a `sources` dictionary.
+    analyses = _add_path(analyses)
+
+    # Various traversal actions
+    _create_paths(analyses)
+
+    # Create a list of just the leaves to use in creation all work combinations
+    analyses_list = _to_leaf_list(analyses)
+
+    # Run the confrontations
+    for analysis in analyses_list:
+        path = analysis.pop("path")
+        try:
+            run_simple(
+                registry_to_dataframe(ilamb3.iomb_catalog()),
+                path.split("/")[-1],
+                df_datasets,
+                Path("_build") / path,
+                **analysis,
+            )
+        except Exception:
+            continue
