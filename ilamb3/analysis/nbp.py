@@ -107,7 +107,7 @@ class nbp_analysis(ILAMBAnalysis):
             com["nbp"] = dset.integrate_space(com, "nbp")
         com.load()
 
-        # Accumulate
+        # Accumulate fluxes
         def _cumsum(ds):
             for var, da in ds.items():
                 da = da.pint.quantify()
@@ -230,7 +230,7 @@ class nbp_analysis(ILAMBAnalysis):
                     "name": "accumulation",
                     "title": "nbp_accumulation",
                     "region": None,
-                    "source": "Reference",
+                    "source": None,
                     "axis": plot_accumulated_nbp(com, ref, vmin=vmin, vmax=vmax),
                 }
             ]
@@ -268,14 +268,13 @@ def plot_accumulated_nbp(
         fig_height = fig.get_figheight()
         pad = 0.05 * data_range
         if "bounds" in ref["nbp"].attrs and ref["nbp"].attrs["bounds"] in ref:
-            print(ref)
             da = ref[ref["nbp"].attrs["bounds"]]
             ax.fill_between(
                 ref["year"],
                 da.values[:, 0],
                 da.values[:, 1],
                 color="k",
-                alpha=0.2,
+                alpha=0.1,
                 lw=0,
             )
         y_text = _space_labels(dsd, data_range / fig_height * FONT_SIZE / 50.0)

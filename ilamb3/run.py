@@ -402,17 +402,23 @@ def generate_html_page(
         The html page.
     """
     ilamb_regions = ilr.Regions()
-
     # Setup template analyses and plots
     analyses = {analysis: {} for analysis in df["analysis"].dropna().unique()}
     for (aname, pname), df_grp in df_plots.groupby(["analysis", "name"], sort=False):
         analyses[aname][pname] = []
+        if len(df_grp) == 1 and None in df_grp["source"].unique():
+            analyses[aname][pname] += [{"None": f"None_None_{pname}.png"}]
+            continue
         if "Reference" in df_grp["source"].unique():
             analyses[aname][pname] += [{"Reference": f"Reference_RNAME_{pname}.png"}]
         analyses[aname][pname] += [{"Model": f"MNAME_RNAME_{pname}.png"}]
     ref_plots = list(df_plots[df_plots["source"] == "Reference"]["name"].unique())
-    mod_plots = list(df_plots[df_plots["source"] != "Reference"]["name"].unique())
+    mod_plots = list(
+        df_plots[~df_plots["source"].isin(["Reference", None])]["name"].unique()
+    )
     all_plots = sorted(list(set(ref_plots) | set(mod_plots)))
+    if not all_plots:
+        all_plots = [""]
 
     # Setup template dictionary
     df = df.reset_index(drop=True)  # ?
@@ -433,7 +439,7 @@ def generate_html_page(
         "analyses": analyses,
         "data_information": {
             key.capitalize(): ref.attrs[key]
-            for key in ["title", "institutions", "version"]
+            for key in ["title", "institution", "version", "doi"]
             if key in ref.attrs
         },
         "table_data": str(
