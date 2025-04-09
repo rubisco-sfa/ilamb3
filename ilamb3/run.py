@@ -533,6 +533,13 @@ def parse_benchmark_setup(yaml_file: str | Path) -> dict:
 def run_study(study_setup: str, df_datasets: pd.DataFrame):
     # Some yaml text that would get parsed like a dictionary.
     analyses = parse_benchmark_setup(study_setup)
+    registry = analyses.pop("registry") if "registry" in analyses else "ilamb.txt"
+    if registry == "ilamb.txt":
+        reg = ilamb3.ilamb_catalog()
+    elif registry == "iomb.txt":
+        reg = ilamb3.iomb_catalog()
+    else:
+        raise ValueError("Unsupported registry.")
 
     # The yaml analysis setup can be as structured as the user needs. We are no longer
     # limited to the `h1` and `h2` headers from ILAMB 2.x. We will detect leaf nodes by
@@ -550,7 +557,7 @@ def run_study(study_setup: str, df_datasets: pd.DataFrame):
         path = analysis.pop("path")
         try:
             run_simple(
-                registry_to_dataframe(ilamb3.iomb_catalog()),
+                registry_to_dataframe(reg),
                 path.split("/")[-1],
                 df_datasets,
                 Path("_build") / path,
