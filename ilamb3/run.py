@@ -1,6 +1,7 @@
 """Functions for rendering ilamb3 output."""
 
 import importlib
+import re
 from pathlib import Path
 from typing import Any
 
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import pooch
 import xarray as xr
+import yaml
 from jinja2 import Template
 from loguru import logger
 
@@ -56,7 +58,10 @@ def _load_reference_data(
 
 
 def _load_comparison_data(
-    variable_id: str, df: pd.DataFrame, depth: float | None = None
+    variable_id: str,
+    df: pd.DataFrame,
+    depth: float | None = None,
+    alternate_vars: list[str] | None = None,
 ) -> xr.Dataset:
     """
     Load the comparison (model) data into containers and merge if more than 1
@@ -66,6 +71,11 @@ def _load_comparison_data(
         var: xr.open_mfdataset(sorted((df[df["variable_id"] == var]["path"]).to_list()))
         for var in df["variable_id"].unique()
     }
+    if alternate_vars is not None and variable_id not in com:
+        found = [v for v in alternate_vars if v in com]
+        if found:
+            com[variable_id] = com[found[0]].rename_vars({found[0]: variable_id})
+            com.pop(found[0])
     if depth is not None:
         com = {
             key: (
@@ -110,6 +120,20 @@ def registry_to_dataframe(registry: pooch.Pooch) -> pd.DataFrame:
     return df.set_index("key")
 
 
+def remove_irrelevant_variables(df: pd.DataFrame, **setup: Any) -> pd.DataFrame:
+    """
+    Remove unused variables from the dataframe.
+    """
+    reduce = df[
+        df["variable_id"].isin(
+            list(setup["sources"].keys())
+            + list(setup.get("relationships", {}).keys())
+            + setup.get("alternate_vars", [])
+        )
+    ]
+    return reduce
+
+
 def run_simple(
     reference_data: pd.DataFrame,
     analysis_name: str,
@@ -124,6 +148,10 @@ def run_simple(
         setup["relationships"] = {}
     variable, analyses = setup_analyses(reference_data, **setup)
     depth = setup.get("depth", None)
+    alternate_vars = setup.get("alternate_vars", [])
+
+    # Thin out the dataframe to only contain possible variables we are using
+    comparison_data = remove_irrelevant_variables(comparison_data, **setup)
 
     # Phase I: loop over each model in the group and run an analysis function
     df_all = []
@@ -133,7 +161,7 @@ def run_simple(
         row = grp.iloc[0]
 
         # Define what we will call the output artifacts
-        source_name = "{source_id}-{member_id}-{grid_label}".format(**row.to_dict())
+        source_name = "-".join([row[f] for f in ilamb3.conf["model_name_facets"]])
         csv_file = output_path / f"{source_name}.csv"
         ref_file = output_path / "Reference.nc"
         com_file = output_path / f"{source_name}.nc"
@@ -149,7 +177,9 @@ def run_simple(
                 setup["relationships"],
                 depth=depth,
             )
-            com = _load_comparison_data(variable, grp, depth=depth)
+            com = _load_comparison_data(
+                variable, grp, depth=depth, alternate_vars=alternate_vars
+            )
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
             dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
 
@@ -243,7 +273,7 @@ def setup_analyses(
     # If specialized analyses are given, setup those and return
     if "analyses" in analysis_setup:
         analyses = {
-            a: anl.ALL_ANALYSES[a](variable, **analysis_setup)
+            a: anl.ALL_ANALYSES[a](**analysis_setup)
             for a in analysis_setup.pop("analyses", [])
             if a in anl.ALL_ANALYSES
         }
@@ -372,17 +402,23 @@ def generate_html_page(
         The html page.
     """
     ilamb_regions = ilr.Regions()
-
     # Setup template analyses and plots
     analyses = {analysis: {} for analysis in df["analysis"].dropna().unique()}
     for (aname, pname), df_grp in df_plots.groupby(["analysis", "name"], sort=False):
         analyses[aname][pname] = []
+        if len(df_grp) == 1 and None in df_grp["source"].unique():
+            analyses[aname][pname] += [{"None": f"None_None_{pname}.png"}]
+            continue
         if "Reference" in df_grp["source"].unique():
             analyses[aname][pname] += [{"Reference": f"Reference_RNAME_{pname}.png"}]
         analyses[aname][pname] += [{"Model": f"MNAME_RNAME_{pname}.png"}]
     ref_plots = list(df_plots[df_plots["source"] == "Reference"]["name"].unique())
-    mod_plots = list(df_plots[df_plots["source"] != "Reference"]["name"].unique())
+    mod_plots = list(
+        df_plots[~df_plots["source"].isin(["Reference", None])]["name"].unique()
+    )
     all_plots = sorted(list(set(ref_plots) | set(mod_plots)))
+    if not all_plots:
+        all_plots = [""]
 
     # Setup template dictionary
     df = df.reset_index(drop=True)  # ?
@@ -403,7 +439,7 @@ def generate_html_page(
         "analyses": analyses,
         "data_information": {
             key.capitalize(): ref.attrs[key]
-            for key in ["title", "institutions", "version"]
+            for key in ["title", "institution", "version", "doi"]
             if key in ref.attrs
         },
         "table_data": str(
@@ -417,3 +453,115 @@ def generate_html_page(
     ).read()
     html = Template(template).render(data)
     return html
+
+
+def _flatten_dict(d: dict, parent_key: str = "", sep: str = "/") -> dict:
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, dict) and "sources" not in v:
+            items.extend(_flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
+def _clean_pathname(filename: str) -> str:
+    """Removes characters we do not want in our paths."""
+    invalid_chars = r'[\\/:*?"<>|\s]'
+    cleaned_filename = re.sub(invalid_chars, "", filename)
+    return cleaned_filename
+
+
+def _is_leaf(current: dict) -> bool:
+    """Is the current item in the nested dictionary a leaf?"""
+    if not isinstance(current, dict):
+        return False
+    if "sources" in current:
+        return True
+    return False
+
+
+def _add_path(current: dict, path: Path | None = None) -> dict:
+    """Recursively add the nested dictionary headings as a `path` in the leaves."""
+    path = Path() if path is None else path
+    for key, val in current.items():
+        if not isinstance(val, dict):
+            continue
+        key_path = path / Path(_clean_pathname(key))
+        if _is_leaf(val):
+            val["path"] = str(key_path)
+        else:
+            current[key] = _add_path(val, key_path)
+    return current
+
+
+def _to_leaf_list(current: dict, leaf_list: list | None = None) -> list:
+    """Recursively flatten the nested dictionary only returning the leaves."""
+    leaf_list = [] if leaf_list is None else leaf_list
+    for _, val in current.items():
+        if not isinstance(val, dict):
+            continue
+        if _is_leaf(val):
+            leaf_list.append(val)
+        else:
+            _to_leaf_list(val, leaf_list)
+    return leaf_list
+
+
+def _create_paths(current: dict, root: Path = Path("_build")):
+    """Recursively ensure paths in the leaves are created."""
+    for _, val in current.items():
+        if not isinstance(val, dict):
+            continue
+        if _is_leaf(val):
+            if "path" in val:
+                (root / Path(val["path"])).mkdir(parents=True, exist_ok=True)
+        else:
+            _create_paths(val, root)
+
+
+def parse_benchmark_setup(yaml_file: str | Path) -> dict:
+    """Parse the file which is analagous to the old configure file."""
+    yaml_file = Path(yaml_file)
+    with open(yaml_file) as fin:
+        analyses = yaml.safe_load(fin)
+    assert isinstance(analyses, dict)
+    return analyses
+
+
+def run_study(study_setup: str, df_datasets: pd.DataFrame):
+    # Some yaml text that would get parsed like a dictionary.
+    analyses = parse_benchmark_setup(study_setup)
+    registry = analyses.pop("registry") if "registry" in analyses else "ilamb.txt"
+    if registry == "ilamb.txt":
+        reg = ilamb3.ilamb_catalog()
+    elif registry == "iomb.txt":
+        reg = ilamb3.iomb_catalog()
+    else:
+        raise ValueError("Unsupported registry.")
+
+    # The yaml analysis setup can be as structured as the user needs. We are no longer
+    # limited to the `h1` and `h2` headers from ILAMB 2.x. We will detect leaf nodes by
+    # the presence of a `sources` dictionary.
+    analyses = _add_path(analyses)
+
+    # Various traversal actions
+    _create_paths(analyses)
+
+    # Create a list of just the leaves to use in creation all work combinations
+    analyses_list = _to_leaf_list(analyses)
+
+    # Run the confrontations
+    for analysis in analyses_list:
+        path = analysis.pop("path")
+        try:
+            run_simple(
+                registry_to_dataframe(reg),
+                path.split("/")[-1],
+                df_datasets,
+                Path("_build") / path,
+                **analysis,
+            )
+        except Exception:
+            continue

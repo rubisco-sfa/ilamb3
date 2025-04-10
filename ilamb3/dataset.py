@@ -41,9 +41,9 @@ def get_dim_name(
     datasets are not CF-compliant (e.g. raw model output).
     """
     dim_names = {
-        "time": ["time"],
-        "lat": ["lat", "latitude", "Latitude", "y", "lat_"],
-        "lon": ["lon", "longitude", "Longitude", "x", "lon_"],
+        "time": ["time", "TIME"],
+        "lat": ["lat", "latitude", "Latitude", "y", "lat_", "Lat", "LATITUDE"],
+        "lon": ["lon", "longitude", "Longitude", "x", "lon_", "Lon", "LONGITUDE"],
         "depth": ["depth", "lev"],
     }
     # Assumption: the 'site' dimension is what is left over after all others are removed
@@ -94,8 +94,8 @@ def get_coord_name(
     get_dim_name : A variant when the coordinate is a dimension.
     """
     coord_names = {
-        "lat": ["lat", "latitude", "Latitude", "y", "lat_"],
-        "lon": ["lon", "longitude", "Longitude", "x", "lon_"],
+        "lat": ["lat", "latitude", "Latitude", "y", "lat_", "Lat", "LATITUDE"],
+        "lon": ["lon", "longitude", "Longitude", "x", "lon_", "Lon", "LONGITUDE"],
     }
     possible_names = coord_names[coord]
     coord_name = set(dset.coords).intersection(possible_names)
@@ -327,13 +327,15 @@ def compute_time_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     and part of the dataset.
     """
 
-    def _measure1d(time):  # numpydoc ignore=GL08
+    def _measure1d(time, time_name):  # numpydoc ignore=GL08
         if time.size == 1:
             msg = "Cannot estimate time measures from single value without bounds"
             raise ValueError(msg)
-        delt = time.diff(dim="time").to_numpy().astype(float) * 1e-9 / 3600 / 24
+        delt = time.diff(dim=time_name).to_numpy().astype(float) * 1e-9 / 3600 / 24
         delt = np.hstack([delt[0], delt, delt[-1]])
-        msr = xr.DataArray(0.5 * (delt[:-1] + delt[1:]), coords=[time], dims=["time"])
+        msr = xr.DataArray(
+            0.5 * (delt[:-1] + delt[1:]), coords=[time], dims=[time_name]
+        )
         msr.attrs["units"] = "d"
         return msr
 
@@ -341,7 +343,7 @@ def compute_time_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     time = dset[time_name]
     timeb_name = time.attrs["bounds"] if "bounds" in time.attrs else None
     if timeb_name is None or timeb_name not in dset:
-        return _measure1d(time)
+        return _measure1d(time, time_name)
     # compute from the bounds
     delt = dset[timeb_name]
     nbnd = delt.dims[-1]

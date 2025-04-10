@@ -68,7 +68,7 @@ def generate_test_dset(
     [
         ("test/Site/tas.nc", "ilamb", 0.1310922449190615),
         ("test/Grid/gpp.nc", "ilamb", 0.0127712918632477),
-        ("test/thetao.nc", "iomb", 0.0622860516334433),
+        ("test/thetao.nc", "test", 0.0622860516334433),
     ],
 )
 def test_run(reference_key: str, registry_name: str, score: float):
@@ -79,6 +79,8 @@ def test_run(reference_key: str, registry_name: str, score: float):
         registry = ilamb3.ilamb_catalog()
     elif registry_name == "iomb":
         registry = ilamb3.iomb_catalog()
+    elif registry_name == "test":
+        registry = ilamb3.test_catalog()
     registry.fetch(reference_key)
     df_registry = run.registry_to_dataframe(registry)
     # setup temp dir and clean
@@ -94,8 +96,8 @@ def test_run(reference_key: str, registry_name: str, score: float):
         nyear=10,
         nlat=18,
         nlon=36,
-        ndepth=2 if registry_name == "iomb" else None,
-        latlon2d=(registry_name == "iomb"),
+        ndepth=2 if registry_name == "test" else None,
+        latlon2d=(registry_name == "test"),
     )
     com.to_netcdf(output_path / "tmp.nc")
     df_com = pd.DataFrame(
@@ -113,7 +115,7 @@ def test_run(reference_key: str, registry_name: str, score: float):
     # run the analysis
     ilamb3.conf.set(prefer_regional_quantiles=False, use_uncertainty=False)
     setup = {"sources": {variable_id: reference_key}}
-    if registry_name == "iomb":
+    if registry_name == "test":
         setup["depth"] = 10.0
     run.run_simple(df_registry, reference_key, df_com, output_path, **setup)
 

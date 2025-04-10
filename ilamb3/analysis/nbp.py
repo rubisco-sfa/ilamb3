@@ -6,6 +6,9 @@ See Also
 ILAMBAnalysis : The abstract base class from which this derives.
 """
 
+from typing import Any
+
+import matplotlib.pyplot as mpl
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -33,7 +36,7 @@ class nbp_analysis(ILAMBAnalysis):
         The method
     """
 
-    def __init__(self, evaluation_year: int | None = None):
+    def __init__(self, evaluation_year: int | None = None, **kwargs: Any):
         self.evaluation_year = evaluation_year
 
     def required_variables(self) -> list[str]:
@@ -83,7 +86,8 @@ class nbp_analysis(ILAMBAnalysis):
         if com["time"][0].dt.year > ref["time"][0].dt.year:
             raise TemporalOverlapIssue()
         tstart = min([t for t in com["time"] if t.dt.year == ref["time"][0].dt.year])
-        com = com.sel({"time": slice(tstart, com["time"][-1])})
+        tend = max([t for t in com["time"] if t.dt.year == self.evaluation_year])
+        com = com.sel({"time": slice(tstart, tend)})
 
         # Fixes to data names and checks for required variables
         if "netAtmosLandCO2Flux" in com:
@@ -103,16 +107,16 @@ class nbp_analysis(ILAMBAnalysis):
             com["nbp"] = dset.integrate_space(com, "nbp")
         com.load()
 
-        # Accumulate
-        def _cumsum(ds):  # numpydoc ignore=GL08
+        # Accumulate fluxes
+        def _cumsum(ds):
             for var, da in ds.items():
+                da = da.pint.quantify()
                 if da.pint.units is None:
                     continue
-                unit = 1.0 * da.pint.units
-                if not unit.check("[mass] / [time]"):
+                if not (1.0 * da.pint.units).check("[mass] / [time]"):
                     continue
                 da = dset.accumulate_time(ds, var)
-                da = da.pint.to("Pg")
+                da = dset.convert(da, "Pg")
                 ds[var] = da
             return ds
 
@@ -210,4 +214,142 @@ class nbp_analysis(ILAMBAnalysis):
         ref: xr.Dataset,
         com: dict[str, xr.Dataset],
     ) -> pd.DataFrame:
-        pass
+        # plot over the reference limits
+        vmin = ref["nbp"].min()
+        vmax = ref["nbp"].max()
+        if "bounds" in ref["nbp"].attrs and ref["nbp"].attrs["bounds"] in ref:
+            bnd_name = ref["nbp"].attrs["bounds"]
+            vmin = ref[bnd_name].min()
+            vmax = ref[bnd_name].max()
+        vmin = float(vmin)
+        vmax = float(vmax)
+        com["Reference"] = ref
+        return pd.DataFrame(
+            [
+                {
+                    "name": "accumulation",
+                    "title": "nbp_accumulation",
+                    "region": None,
+                    "source": None,
+                    "axis": plot_accumulated_nbp(com, ref, vmin=vmin, vmax=vmax),
+                }
+            ]
+        )
+
+
+def _space_labels(
+    dsd: dict[str, xr.Dataset], ymin: float, maxit: int = 10
+) -> dict[str, float]:
+    """
+    Space out the model labels for the nbp plot using a modified Laplacian
+    smoothing.
+    """
+    sorted_dsd = {key: float(ds.isel(year=-1)["nbp"]) for key, ds in dsd.items()}
+    sorted_dsd = dict(sorted(sorted_dsd.items(), key=lambda item: item[1]))
+    y = np.array([v for _, v in sorted_dsd.items()])
+    for j in range(maxit):
+        dy = np.abs(np.diff(y))
+        if dy.min() > ymin:
+            break
+        update = (dy[:-1] < ymin) + (dy[1:] < ymin)
+        y[1:-1] = (~update) * y[1:-1] + update * 0.5 * (y[2:] + y[:-2])
+    sorted_dsd = {key: v for key, v in zip(sorted_dsd.keys(), y)}
+    return sorted_dsd
+
+
+def plot_accumulated_nbp(
+    dsd: dict[str, xr.Dataset], ref: xr.Dataset, vmin: float, vmax: float
+):
+    FONT_SIZE = 16
+    with mpl.rc_context({"font.size": FONT_SIZE}):
+        fig = mpl.figure(figsize=(12.8, 5.8))
+        ax = fig.add_subplot(1, 1, 1, position=[0.1, 0.1, 0.7, 0.85])
+        data_range = vmax - vmin
+        fig_height = fig.get_figheight()
+        pad = 0.05 * data_range
+        if "bounds" in ref["nbp"].attrs and ref["nbp"].attrs["bounds"] in ref:
+            da = ref[ref["nbp"].attrs["bounds"]]
+            ax.fill_between(
+                ref["year"],
+                da.values[:, 0],
+                da.values[:, 1],
+                color="k",
+                alpha=0.1,
+                lw=0,
+            )
+        y_text = _space_labels(dsd, data_range / fig_height * FONT_SIZE / 50.0)
+        for key, ds in dsd.items():
+            ds["nbp"].plot(
+                ax=ax,
+                lw=2,
+                color=get_model_color(key),
+            )
+            ax.text(
+                ds.year[-1] + 2,
+                y_text[key],
+                key,
+                color=get_model_color(key),
+                va="center",
+                size=FONT_SIZE,
+            )
+        ax.text(
+            0.02,
+            0.95,
+            "Land Source",
+            transform=ax.transAxes,
+            size=FONT_SIZE,
+            alpha=0.5,
+            va="top",
+        )
+        ax.text(
+            0.02, 0.05, "Land Sink", transform=ax.transAxes, size=FONT_SIZE, alpha=0.5
+        )
+        ax.set_ylabel("[Pg]")
+        ax.set_ylim(vmin - pad, vmax + pad)
+        ax.spines[["top", "right"]].set_visible(False)
+    return ax
+
+
+def get_model_color(
+    model: str, base_cmap: str = "rainbow"
+) -> tuple[float, float, float, float]:
+    if model == "Reference":
+        return (0.0, 0.0, 0.0, 1.0)
+    MODEL_PREFIXES = np.array(
+        [
+            "ACC",
+            "AWI",
+            "BCC",
+            "CAM",
+            "CAS",
+            "CES",
+            "CIE",
+            "CMC",
+            "CNR",
+            "CAN",
+            "E3S",
+            "EC",
+            "FGO",
+            "FIO",
+            "GFD",
+            "GIS",
+            "HAD",
+            "ICO",
+            "IIT",
+            "INM",
+            "IPS",
+            "KAC",
+            "KIO",
+            "MCM",
+            "MIR",
+            "MPI",
+            "MRI",
+            "NES",
+            "Nor",
+            "SAM",
+            "TAI",
+            "UKE",
+        ]
+    )
+    cmap = mpl.get_cmap(base_cmap, len(MODEL_PREFIXES))
+    return cmap(MODEL_PREFIXES.searchsorted(model.upper()))
