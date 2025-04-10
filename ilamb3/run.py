@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import pooch
 import xarray as xr
@@ -19,6 +20,28 @@ import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 import ilamb3.regions as ilr
 from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
+
+
+def fix_pint_units(ds: xr.Dataset) -> xr.Dataset:
+    def _fix(units: str) -> str:
+        """
+        Modify units that pint cannot handle.
+        """
+        try:
+            val_units = float(units)
+        except ValueError:
+            return units
+        if np.allclose(val_units, 1):
+            return "dimensionless"
+        if np.allclose(val_units, 1e-3):
+            return "psu"
+        return units
+
+    for var, da in ds.items():
+        if "units" not in da.attrs:
+            continue
+        ds[var].attrs["units"] = _fix(da.attrs["units"])
+    return ds
 
 
 def _load_reference_data(
@@ -54,6 +77,7 @@ def _load_reference_data(
         ds_ref = xr.merge([v for _, v in ref.items()], compat="override")
     else:
         ds_ref = ref[variable_id]
+    ds_ref = fix_pint_units(ds_ref)
     return ds_ref
 
 
@@ -91,6 +115,7 @@ def _load_comparison_data(
         ds_com = xr.merge([v for _, v in com.items()], compat="override")
     else:
         ds_com = com[variable_id]
+    ds_com = fix_pint_units(ds_com)
     return ds_com
 
 
