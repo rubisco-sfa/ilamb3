@@ -68,7 +68,7 @@ def generate_test_dset(
     [
         ("test/Site/tas.nc", "ilamb", 0.1310922449190615),
         ("test/Grid/gpp.nc", "ilamb", 0.0127712918632477),
-        ("test/thetao.nc", "iomb", 0.0622860516334433),
+        ("test/thetao.nc", "test", 0.0622860516334433),
     ],
 )
 def test_run(reference_key: str, registry_name: str, score: float):
@@ -79,6 +79,8 @@ def test_run(reference_key: str, registry_name: str, score: float):
         registry = ilamb3.ilamb_catalog()
     elif registry_name == "iomb":
         registry = ilamb3.iomb_catalog()
+    elif registry_name == "test":
+        registry = ilamb3.test_catalog()
     registry.fetch(reference_key)
     df_registry = run.registry_to_dataframe(registry)
     # setup temp dir and clean
