@@ -96,8 +96,8 @@ def test_run(reference_key: str, registry_name: str, score: float):
         nyear=10,
         nlat=18,
         nlon=36,
-        ndepth=2 if registry_name == "iomb" else None,
-        latlon2d=(registry_name == "iomb"),
+        ndepth=2 if registry_name == "test" else None,
+        latlon2d=(registry_name == "test"),
     )
     com.to_netcdf(output_path / "tmp.nc")
     df_com = pd.DataFrame(
@@ -115,7 +115,7 @@ def test_run(reference_key: str, registry_name: str, score: float):
     # run the analysis
     ilamb3.conf.set(prefer_regional_quantiles=False, use_uncertainty=False)
     setup = {"sources": {variable_id: reference_key}}
-    if registry_name == "iomb":
+    if registry_name == "test":
         setup["depth"] = 10.0
     run.run_simple(df_registry, reference_key, df_com, output_path, **setup)
 
