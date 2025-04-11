@@ -20,6 +20,7 @@ import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 import ilamb3.regions as ilr
 from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
+from ilamb3.transform import ALL_TRANSFORMS
 
 
 def fix_pint_units(ds: xr.Dataset) -> xr.Dataset:
@@ -159,6 +160,12 @@ def remove_irrelevant_variables(df: pd.DataFrame, **setup: Any) -> pd.DataFrame:
     return reduce
 
 
+def run_transforms(ds: xr.Dataset, transforms: list) -> xr.Dataset:
+    for transform in transforms:
+        ds = ALL_TRANSFORMS[transform](ds)
+    return ds
+
+
 def run_simple(
     reference_data: pd.DataFrame,
     analysis_name: str,
@@ -205,6 +212,9 @@ def run_simple(
             com = _load_comparison_data(
                 variable, grp, depth=depth, alternate_vars=alternate_vars
             )
+            if "transform" in setup:
+                ref = run_transforms(ref, setup["transform"])
+                com = run_transforms(com, setup["transform"])
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
             dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
 
