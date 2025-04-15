@@ -688,7 +688,7 @@ wheels = [
 
 [[package]]
 name = "ilamb3"
-version = "2025.2.13.post1.dev25+g9dc1b59.d20250408"
+version = "2025.2.13.post1.dev38+gb3c4d3a.d20250414"
 source = { editable = "." }
 dependencies = [
     { name = "cartopy" },
@@ -697,6 +697,7 @@ dependencies = [
     { name = "jinja2" },
     { name = "loguru" },
     { name = "matplotlib" },
+    { name = "nc-time-axis" },
     { name = "netcdf4" },
     { name = "numpy" },
     { name = "pandas" },
@@ -731,6 +732,7 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1.5" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "matplotlib", specifier = ">=3.10.0" },
+    { name = "nc-time-axis", specifier = ">=1.4.1" },
     { name = "netcdf4", specifier = ">=1.7.2" },
     { name = "numpy", specifier = ">=2.2.2" },
     { name = "pandas", specifier = ">=2.2.3" },
@@ -1263,6 +1265,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/6d/fd/91545e604bc3dad7dca9ed03284086039b294c6b3d75c0d2fa45f9e9caf3/nbformat-5.10.4.tar.gz", hash = "sha256:322168b14f937a5d11362988ecac2a4952d3d8e3a2cbeb2319584631226d5b3a", size = 142749 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a9/82/0340caa499416c78e5d8f5f05947ae4bc3cba53c9f038ab6e9ed964e22f1/nbformat-5.10.4-py3-none-any.whl", hash = "sha256:3b48d6c8fbca4b299bf3982ea7db1af21580e4fec269ad087b9e81588891200b", size = 78454 },
+]
+
+[[package]]
+name = "nc-time-axis"
+version = "1.4.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cftime" },
+    { name = "matplotlib" },
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/39/c7/ceaba2047ef4e08660a5a89a71cea30547bddb0e51236dab2dcb771a6fe1/nc-time-axis-1.4.1.tar.gz", hash = "sha256:72d80f492f34bbf59490838d8cb3d92f14e88900b0ee35498b2b33c82795eb81", size = 66231 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/01/89/dbeab77a217f8fbda97a637acf1e3f0ce8c9c9fb3f5e5d1ff843da859520/nc_time_axis-1.4.1-py3-none-any.whl", hash = "sha256:96a6fb28cede0d07998fcd666599f76e51a086e1929fbcbfb758c1d0f3e7b0d1", size = 17757 },
 ]
 
 [[package]]

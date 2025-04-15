@@ -99,8 +99,13 @@ def _load_comparison_data(
     if alternate_vars is not None and variable_id not in com:
         found = [v for v in alternate_vars if v in com]
         if found:
-            com[variable_id] = com[found[0]].rename_vars({found[0]: variable_id})
-            com.pop(found[0])
+            found = found[0]
+            com[variable_id] = (
+                com[found].rename_vars({found: variable_id})
+                if found in com[found]
+                else com[found]
+            )
+            com.pop(found)
     if depth is not None:
         com = {
             key: (
@@ -307,6 +312,7 @@ def setup_analyses(
 
     # If specialized analyses are given, setup those and return
     if "analyses" in analysis_setup:
+        analysis_setup["required_variable"] = variable
         analyses = {
             a: anl.ALL_ANALYSES[a](**analysis_setup)
             for a in analysis_setup.pop("analyses", [])

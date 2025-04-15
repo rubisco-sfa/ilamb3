@@ -1,5 +1,6 @@
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -151,6 +152,45 @@ def plot_map(da: xr.DataArray, **kwargs):
     return ax
 
 
+def plot_curve(dsd: dict[str, xr.DataArray], varname: str, **kwargs):
+    # Parse some options
+    vmin = kwargs.pop("vmin") if "vmin" in kwargs else None
+    vmax = kwargs.pop("vmax") if "vmax" in kwargs else None
+    title = kwargs.pop("title") if "title" in kwargs else ""
+
+    # Setup figure
+    ASPECT = 1.618
+    figsize = kwargs.pop("figsize") if "figsize" in kwargs else (6, 6 / ASPECT)
+    _, ax = plt.subplots(
+        dpi=200,
+        tight_layout=(kwargs.pop("tight_layout") if "tight_layout" in kwargs else True),
+        figsize=figsize,
+    )
+
+    # Convert to single calendar for plotting
+    dsd = {source: ds.convert_calendar("noleap") for source, ds in dsd.items()}
+    ref = dsd.pop("Reference")
+
+    # Plot curves
+    ref[varname].plot(
+        ax=ax,
+        color="k",
+        label="Reference",
+    )
+    for source, ds in dsd.items():
+        ds[varname].plot(
+            ax=ax,
+            color=get_model_color(source),
+            label=source,
+        )
+
+    ax.legend()
+    ax.set_title(title)
+    if vmin is not None and vmax is not None:
+        ax.set_ylim(vmin, vmax)
+    return ax
+
+
 def plot_distribution(da: xr.DataArray, **kwargs):
     _, ax = plt.subplots(dpi=200, tight_layout=True, figsize=(6, 5.25))
     da.plot(
@@ -194,6 +234,89 @@ def plot_response(
     return ax
 
 
+def plot_taylor_diagram(df: pd.DataFrame):
+    """
+    Create a Taylor diagram.
+
+    This is adapted from the code by Yannick Copin found here:
+
+    https://gist.github.com/ycopin/3342888
+    """
+    import mpl_toolkits.axisartist.floating_axes as FA
+    import mpl_toolkits.axisartist.grid_finder as GF
+    from matplotlib.projections import PolarAxes
+
+    # correlation ticks and labels
+    rlocs = np.array([0.1, 0.3, 0.5, 0.7, 0.9])
+    tlocs = np.arccos(rlocs)
+    gl1 = GF.FixedLocator(tlocs)
+    tf1 = GF.DictFormatter(dict(zip(tlocs, map(str, rlocs))))
+
+    # add a curvilinear grid helper
+    smax = max(
+        2, 1.1 * df[df["name"] == "Normalized Standard Deviation"]["value"].max()
+    )
+    tr = PolarAxes.PolarTransform()
+    ghelper = FA.GridHelperCurveLinear(
+        tr,
+        extremes=(0, np.pi / 2, 0, smax),
+        grid_locator1=gl1,
+        tick_formatter1=tf1,
+    )
+
+    # create figure
+    with mpl.rc_context({"font.size": 13}):
+        fig = plt.figure(dpi=200, figsize=(6, 6))
+        ax = FA.FloatingSubplot(fig, 111, grid_helper=ghelper)
+        fig.add_subplot(ax)
+        ax.axis["top"].set_axis_direction("bottom")
+        ax.axis["top"].toggle(ticklabels=True, label=True)
+        ax.axis["top"].major_ticklabels.set_axis_direction("top")
+        ax.axis["top"].label.set_axis_direction("top")
+        ax.axis["top"].label.set_text("Correlation")
+        ax.axis["left"].set_axis_direction("bottom")
+        ax.axis["left"].label.set_text("Normalized standard deviation")
+        ax.axis["right"].set_axis_direction("top")
+        ax.axis["right"].toggle(ticklabels=True)
+        ax.axis["right"].major_ticklabels.set_axis_direction("left")
+        ax.axis["bottom"].set_visible(False)
+        ax.grid(True)
+
+        # plot data
+        ax = ax.get_aux_axes(tr)
+        for source, grp in df[
+            df["name"].isin(["Normalized Standard Deviation [1]", "Correlation [1]"])
+        ].groupby("source"):
+            print(source)
+            print(grp)
+            std = grp[grp["name"] == "Normalized Standard Deviation [1]"].iloc[0][
+                "value"
+            ]
+            corr = grp[grp["name"] == "Correlation [1]"].iloc[0]["value"]
+            ax.plot(
+                np.arccos(corr.clip(-1, 1)),
+                std,
+                "o",
+                color=get_model_color(source),
+                mew=0,
+                ms=8,
+            )
+
+        # Add reference point and stddev contour
+        ax.plot([0], 1, "k*", ms=12, mew=0)
+        t = np.linspace(0, np.pi / 2)
+        r = np.zeros_like(t) + 1
+        ax.plot(t, r, "k--")
+
+        # centralized rms contours
+        rs, ts = np.meshgrid(np.linspace(0, smax), np.linspace(0, np.pi / 2))
+        rms = np.sqrt(1 + rs**2 - 2 * rs * np.cos(ts))
+        contours = ax.contour(ts, rs, rms, 5, colors="k", alpha=0.4)
+        ax.clabel(contours, fmt="%1.1f")
+
+    return ax
+
+
 def determine_plot_limits(
     dsd: xr.Dataset | dict[str, xr.Dataset],
     percent_pad: float = 1.0,
@@ -232,3 +355,48 @@ def determine_plot_limits(
             data[1] = vmax
         out.append({"name": plot, "low": data[0], "high": data[1]})
     return pd.DataFrame(out)
+
+
+def get_model_color(
+    model: str, base_cmap: str = "rainbow"
+) -> tuple[float, float, float, float]:
+    if model == "Reference":
+        return (0.0, 0.0, 0.0, 1.0)
+    MODEL_PREFIXES = np.array(
+        [
+            "ACC",
+            "AWI",
+            "BCC",
+            "CAM",
+            "CAS",
+            "CES",
+            "CIE",
+            "CMC",
+            "CNR",
+            "CAN",
+            "E3S",
+            "EC",
+            "FGO",
+            "FIO",
+            "GFD",
+            "GIS",
+            "HAD",
+            "ICO",
+            "IIT",
+            "INM",
+            "IPS",
+            "KAC",
+            "KIO",
+            "MCM",
+            "MIR",
+            "MPI",
+            "MRI",
+            "NES",
+            "Nor",
+            "SAM",
+            "TAI",
+            "UKE",
+        ]
+    )
+    cmap = plt.get_cmap(base_cmap, len(MODEL_PREFIXES))
+    return cmap(MODEL_PREFIXES.searchsorted(model.upper()))
