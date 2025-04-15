@@ -38,7 +38,7 @@ class timeseries_analysis(ILAMBAnalysis):
         ref_std = float(dset.std_time(ref, varname))
         com_std = float(dset.std_time(com, varname))
         norm_std = com_std / ref_std
-        corr = float(np.corrcoef(ref[varname], com[varname])[0, 1])
+        corr = float(np.corrcoef(ref[varname], com[varname].squeeze())[0, 1])
         taylor_score = 4 * (1 + corr) / ((norm_std + 1 / norm_std) ** 2 * 2)
 
         # create a dataframe of scalars
