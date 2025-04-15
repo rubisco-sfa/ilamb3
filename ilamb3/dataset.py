@@ -818,9 +818,9 @@ def scale_by_water_density(da: xr.DataArray, target: str) -> xr.DataArray:
     water_density = 998.2071 * ureg.kilogram / ureg.meter**3
     src = 1.0 * da.pint.units
     tar = ureg(target)
-    if src.check("[mass] / [length]**2 / [time]") and tar.check("[length] / [time]"):
+    if (src / tar).check("[mass] / [length]**3"):
         return da / water_density
-    if tar.check("[mass] / [length]**2 / [time]") and src.check("[length] / [time]"):
+    if (tar / src).check("[mass] / [length]**3"):
         return da * water_density
     return da
 
