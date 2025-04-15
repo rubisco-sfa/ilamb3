@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+import ilamb3.plot as ilplt
 from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.exceptions import MissingVariable, TemporalOverlapIssue
@@ -282,13 +283,13 @@ def plot_accumulated_nbp(
             ds["nbp"].plot(
                 ax=ax,
                 lw=2,
-                color=get_model_color(key),
+                color=ilplt.get_model_color(key),
             )
             ax.text(
                 ds.year[-1] + 2,
                 y_text[key],
                 key,
-                color=get_model_color(key),
+                color=ilplt.get_model_color(key),
                 va="center",
                 size=FONT_SIZE,
             )
@@ -308,48 +309,3 @@ def plot_accumulated_nbp(
         ax.set_ylim(vmin - pad, vmax + pad)
         ax.spines[["top", "right"]].set_visible(False)
     return ax
-
-
-def get_model_color(
-    model: str, base_cmap: str = "rainbow"
-) -> tuple[float, float, float, float]:
-    if model == "Reference":
-        return (0.0, 0.0, 0.0, 1.0)
-    MODEL_PREFIXES = np.array(
-        [
-            "ACC",
-            "AWI",
-            "BCC",
-            "CAM",
-            "CAS",
-            "CES",
-            "CIE",
-            "CMC",
-            "CNR",
-            "CAN",
-            "E3S",
-            "EC",
-            "FGO",
-            "FIO",
-            "GFD",
-            "GIS",
-            "HAD",
-            "ICO",
-            "IIT",
-            "INM",
-            "IPS",
-            "KAC",
-            "KIO",
-            "MCM",
-            "MIR",
-            "MPI",
-            "MRI",
-            "NES",
-            "Nor",
-            "SAM",
-            "TAI",
-            "UKE",
-        ]
-    )
-    cmap = mpl.get_cmap(base_cmap, len(MODEL_PREFIXES))
-    return cmap(MODEL_PREFIXES.searchsorted(model.upper()))
