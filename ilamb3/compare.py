@@ -136,15 +136,10 @@ def trim_time(*args: xr.Dataset, **kwargs: xr.Dataset) -> tuple[xr.Dataset]:
     def _to_tuple(da: xr.DataArray) -> tuple[int]:
         if da.size != 1:
             raise ValueError("Single element conversions only")
-        return (int(da.dt.year), int(da.dt.month), int(da.dt.day))
+        return (int(da.dt.year), int(da.dt.month))
 
     def _stamp(t: xr.DataArray, ymd: tuple[int]):
-        cls = t.item().__class__
-        try:
-            stamp = cls(*ymd)
-        except Exception:  # assume it was datetime64
-            stamp = np.datetime64(f"{ymd[0]:4d}-{ymd[1]:02d}-{ymd[2]:02d}")
-        return stamp
+        return f"{ymd[0]:4d}-{ymd[1]:02d}"
 
     # Get the time extents in the original calendars
     t0 = []
