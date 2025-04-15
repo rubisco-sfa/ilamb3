@@ -16,6 +16,7 @@ from ilamb3.config import conf  # noqa
 units.define("kg = 1e3 * g")
 units.define("Mg = 1e6 * g")
 units.define("Pg = 1e15 * g")
+units.define("Sv = 1e6 m**3 / s")
 
 # we don't really have data versions for the collection :/
 ILAMB_DATA_VERSION = "0.1"
