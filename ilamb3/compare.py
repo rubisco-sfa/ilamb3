@@ -138,18 +138,18 @@ def trim_time(*args: xr.Dataset, **kwargs: xr.Dataset) -> tuple[xr.Dataset]:
             raise ValueError("Single element conversions only")
         return (int(da.dt.year), int(da.dt.month))
 
-    def _stamp(t: xr.DataArray, ymd: tuple[int]):
+    def _stamp(ymd: tuple[int]):
         return f"{ymd[0]:4d}-{ymd[1]:02d}"
 
     # Get the time extents in the original calendars
     t0 = []
     tf = []
     for arg in args:
-        tbegin, tend = dset.get_time_extent(arg)
+        tbegin, tend = dset.get_time_extent(arg, include_bounds=False)
         t0.append(tbegin)
         tf.append(tend)
     for _, arg in kwargs.items():
-        tbegin, tend = dset.get_time_extent(arg)
+        tbegin, tend = dset.get_time_extent(arg, include_bounds=False)
         t0.append(tbegin)
         tf.append(tend)
 
@@ -162,13 +162,12 @@ def trim_time(*args: xr.Dataset, **kwargs: xr.Dataset) -> tuple[xr.Dataset]:
         )
 
     # Recast back into native calendar objects and select
+    tslice = slice(_stamp(tmin), _stamp(tmax))
     args = list(args)
     for i, arg in enumerate(args):
-        args[i] = arg.sel({"time": slice(_stamp(t0[i], tmin), _stamp(tf[i], tmax))})
-    i = len(args)
+        args[i] = arg.sel({"time": tslice})
     for key, arg in kwargs.items():
-        kwargs[key] = arg.sel({"time": slice(_stamp(t0[i], tmin), _stamp(tf[i], tmax))})
-        i += 1
+        kwargs[key] = arg.sel({"time": tslice})
 
     # Conditional returns based on what was passed in
     if args and not kwargs:

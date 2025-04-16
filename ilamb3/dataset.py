@@ -277,7 +277,7 @@ def latlon2d_to_1d(grid: xr.Dataset | xr.DataArray, da: xr.DataArray) -> xr.Data
 
 
 def get_time_extent(
-    dset: xr.Dataset | xr.DataArray,
+    dset: xr.Dataset | xr.DataArray, include_bounds: bool = True
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """
     Return the time extent of the dataset/dataarray.
@@ -298,7 +298,7 @@ def get_time_extent(
     """
     time_name = get_dim_name(dset, "time")
     time = dset[time_name]
-    if "bounds" in time.attrs:
+    if "bounds" in time.attrs and include_bounds:
         if time.attrs["bounds"] in dset:
             time = dset[time.attrs["bounds"]]
     time.load()
