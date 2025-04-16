@@ -6,7 +6,7 @@ import ilamb3.dataset as dset
 def soil_moisture_to_vol_fraction(ds: xr.Dataset) -> xr.Dataset:
     for var in ["mrsos", "mrsol"]:
         if var in ds:
-            ds[var] = _to_vol_fraction(ds, var)
+            ds[var] = _to_vol_fraction(ds, var).squeeze()
     return ds
 
 

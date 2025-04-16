@@ -287,8 +287,6 @@ def plot_taylor_diagram(df: pd.DataFrame):
         for source, grp in df[
             df["name"].isin(["Normalized Standard Deviation [1]", "Correlation [1]"])
         ].groupby("source"):
-            print(source)
-            print(grp)
             std = grp[grp["name"] == "Normalized Standard Deviation [1]"].iloc[0][
                 "value"
             ]
