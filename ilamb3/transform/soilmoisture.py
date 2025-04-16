@@ -34,8 +34,8 @@ def _to_vol_fraction(ds: xr.Dataset, varname: str) -> xr.DataArray:
             raise ValueError(
                 "Cannot convert soil mositure data when depth bounds are not coordinates."
             )
-        depth = ds[depth_name]
-        da = da * depth.diff(dim=depth.dims[-1])
+        depth = ds[depth_name] * da.pint.registry.meter
+        da = da / depth.diff(dim=depth.dims[-1])
     else:
         # If not layered, we are assuming this is mrsos which is the moisture in
         # the top 10cm
