@@ -87,15 +87,22 @@ def _load_comparison_data(
     df: pd.DataFrame,
     depth: float | None = None,
     alternate_vars: list[str] | None = None,
+    transforms: list | None = None,
 ) -> xr.Dataset:
     """
     Load the comparison (model) data into containers and merge if more than 1
     variable is used.
     """
+    # First load all variables passed into the input dataframe. This will
+    # include all relationship variables as well as alternates.
     com = {
         var: xr.open_mfdataset(sorted((df[df["variable_id"] == var]["path"]).to_list()))
         for var in df["variable_id"].unique()
     }
+    # Next attempt to apply transforms. These may create the needed variable.
+    if transforms is not None:
+        com = {v: run_transforms(ds, transforms) for v, ds in com.items()}
+    # If we still haven't found the required variable, see if we can rename
     if alternate_vars is not None and variable_id not in com:
         found = [v for v in alternate_vars if v in com]
         if found:
@@ -106,6 +113,8 @@ def _load_comparison_data(
                 else com[found]
             )
             com.pop(found)
+    # If we are dealing with a layered dataset and a depth has been given,
+    # extract that layer.
     if depth is not None:
         com = {
             key: (
@@ -116,7 +125,8 @@ def _load_comparison_data(
             for key, ds in com.items()
         }
     if len(com) > 1:
-        # sometimes, models have very small differences in lat/lon
+        # Sometimes models generate output with very small differences in
+        # lat/lon
         com = cmp.same_spatial_grid(com[variable_id], **com)
         ds_com = xr.merge([v for _, v in com.items()], compat="override")
     else:
