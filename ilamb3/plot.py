@@ -332,23 +332,27 @@ def determine_plot_limits(
         if "score" in plot:
             out.append({"name": plot, "low": 0, "high": 1})
             continue
-        # Otherwise pick a quantile across all data sources
-        try:
-            data = np.quantile(
-                np.hstack(
-                    [
-                        np.ma.masked_invalid(ds[plot].to_numpy()).compressed()
-                        for _, ds in dsd.items()
-                        if plot in ds
-                    ]
-                ),
-                [percent_pad * 0.01, 1 - percent_pad * 0.01],
-            )
-        except IndexError:
-            # In rare instances no model has any valid data and so it doesn't
-            # matter what we make the plot limits
+        # Which datasets have this plot, the data type must be a float
+        plot_ds = {
+            key: ds
+            for key, ds in dsd.items()
+            if plot in ds and (np.issubdtype(ds[plot].dtype, np.floating))
+        }
+        if not plot_ds:
+            continue
+        # Stack the data together into a single array
+        data = np.hstack(
+            [
+                np.ma.masked_invalid(ds[plot].to_numpy()).compressed()
+                for _, ds in plot_ds.items()
+            ]
+        )
+        # If we have data, then take the quantiles, otherwise it doesn't matter.
+        if data.size > 0:
+            data = np.quantile(data, [percent_pad * 0.01, 1 - percent_pad * 0.01])
+        else:
             data = np.asarray([0.0, 1.0])
-        # symmetrize
+        # Symmetrize
         if [tag for tag in symmetrize if tag in plot]:
             vmax = max(np.abs(data))
             data[0] = -vmax

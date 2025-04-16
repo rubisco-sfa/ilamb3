@@ -215,11 +215,12 @@ def run_simple(
                 depth=depth,
             )
             com = _load_comparison_data(
-                variable, grp, depth=depth, alternate_vars=alternate_vars
+                variable,
+                grp,
+                depth=depth,
+                alternate_vars=alternate_vars,
+                transforms=setup.get("transform", None),
             )
-            if "transform" in setup:
-                ref = run_transforms(ref, setup["transform"])
-                com = run_transforms(com, setup["transform"])
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
             dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
 
