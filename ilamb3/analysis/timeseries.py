@@ -172,25 +172,5 @@ class timeseries_analysis(ILAMBAnalysis):
                 "axis": ilplt.plot_taylor_diagram(df),
             }
         ]
-
         axs = pd.DataFrame(axs).dropna(subset=["axis"])
         return axs
-
-
-# testing
-if __name__ == "__main__":
-    ref = xr.open_dataset(
-        "/home/nate/.cache/ilamb3/0.1/RAPID/amoc_mon_RAPID_BE_NA_200404-202302.nc"
-    )
-    com = xr.open_dataset(
-        "/home/nate/work/iomb-gcp-assets/models_amoc/AMOC_FESOM2-REcoM_A_1959-2023_v20220716.nc"
-    ).rename_vars({"AMOC": "amoc"})
-
-    tsa = timeseries_analysis(required_variable="amoc", description="AMOC at 26N")
-    ds_com = {}
-    df, ds_ref, ds_com["Comparison"] = tsa(ref, com)
-    print(df)
-    dfp = tsa.plots(df, ds_ref, ds_com)
-    print(dfp)
-    for r, row in dfp.iterrows():
-        dfp.iloc[r]["axis"].get_figure().savefig(f"blah{r}.png")
