@@ -458,8 +458,8 @@ def generate_html_page(
     analyses = {analysis: {} for analysis in df["analysis"].dropna().unique()}
     for (aname, pname), df_grp in df_plots.groupby(["analysis", "name"], sort=False):
         analyses[aname][pname] = []
-        if len(df_grp) == 1 and None in df_grp["source"].unique():
-            analyses[aname][pname] += [{"None": f"None_None_{pname}.png"}]
+        if len(df_grp["source"].unique()) == 1 and None in df_grp["source"].unique():
+            analyses[aname][pname] += [{"None": f"None_RNAME_{pname}.png"}]
             continue
         if "Reference" in df_grp["source"].unique():
             analyses[aname][pname] += [{"Reference": f"Reference_RNAME_{pname}.png"}]
@@ -473,7 +473,7 @@ def generate_html_page(
         all_plots = [""]
 
     # Setup template dictionary
-    df = df.reset_index(drop=True)  # ?
+    df = df.reset_index(drop=True)
     df["id"] = df.index
     data = {
         "page_header": ref.attrs["header"] if "header" in ref.attrs else "",

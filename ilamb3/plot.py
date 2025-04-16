@@ -152,7 +152,7 @@ def plot_map(da: xr.DataArray, **kwargs):
     return ax
 
 
-def plot_curve(dsd: dict[str, xr.DataArray], varname: str, **kwargs):
+def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
     # Parse some options
     vmin = kwargs.pop("vmin") if "vmin" in kwargs else None
     vmax = kwargs.pop("vmax") if "vmax" in kwargs else None
@@ -254,7 +254,7 @@ def plot_taylor_diagram(df: pd.DataFrame):
 
     # add a curvilinear grid helper
     smax = max(
-        2, 1.1 * df[df["name"] == "Normalized Standard Deviation"]["value"].max()
+        2, 1.1 * df[df["name"] == "Normalized Standard Deviation [1]"]["value"].max()
     )
     tr = PolarAxes.PolarTransform()
     ghelper = FA.GridHelperCurveLinear(
