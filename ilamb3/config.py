@@ -17,6 +17,7 @@ defaults = {
     "quantile_threshold": 70,
     "use_uncertainty": False,
     "model_name_facets": ["source_id", "member_id", "grid_label"],
+    "plot_central_longitude": 0,
 }
 
 
@@ -63,6 +64,7 @@ class Config(dict):
         prefer_regional_quantiles: bool | None = None,
         use_uncertainty: bool | None = None,
         model_name_facets: list[str] | None = None,
+        plot_central_longitude: float | None = None,
     ):
         """Change ilamb3 configuration options."""
         temp = copy.deepcopy(self)
@@ -82,6 +84,8 @@ class Config(dict):
             self["use_uncertainty"] = bool(use_uncertainty)
         if model_name_facets is not None:
             self["model_name_facets"] = model_name_facets
+        if plot_central_longitude is not None:
+            self["plot_central_longitude"] = float(plot_central_longitude)
         return self._unset(temp)
 
     def __getitem__(self, item):

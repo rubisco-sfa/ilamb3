@@ -8,8 +8,7 @@ import xarray as xr
 import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 import ilamb3.plot as plt
-import ilamb3.regions as ilr
-from ilamb3.analysis.base import ILAMBAnalysis
+from ilamb3.analysis.base import ILAMBAnalysis, scalarify
 
 
 def metric_maps(
@@ -93,31 +92,6 @@ def score_difference(ref: xr.Dataset, com: xr.Dataset) -> xr.Dataset:
     lon_name = dset.get_dim_name(diff, "lon")
     com = com.merge(diff.rename({lat_name: f"{lat_name}_", lon_name: f"{lon_name}_"}))
     return com
-
-
-def scalarify(
-    var: xr.DataArray | xr.Dataset, varname: str, region: str | None, mean: bool
-) -> tuple[float, str]:
-    """
-    Integration/average the input dataarray/dataset to generate a scalar.
-    """
-    da = var
-    if isinstance(var, xr.Dataset):
-        da = var[varname]
-    if dset.is_spatial(da):
-        da = dset.integrate_space(
-            da,
-            varname,
-            region=region,
-            mean=mean,
-        )
-    elif dset.is_site(da):
-        da = ilr.Regions().restrict_to_region(da, region)
-        da = da.mean(dim=dset.get_dim_name(da, "site"))
-    else:
-        raise ValueError(f"Input is neither spatial nor site: {da}")
-    da = da.pint.quantify()
-    return float(da.pint.dequantify()), f"{da.pint.units:~cf}"
 
 
 class hydro_analysis(ILAMBAnalysis):

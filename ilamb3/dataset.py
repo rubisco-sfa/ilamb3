@@ -41,7 +41,7 @@ def get_dim_name(
     datasets are not CF-compliant (e.g. raw model output).
     """
     dim_names = {
-        "time": ["time", "TIME"],
+        "time": ["time", "TIME", "month"],
         "lat": ["lat", "latitude", "Latitude", "y", "lat_", "Lat", "LATITUDE"],
         "lon": ["lon", "longitude", "Longitude", "x", "lon_", "Lon", "LONGITUDE"],
         "depth": ["depth", "lev"],

@@ -2,6 +2,7 @@
 
 from ilamb3.analysis.base import add_overall_score
 from ilamb3.analysis.bias import bias_analysis
+from ilamb3.analysis.cycle import cycle_analysis
 from ilamb3.analysis.hydro import hydro_analysis
 from ilamb3.analysis.nbp import nbp_analysis
 from ilamb3.analysis.relationship import relationship_analysis
@@ -11,6 +12,7 @@ from ilamb3.analysis.timeseries import timeseries_analysis
 
 DEFAULT_ANALYSES = {
     "Bias": bias_analysis,
+    "Annual Cycle": cycle_analysis,
     "Spatial Distribution": spatial_distribution_analysis,
 }
 ALL_ANALYSES = {

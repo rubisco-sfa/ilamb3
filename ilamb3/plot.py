@@ -7,6 +7,7 @@ import pandas as pd
 import xarray as xr
 from matplotlib.colors import LogNorm
 
+import ilamb3
 import ilamb3.dataset as dset
 from ilamb3.regions import Regions
 
@@ -53,14 +54,15 @@ def pick_projection(
     extents: list[float], fraction_threshold: float = 0.85
 ) -> tuple[ccrs.Projection, float]:
     """Given plot extents choose projection and aspect ratio."""
+    lon = ilamb3.conf["plot_central_longitude"]
     if compute_overlap_fracs([-180, 180, 60, 90], extents)[1] > fraction_threshold:
-        return ccrs.Orthographic(central_latitude=+90, central_longitude=0), 1.0
+        return ccrs.Orthographic(central_latitude=+90, central_longitude=lon), 1.0
     if compute_overlap_fracs([-180, 180, -90, -60], extents)[1] > fraction_threshold:
-        return ccrs.Orthographic(central_latitude=-90, central_longitude=0), 1.0
+        return ccrs.Orthographic(central_latitude=-90, central_longitude=lon), 1.0
     if compute_overlap_fracs([-125, -66.5, 20, 50], extents)[1] > fraction_threshold:
         return ccrs.LambertConformal(), 2.05  # USA
     if compute_extent_area(extents) / compute_extent_area([-180, 180, -90, 90]) > 0.5:
-        return ccrs.Robinson(central_longitude=0), 2.0  # Global
+        return ccrs.Robinson(central_longitude=lon), 2.0  # Global
     # If none of above, use cyclindrical
     aspect_ratio = max(extents[1], extents[0]) - min(extents[1], extents[0])
     aspect_ratio /= max(extents[3], extents[2]) - min(extents[3], extents[2])
@@ -102,7 +104,11 @@ def finalize_plot(ax: plt.Axes, extents: list[float]) -> plt.Axes:
 
 def plot_map(da: xr.DataArray, **kwargs):
     # Process some options
-    kwargs["cmap"] = plt.get_cmap(kwargs["cmap"] if "cmap" in kwargs else "viridis", 9)
+    ncolors = kwargs.pop("ncolors") if "ncolors" in kwargs else 9
+    ticklabels = kwargs.pop("ticklabels") if "ticklabels" in kwargs else None
+    kwargs["cmap"] = plt.get_cmap(
+        kwargs["cmap"] if "cmap" in kwargs else "viridis", ncolors
+    )
     title = kwargs.pop("title") if "title" in kwargs else ""
 
     # Process region if given
@@ -132,9 +138,13 @@ def plot_map(da: xr.DataArray, **kwargs):
 
     # Space or sites?
     if dset.is_spatial(da):
-        da.plot(ax=ax, transform=ccrs.PlateCarree(), cbar_kwargs=cba, **kwargs)
+        out_plot = da.plot(
+            ax=ax, transform=ccrs.PlateCarree(), cbar_kwargs=cba, **kwargs
+        )
+        if ticklabels is not None:
+            out_plot.colorbar.set_ticklabels(ticklabels)
     elif dset.is_site(da):
-        xr.plot.scatter(
+        out_plot = xr.plot.scatter(
             da.to_dataset(),
             x=dset.get_coord_name(da, "lon"),
             y=dset.get_coord_name(da, "lat"),
@@ -145,6 +155,8 @@ def plot_map(da: xr.DataArray, **kwargs):
             transform=ccrs.PlateCarree(),
             **kwargs,
         )
+        if ticklabels is not None:
+            out_plot.colorbar.set_ticklabels(ticklabels)
     else:
         raise ValueError("plotting error")
     ax.set_title(title)
@@ -156,6 +168,8 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
     # Parse some options
     vmin = kwargs.pop("vmin") if "vmin" in kwargs else None
     vmax = kwargs.pop("vmax") if "vmax" in kwargs else None
+    xticks = kwargs.pop("xticks") if "xticks" in kwargs else None
+    xticklabels = kwargs.pop("xticklabels") if "xticklabels" in kwargs else None
     title = kwargs.pop("title") if "title" in kwargs else ""
 
     # Setup figure
@@ -168,24 +182,23 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
     )
 
     # Convert to single calendar for plotting
-    dsd = {source: ds.convert_calendar("noleap") for source, ds in dsd.items()}
+    dsd = {
+        source: ds.convert_calendar("noleap") if "time" in ds else ds
+        for source, ds in dsd.items()
+    }
     ref = dsd.pop("Reference")
 
     # Plot curves
-    ref[varname].plot(
-        ax=ax,
-        color="k",
-        label="Reference",
-    )
+    ref[varname].plot(ax=ax, color="k", label="Reference")
     for source, ds in dsd.items():
-        ds[varname].plot(
-            ax=ax,
-            color=get_model_color(source),
-            label=source,
-        )
+        ds[varname].plot(ax=ax, color=get_model_color(source), label=source)
 
     ax.legend()
     ax.set_title(title)
+    if xticks is not None:
+        ax.set_xticks(xticks)
+    if xticklabels is not None:
+        ax.set_xticklabels(xticklabels)
     if vmin is not None and vmax is not None:
         ax.set_ylim(vmin, vmax)
     return ax
