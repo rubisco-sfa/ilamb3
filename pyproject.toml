@@ -49,6 +49,7 @@ doc = [
   "sphinx-autosummary-accessors>=2023.4.0",
   "sphinx-copybutton>=0.5.2",
 ]
+gcb = ["gsw>=3.6.19"]
 
 [build-system]
 build-backend = "setuptools.build_meta"
