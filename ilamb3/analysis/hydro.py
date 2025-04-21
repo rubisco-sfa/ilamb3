@@ -39,9 +39,6 @@ def metric_maps(
     grp = da.groupby("time.year")
     out["annual_mean"] = grp.mean().mean(dim="year")
     out["annual_std"] = grp.mean().std(dim="year")
-    amp = grp.max() - grp.min()
-    out["amplitude_mean"] = amp.mean(dim="year")
-    out["amplitude_std"] = amp.std(dim="year")
 
     # seasons
     grp = da.groupby("time.season")
@@ -59,15 +56,6 @@ def metric_maps(
             for s in std["season"].values
         }
     )
-
-    # cycle
-    cycle = da.groupby("time.month").mean()
-    out["peak_timing"] = xr.where(
-        ~cycle.isnull().all("month"),
-        cycle.fillna(0).argmax(dim="month").astype(float),
-        np.nan,
-    )
-    out["peak_timing"].attrs["units"] = "month"
     return xr.Dataset(out)
 
 
@@ -111,13 +99,6 @@ class hydro_analysis(ILAMBAnalysis):
                 "annual_std",
                 "annual_std_difference",
             ],
-            "Amplitude": [
-                "amplitude_mean",
-                "amplitude_mean_difference",
-                "amplitude_mean_score",
-                "amplitude_std",
-                "amplitude_std_difference",
-            ],
             "Seasonal DJF": [
                 "seasonal_mean_DJF",
                 "seasonal_mean_DJF_difference",
@@ -145,10 +126,6 @@ class hydro_analysis(ILAMBAnalysis):
                 "seasonal_mean_SON_score",
                 "seasonal_std_SON",
                 "seasonal_std_SON_difference",
-            ],
-            "Cycle": [
-                "peak_timing",
-                "peak_timing_difference",
             ],
         }
 
@@ -182,11 +159,11 @@ class hydro_analysis(ILAMBAnalysis):
         varname = self.req_variable
 
         # Make the variables comparable and force loading into memory
-        ref, com = cmp.make_comparable(ref, com, varname)
+        ref_, com_ = cmp.make_comparable(ref, com, varname)
 
         # Run the hydro metrics
-        ref = metric_maps(ref, varname)
-        com = metric_maps(com, varname)
+        ref = metric_maps(ref_, varname)
+        com = metric_maps(com_, varname)
         com = score_difference(ref, com)
 
         # Create scalars
@@ -211,6 +188,21 @@ class hydro_analysis(ILAMBAnalysis):
                             scalar,
                         ]
                     )
+
+        # Compute the regional means
+        for region in self.regions:
+            ref[f"mean_{region}"] = dset.integrate_space(
+                ref_,
+                varname,
+                region=region,
+                mean=True,
+            )
+            com[f"mean_{region}"] = dset.integrate_space(
+                com_,
+                varname,
+                region=region,
+                mean=True,
+            )
 
         # Convert to dataframe
         df = pd.DataFrame(
@@ -280,5 +272,32 @@ class hydro_analysis(ILAMBAnalysis):
             for source, ds in com.items()
             for region in self.regions
         ]
+
+        axs += [
+            {
+                "name": "mean",
+                "title": "Regional Mean",
+                "region": plot.split("_")[-1],
+                "source": source,
+                "axis": (
+                    plt.plot_curve(
+                        {source: ds} | {"Reference": ref},
+                        plot,
+                        vmin=df.loc[plot, "low"]
+                        - 0.05 * (df.loc[plot, "high"] - df.loc[plot, "low"]),
+                        vmax=df.loc[plot, "high"]
+                        + 0.05 * (df.loc[plot, "high"] - df.loc[plot, "low"]),
+                        title=f"{source} Regional Mean",
+                    )
+                    if plot in ds
+                    else pd.NA
+                ),
+            }
+            for plot in [f"mean_{region}" for region in self.regions]
+            for source, ds in com.items()
+            if source != "Reference"
+        ]
+
         axs = pd.DataFrame(axs).dropna(subset=["axis"])
+        print(axs)
         return axs
