@@ -29,6 +29,10 @@ class NoSiteDimension(ILAMBException):
     """The dataset/dataarray does not contain a clear site dimension."""
 
 
+class NoUncertainty(ILAMBException):
+    """The dataset/dataarray does not contain uncertainty."""
+
+
 class AnalysisFailure(ILAMBException):
     """
     The analysis function you were running threw an exception.

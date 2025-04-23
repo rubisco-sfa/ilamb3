@@ -182,27 +182,40 @@ def same_spatial_grid(
     grid: xr.DataArray | xr.Dataset, *args: xr.Dataset, **kwargs: xr.Dataset
 ) -> tuple[xr.Dataset]:
     """."""
+
+    def _drop_bounds(ds: xr.Dataset, dim: str) -> xr.Dataset:
+        var = ds[dim]
+        if "bounds" not in var.attrs:
+            return ds
+        if var.attrs["bounds"] not in ds:
+            return ds
+        ds = ds.drop_vars(var.attrs["bounds"])
+        ds[dim].attrs.pop("bounds")
+        return ds
+
     args = list(args)
-    lat = grid[dset.get_dim_name(grid, "lat")]
-    lon = grid[dset.get_dim_name(grid, "lon")]
+    lat = grid[dset.get_dim_name(grid, "lat")].values
+    lon = grid[dset.get_dim_name(grid, "lon")].values
     for i, arg in enumerate(args):
         _, arg = adjust_lon(grid, arg)
+        lat_name = dset.get_dim_name(arg, "lat")
+        lon_name = dset.get_dim_name(arg, "lon")
         args[i] = arg.interp(
-            {
-                dset.get_dim_name(arg, "lat"): lat,
-                dset.get_dim_name(arg, "lon"): lon,
-            },
+            {lat_name: lat, lon_name: lon},
             method="nearest",
         )
+        args[i] = _drop_bounds(args[i], lat_name)
+        args[i] = _drop_bounds(args[i], lon_name)
     for key, arg in kwargs.items():
         _, arg = adjust_lon(grid, arg)
+        lat_name = dset.get_dim_name(arg, "lat")
+        lon_name = dset.get_dim_name(arg, "lon")
         kwargs[key] = arg.interp(
-            {
-                dset.get_dim_name(arg, "lat"): lat,
-                dset.get_dim_name(arg, "lon"): lon,
-            },
+            {lat_name: lat, lon_name: lon},
             method="nearest",
         )
+        kwargs[key] = _drop_bounds(kwargs[key], lat_name)
+        kwargs[key] = _drop_bounds(kwargs[key], lon_name)
 
     # Conditional returns based on what was passed in
     if args and not kwargs:

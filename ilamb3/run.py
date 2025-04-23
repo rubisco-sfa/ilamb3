@@ -72,6 +72,8 @@ def _load_reference_data(
             )
             for key, ds in ref.items()
         }
+    # Fix bounds attributes
+    ref = {key: dset.fix_missing_bounds_attrs(ds) for key, ds in ref.items()}
     if len(ref) > 1:
         ref = cmp.trim_time(**ref)
         ref = cmp.same_spatial_grid(ref[variable_id], **ref)
@@ -99,6 +101,8 @@ def _load_comparison_data(
         var: xr.open_mfdataset(sorted((df[df["variable_id"] == var]["path"]).to_list()))
         for var in df["variable_id"].unique()
     }
+    # Fix bounds attributes
+    com = {var: dset.fix_missing_bounds_attrs(ds) for var, ds in com.items()}
     # Next attempt to apply transforms. These may create the needed variable.
     if transforms is not None:
         com = {v: run_transforms(ds, transforms) for v, ds in com.items()}
