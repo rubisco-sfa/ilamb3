@@ -1,5 +1,6 @@
 """Functions for preparing datasets for comparison."""
 
+import cftime as cf
 import numpy as np
 import xarray as xr
 
@@ -356,3 +357,39 @@ def rename_dims(*args):
     for arg in args:
         assert isinstance(arg, xr.DataArray | xr.Dataset)
     return [arg.rename(_populate_renames(arg)) for arg in args]
+
+
+def convert_calendar_monthly_noleap(
+    ds: xr.Dataset | xr.DataArray,
+) -> xr.Dataset | xr.DataArray:
+    """
+    Convert the dataset calendar to a monthly noleap.
+
+    Note
+    ----
+    At some point, we need the index of time to be the same to make comparisons.
+    When this is required, we will convert everything assuming that we are
+    dealing with monthly data.
+    """
+    time_name = dset.get_dim_name(ds, "time")
+    ds[time_name] = [
+        cf.DatetimeNoLeap(t.dt.year, t.dt.month, 15) for t in ds[time_name]
+    ]
+    if "bounds" not in ds[time_name].attrs:
+        return ds
+    # Handle time bounds if present
+    bounds_name = ds[time_name].attrs["bounds"]
+    ds[bounds_name] = np.array(
+        [
+            [cf.DatetimeNoLeap(t.dt.year, t.dt.month, 1) for t in ds[time_name]],
+            [
+                cf.DatetimeNoLeap(
+                    t.dt.year if t.dt.month < 12 else (t.dt.year + 1),
+                    (t.dt.month + 1) if t.dt.month < 12 else 1,
+                    1,
+                )
+                for t in ds[time_name]
+            ],
+        ]
+    ).T
+    return ds
