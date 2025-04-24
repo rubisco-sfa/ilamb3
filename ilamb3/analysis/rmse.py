@@ -117,16 +117,15 @@ class rmse_analysis(ILAMBAnalysis):
                 com, varname, region, mean=True
             )
 
-        # Move calendars, at this point we change the data and add a _ to
-        # reflect this
-        ref_ = cmp.convert_calendar_monthly_noleap(ref)
-        com_ = cmp.convert_calendar_monthly_noleap(com)
+        # Move calendars
+        ref = cmp.convert_calendar_monthly_noleap(ref)
+        com = cmp.convert_calendar_monthly_noleap(com)
 
         # Get the reference data uncertainty, only use if present and desired
-        args = [ref_, com_]
+        args = [ref, com]
         if self.use_uncertainty:
             try:
-                uncert = dset.get_scalar_uncertainty(ref_, varname)
+                uncert = dset.get_scalar_uncertainty(ref, varname)
                 args.append(uncert)
             except NoUncertainty:
                 self.use_uncertainty = False
@@ -134,32 +133,30 @@ class rmse_analysis(ILAMBAnalysis):
 
         # Conversions
         if self.use_uncertainty:
-            ref_, com_, uncert = cmp.rename_dims(
-                cmp.nest_spatial_grids(ref_, com_, uncert)
+            ref, com, uncert = cmp.rename_dims(
+                cmp.nest_spatial_grids(ref[varname], com[varname], uncert)
             )
         else:
-            ref_, com_ = cmp.rename_dims(*cmp.nest_spatial_grids(ref_, com_))
+            ref, com = cmp.rename_dims(
+                *cmp.nest_spatial_grids(ref[varname], com[varname])
+            )
 
         # Compute the RMSE and score
-        rmse = np.sqrt(dset.integrate_time((com_ - ref_) ** 2, varname, mean=True))
-        ref_mean = dset.integrate_time(ref_, varname, mean=True)
-        com_mean = dset.integrate_time(com_, varname, mean=True)
+        rmse = np.sqrt(dset.integrate_time((com - ref) ** 2, varname, mean=True))
+        ref_mean = dset.integrate_time(ref, varname, mean=True)
+        com_mean = dset.integrate_time(com, varname, mean=True)
         crmse = np.sqrt(
             dset.integrate_time(
                 (
-                    (
-                        np.abs((com_[varname] - com_mean) - (ref_[varname] - ref_mean))
-                        - (uncert if self.use_uncertainty else 0.0)
-                    ).clip(min=0)
-                )
+                    np.abs((com - com_mean) - (ref - ref_mean))
+                    - (uncert if self.use_uncertainty else 0.0)
+                ).clip(min=0)
                 ** 2,
                 varname,
                 mean=True,
             )
         )
-        crms = np.sqrt(
-            dset.integrate_time((ref_[varname] - ref_mean) ** 2, varname, mean=True)
-        )
+        crms = np.sqrt(dset.integrate_time((ref - ref_mean) ** 2, varname, mean=True))
         score = np.exp(-crmse / crms)
 
         # Load outputs and scalars
