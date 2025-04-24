@@ -16,6 +16,7 @@ import ilamb3.dataset as dset
 import ilamb3.plot as plt
 from ilamb3 import compare as cmp
 from ilamb3.analysis.base import ILAMBAnalysis, integrate_or_mean, scalarify
+from ilamb3.exceptions import AnalysisNotAppropriate
 
 
 class cycle_analysis(ILAMBAnalysis):
@@ -88,6 +89,9 @@ class cycle_analysis(ILAMBAnalysis):
 
         # Make the variables comparable and force loading into memory
         ref, com = cmp.make_comparable(ref, com, varname)
+
+        if len(com[dset.get_dim_name(com, "time")]) < 12:
+            raise AnalysisNotAppropriate()
 
         # Compute the mean annual cycles
         ref = ref[varname].groupby("time.month").mean()

@@ -20,6 +20,7 @@ import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 import ilamb3.regions as ilr
 from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
+from ilamb3.exceptions import AnalysisNotAppropriate
 from ilamb3.transform import ALL_TRANSFORMS
 
 
@@ -377,7 +378,10 @@ def run_analyses(
     ds_refs = []
     ds_coms = []
     for aname, a in analyses.items():
-        df, ds_ref, ds_com = a(ref, com)
+        try:
+            df, ds_ref, ds_com = a(ref, com)
+        except AnalysisNotAppropriate:
+            continue
         dfs.append(df)
         ds_refs.append(ds_ref)
         ds_coms.append(ds_com)

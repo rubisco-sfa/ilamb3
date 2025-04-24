@@ -16,7 +16,7 @@ import ilamb3.plot as plt
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis, integrate_or_mean, scalarify
-from ilamb3.exceptions import NoUncertainty
+from ilamb3.exceptions import AnalysisNotAppropriate, NoUncertainty
 
 
 class rmse_analysis(ILAMBAnalysis):
@@ -106,6 +106,10 @@ class rmse_analysis(ILAMBAnalysis):
         # Make the variables comparable and force loading into memory
         ref, com = cmp.make_comparable(ref, com, varname)
 
+        # Is the time series long enough for this to be meaningful?
+        if len(com[dset.get_dim_name(com, "time")]) < 24:
+            raise AnalysisNotAppropriate()
+
         # Before operating on these, compute spatial means
         ds_ref = {}
         ds_com = {}
@@ -164,6 +168,7 @@ class rmse_analysis(ILAMBAnalysis):
         ds_com["rmsescore"] = score
         df = []
         for region in self.regions:
+            print(rmse)
             val, unit = scalarify(rmse, varname, region, mean=True)
             df += [
                 {
