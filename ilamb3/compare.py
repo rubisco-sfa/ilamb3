@@ -1,5 +1,6 @@
 """Functions for preparing datasets for comparison."""
 
+import cftime as cf
 import numpy as np
 import xarray as xr
 
@@ -136,25 +137,20 @@ def trim_time(*args: xr.Dataset, **kwargs: xr.Dataset) -> tuple[xr.Dataset]:
     def _to_tuple(da: xr.DataArray) -> tuple[int]:
         if da.size != 1:
             raise ValueError("Single element conversions only")
-        return (int(da.dt.year), int(da.dt.month), int(da.dt.day))
+        return (int(da.dt.year), int(da.dt.month))
 
-    def _stamp(t: xr.DataArray, ymd: tuple[int]):
-        cls = t.item().__class__
-        try:
-            stamp = cls(*ymd)
-        except Exception:  # assume it was datetime64
-            stamp = np.datetime64(f"{ymd[0]:4d}-{ymd[1]:02d}-{ymd[2]:02d}")
-        return stamp
+    def _stamp(ymd: tuple[int]):
+        return f"{ymd[0]:4d}-{ymd[1]:02d}"
 
     # Get the time extents in the original calendars
     t0 = []
     tf = []
     for arg in args:
-        tbegin, tend = dset.get_time_extent(arg)
+        tbegin, tend = dset.get_time_extent(arg, include_bounds=False)
         t0.append(tbegin)
         tf.append(tend)
     for _, arg in kwargs.items():
-        tbegin, tend = dset.get_time_extent(arg)
+        tbegin, tend = dset.get_time_extent(arg, include_bounds=False)
         t0.append(tbegin)
         tf.append(tend)
 
@@ -167,13 +163,12 @@ def trim_time(*args: xr.Dataset, **kwargs: xr.Dataset) -> tuple[xr.Dataset]:
         )
 
     # Recast back into native calendar objects and select
+    tslice = slice(_stamp(tmin), _stamp(tmax))
     args = list(args)
     for i, arg in enumerate(args):
-        args[i] = arg.sel({"time": slice(_stamp(t0[i], tmin), _stamp(tf[i], tmax))})
-    i = len(args)
+        args[i] = arg.sel({"time": tslice})
     for key, arg in kwargs.items():
-        kwargs[key] = arg.sel({"time": slice(_stamp(t0[i], tmin), _stamp(tf[i], tmax))})
-        i += 1
+        kwargs[key] = arg.sel({"time": tslice})
 
     # Conditional returns based on what was passed in
     if args and not kwargs:
@@ -187,27 +182,40 @@ def same_spatial_grid(
     grid: xr.DataArray | xr.Dataset, *args: xr.Dataset, **kwargs: xr.Dataset
 ) -> tuple[xr.Dataset]:
     """."""
+
+    def _drop_bounds(ds: xr.Dataset, dim: str) -> xr.Dataset:
+        var = ds[dim]
+        if "bounds" not in var.attrs:
+            return ds
+        if var.attrs["bounds"] not in ds:
+            return ds
+        ds = ds.drop_vars(var.attrs["bounds"])
+        ds[dim].attrs.pop("bounds")
+        return ds
+
     args = list(args)
-    lat = grid[dset.get_dim_name(grid, "lat")]
-    lon = grid[dset.get_dim_name(grid, "lon")]
+    lat = grid[dset.get_dim_name(grid, "lat")].values
+    lon = grid[dset.get_dim_name(grid, "lon")].values
     for i, arg in enumerate(args):
         _, arg = adjust_lon(grid, arg)
+        lat_name = dset.get_dim_name(arg, "lat")
+        lon_name = dset.get_dim_name(arg, "lon")
         args[i] = arg.interp(
-            {
-                dset.get_dim_name(arg, "lat"): lat,
-                dset.get_dim_name(arg, "lon"): lon,
-            },
+            {lat_name: lat, lon_name: lon},
             method="nearest",
         )
+        args[i] = _drop_bounds(args[i], lat_name)
+        args[i] = _drop_bounds(args[i], lon_name)
     for key, arg in kwargs.items():
         _, arg = adjust_lon(grid, arg)
+        lat_name = dset.get_dim_name(arg, "lat")
+        lon_name = dset.get_dim_name(arg, "lon")
         kwargs[key] = arg.interp(
-            {
-                dset.get_dim_name(arg, "lat"): lat,
-                dset.get_dim_name(arg, "lon"): lon,
-            },
+            {lat_name: lat, lon_name: lon},
             method="nearest",
         )
+        kwargs[key] = _drop_bounds(kwargs[key], lat_name)
+        kwargs[key] = _drop_bounds(kwargs[key], lon_name)
 
     # Conditional returns based on what was passed in
     if args and not kwargs:
@@ -328,8 +336,12 @@ def extract_sites(
     )
     assert (dist < model_res).all()
 
-    # Set these are coordinates though so that we can tell this is site data
+    # Set these are coordinates though so that we can tell this is site data. We
+    # also set them equal to the sites lat/lon so when comparing to other data
+    # that the coords stay on
     ds_spatial = ds_spatial.set_coords([lat_spatial, lon_spatial])
+    ds_spatial[lat_spatial] = ds_site[lat_site]
+    ds_spatial[lon_spatial] = ds_site[lon_site]
 
     return ds_spatial
 
@@ -362,3 +374,39 @@ def rename_dims(*args):
     for arg in args:
         assert isinstance(arg, xr.DataArray | xr.Dataset)
     return [arg.rename(_populate_renames(arg)) for arg in args]
+
+
+def convert_calendar_monthly_noleap(
+    ds: xr.Dataset | xr.DataArray,
+) -> xr.Dataset | xr.DataArray:
+    """
+    Convert the dataset calendar to a monthly noleap.
+
+    Note
+    ----
+    At some point, we need the index of time to be the same to make comparisons.
+    When this is required, we will convert everything assuming that we are
+    dealing with monthly data.
+    """
+    time_name = dset.get_dim_name(ds, "time")
+    ds[time_name] = [
+        cf.DatetimeNoLeap(t.dt.year, t.dt.month, 15) for t in ds[time_name]
+    ]
+    if "bounds" not in ds[time_name].attrs:
+        return ds
+    # Handle time bounds if present
+    bounds_name = ds[time_name].attrs["bounds"]
+    ds[bounds_name] = np.array(
+        [
+            [cf.DatetimeNoLeap(t.dt.year, t.dt.month, 1) for t in ds[time_name]],
+            [
+                cf.DatetimeNoLeap(
+                    t.dt.year if t.dt.month < 12 else (t.dt.year + 1),
+                    (t.dt.month + 1) if t.dt.month < 12 else 1,
+                    1,
+                )
+                for t in ds[time_name]
+            ],
+        ]
+    ).T
+    return ds

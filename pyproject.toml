@@ -36,6 +36,7 @@ dependencies = [
   "statsmodels>=0.14.4",
   "loguru>=0.7.3",
   "dask>=2025.2.0",
+  "nc-time-axis>=1.4.1",
 ]
 
 [dependency-groups]

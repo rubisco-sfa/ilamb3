@@ -124,3 +124,4 @@ quantiles/quantiles_Whittaker_cmip5v6.parquet sha1:fefe159d6c8b2720be81d08026eec
 test/Site/tas.nc sha1:3e757c9feadea581a92e6f4afb402b86168e113a
 test/Grid/gpp.nc sha1:2688085f95fa13617b20c723c66b0009bd661847
 test/Grid/pr.nc sha1:d667eb216939f5797d59b59cb4ade5ec31e67659
+mrsol/Wang2021/mrsol_olc.nc sha1:24cbc9df69569bed3a39c20e499cfe4f911bd30e

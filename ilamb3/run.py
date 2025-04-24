@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import pooch
 import xarray as xr
@@ -19,6 +20,30 @@ import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 import ilamb3.regions as ilr
 from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
+from ilamb3.exceptions import AnalysisNotAppropriate
+from ilamb3.transform import ALL_TRANSFORMS
+
+
+def fix_pint_units(ds: xr.Dataset) -> xr.Dataset:
+    def _fix(units: str) -> str:
+        """
+        Modify units that pint cannot handle.
+        """
+        try:
+            val_units = float(units)
+        except ValueError:
+            return units
+        if np.allclose(val_units, 1):
+            return "dimensionless"
+        if np.allclose(val_units, 1e-3):
+            return "psu"
+        return units
+
+    for var, da in ds.items():
+        if "units" not in da.attrs:
+            continue
+        ds[var].attrs["units"] = _fix(da.attrs["units"])
+    return ds
 
 
 def _load_reference_data(
@@ -48,12 +73,15 @@ def _load_reference_data(
             )
             for key, ds in ref.items()
         }
+    # Fix bounds attributes
+    ref = {key: dset.fix_missing_bounds_attrs(ds) for key, ds in ref.items()}
     if len(ref) > 1:
         ref = cmp.trim_time(**ref)
         ref = cmp.same_spatial_grid(ref[variable_id], **ref)
         ds_ref = xr.merge([v for _, v in ref.items()], compat="override")
     else:
         ds_ref = ref[variable_id]
+    ds_ref = fix_pint_units(ds_ref)
     return ds_ref
 
 
@@ -62,20 +90,36 @@ def _load_comparison_data(
     df: pd.DataFrame,
     depth: float | None = None,
     alternate_vars: list[str] | None = None,
+    transforms: list | None = None,
 ) -> xr.Dataset:
     """
     Load the comparison (model) data into containers and merge if more than 1
     variable is used.
     """
+    # First load all variables passed into the input dataframe. This will
+    # include all relationship variables as well as alternates.
     com = {
         var: xr.open_mfdataset(sorted((df[df["variable_id"] == var]["path"]).to_list()))
         for var in df["variable_id"].unique()
     }
+    # Fix bounds attributes
+    com = {var: dset.fix_missing_bounds_attrs(ds) for var, ds in com.items()}
+    # Next attempt to apply transforms. These may create the needed variable.
+    if transforms is not None:
+        com = {v: run_transforms(ds, transforms) for v, ds in com.items()}
+    # If we still haven't found the required variable, see if we can rename
     if alternate_vars is not None and variable_id not in com:
         found = [v for v in alternate_vars if v in com]
         if found:
-            com[variable_id] = com[found[0]].rename_vars({found[0]: variable_id})
-            com.pop(found[0])
+            found = found[0]
+            com[variable_id] = (
+                com[found].rename_vars({found: variable_id})
+                if found in com[found]
+                else com[found]
+            )
+            com.pop(found)
+    # If we are dealing with a layered dataset and a depth has been given,
+    # extract that layer.
     if depth is not None:
         com = {
             key: (
@@ -86,11 +130,13 @@ def _load_comparison_data(
             for key, ds in com.items()
         }
     if len(com) > 1:
-        # sometimes, models have very small differences in lat/lon
+        # Sometimes models generate output with very small differences in
+        # lat/lon
         com = cmp.same_spatial_grid(com[variable_id], **com)
         ds_com = xr.merge([v for _, v in com.items()], compat="override")
     else:
         ds_com = com[variable_id]
+    ds_com = fix_pint_units(ds_com)
     return ds_com
 
 
@@ -132,6 +178,12 @@ def remove_irrelevant_variables(df: pd.DataFrame, **setup: Any) -> pd.DataFrame:
         )
     ]
     return reduce
+
+
+def run_transforms(ds: xr.Dataset, transforms: list) -> xr.Dataset:
+    for transform in transforms:
+        ds = ALL_TRANSFORMS[transform](ds)
+    return ds
 
 
 def run_simple(
@@ -178,7 +230,11 @@ def run_simple(
                 depth=depth,
             )
             com = _load_comparison_data(
-                variable, grp, depth=depth, alternate_vars=alternate_vars
+                variable,
+                grp,
+                depth=depth,
+                alternate_vars=alternate_vars,
+                transforms=setup.get("transform", None),
             )
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
             dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
@@ -272,6 +328,7 @@ def setup_analyses(
 
     # If specialized analyses are given, setup those and return
     if "analyses" in analysis_setup:
+        analysis_setup["required_variable"] = variable
         analyses = {
             a: anl.ALL_ANALYSES[a](**analysis_setup)
             for a in analysis_setup.pop("analyses", [])
@@ -321,7 +378,10 @@ def run_analyses(
     ds_refs = []
     ds_coms = []
     for aname, a in analyses.items():
-        df, ds_ref, ds_com = a(ref, com)
+        try:
+            df, ds_ref, ds_com = a(ref, com)
+        except AnalysisNotAppropriate:
+            continue
         dfs.append(df)
         ds_refs.append(ds_ref)
         ds_coms.append(ds_com)
@@ -406,8 +466,8 @@ def generate_html_page(
     analyses = {analysis: {} for analysis in df["analysis"].dropna().unique()}
     for (aname, pname), df_grp in df_plots.groupby(["analysis", "name"], sort=False):
         analyses[aname][pname] = []
-        if len(df_grp) == 1 and None in df_grp["source"].unique():
-            analyses[aname][pname] += [{"None": f"None_None_{pname}.png"}]
+        if len(df_grp["source"].unique()) == 1 and None in df_grp["source"].unique():
+            analyses[aname][pname] += [{"None": f"None_RNAME_{pname}.png"}]
             continue
         if "Reference" in df_grp["source"].unique():
             analyses[aname][pname] += [{"Reference": f"Reference_RNAME_{pname}.png"}]
@@ -421,7 +481,7 @@ def generate_html_page(
         all_plots = [""]
 
     # Setup template dictionary
-    df = df.reset_index(drop=True)  # ?
+    df = df.reset_index(drop=True)
     df["id"] = df.index
     data = {
         "page_header": ref.attrs["header"] if "header" in ref.attrs else "",

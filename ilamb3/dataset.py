@@ -7,7 +7,7 @@ import xarray as xr
 from scipy.interpolate import NearestNDInterpolator
 
 import ilamb3.regions as ilreg
-from ilamb3.exceptions import NoSiteDimension
+from ilamb3.exceptions import NoSiteDimension, NoUncertainty
 
 
 def get_dim_name(
@@ -41,7 +41,7 @@ def get_dim_name(
     datasets are not CF-compliant (e.g. raw model output).
     """
     dim_names = {
-        "time": ["time", "TIME"],
+        "time": ["time", "TIME", "month"],
         "lat": ["lat", "latitude", "Latitude", "y", "lat_", "Lat", "LATITUDE"],
         "lon": ["lon", "longitude", "Longitude", "x", "lon_", "Lon", "LONGITUDE"],
         "depth": ["depth", "lev"],
@@ -277,7 +277,7 @@ def latlon2d_to_1d(grid: xr.Dataset | xr.DataArray, da: xr.DataArray) -> xr.Data
 
 
 def get_time_extent(
-    dset: xr.Dataset | xr.DataArray,
+    dset: xr.Dataset | xr.DataArray, include_bounds: bool = True
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """
     Return the time extent of the dataset/dataarray.
@@ -298,7 +298,7 @@ def get_time_extent(
     """
     time_name = get_dim_name(dset, "time")
     time = dset[time_name]
-    if "bounds" in time.attrs:
+    if "bounds" in time.attrs and include_bounds:
         if time.attrs["bounds"] in dset:
             time = dset[time.attrs["bounds"]]
     time.load()
@@ -818,9 +818,9 @@ def scale_by_water_density(da: xr.DataArray, target: str) -> xr.DataArray:
     water_density = 998.2071 * ureg.kilogram / ureg.meter**3
     src = 1.0 * da.pint.units
     tar = ureg(target)
-    if src.check("[mass] / [length]**2 / [time]") and tar.check("[length] / [time]"):
+    if (src / tar).check("[mass] / [length]**3"):
         return da / water_density
-    if tar.check("[mass] / [length]**2 / [time]") and src.check("[length] / [time]"):
+    if (tar / src).check("[mass] / [length]**3"):
         return da * water_density
     return da
 
@@ -912,3 +912,58 @@ def shift_lon(dset: xr.Dataset) -> xr.Dataset:
             ) % 360 - 180
         dset = dset.sortby(lon_name)
     return dset
+
+
+def get_scalar_uncertainty(ds: xr.Dataset, varname: str) -> xr.DataArray:
+    """
+    Get a scalar uncertainty from the variable.
+
+    Note
+    ----
+    Uncertainty is indicated either by the presence of the `ancillary_variables`
+    attribute or the `bounds` attribute. In the case of the latter, we will
+    return the harmonic mean as a scalar measure of uncertainty.
+    """
+    var = ds[varname]
+    da = None
+    if "ancillary_variables" in var.attrs and var.attrs["ancillary_variables"] in ds:
+        da = ds[var.attrs["ancillary_variables"]]
+    if "bounds" in var.attrs and var.attrs["bounds"] in ds:
+        da = ds[var.attrs["bounds"]]
+        bnd_dim = set(da.dims) - set(var.dims)
+        if len(bnd_dim) > 1:
+            raise ValueError(
+                f"Ambiguity in determinging the `bounds` dimension, found: {bnd_dim}"
+            )
+        bnd_dim = list(bnd_dim)[0]
+        da = np.sqrt(
+            (var - da.isel({bnd_dim: 0})) ** 2 + (da.isel({bnd_dim: 1}) - var) ** 2
+        )
+    if da is None:
+        raise NoUncertainty()
+    da.attrs["units"] = var.attrs["units"]
+    return da
+
+
+def fix_missing_bounds_attrs(ds: xr.Dataset) -> xr.Dataset:
+    """
+    Add a `bounds` attribute if variable appears to exist.
+    """
+
+    def _fix(ds: xr.Dataset, dim_name: str) -> xr.Dataset:
+        dim = ds[dim_name]
+        if "bounds" in dim.attrs:
+            if dim.attrs["bounds"] in ds:
+                return ds  # all good, just return
+            else:
+                ds[dim_name].attrs.pop("bounds")
+                return ds
+        # is there a likely bounds variable and the attr is missing?
+        for possible_bnds in [f"{dim_name}_bnds", f"{dim_name}_bounds"]:
+            if possible_bnds in ds:
+                ds[dim_name].attrs["bounds"] = possible_bnds
+        return ds
+
+    for d in ds.dims:
+        ds = _fix(ds, d)
+    return ds
