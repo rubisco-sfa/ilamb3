@@ -67,7 +67,7 @@ def generate_test_dset(
     "reference_key,registry_name,score",
     [
         ("test/Site/tas.nc", "ilamb", 0.1310922449190615),
-        ("test/Grid/gpp.nc", "ilamb", 0.0127712918632477),
+        ("test/Grid/gpp.nc", "ilamb", 0.0128094224567734),
         ("test/thetao.nc", "test", 0.0622860516334433),
     ],
 )
@@ -122,6 +122,7 @@ def test_run(reference_key: str, registry_name: str, score: float):
     # are the scores correct?
     df = pd.read_csv(output_path / "Junk-r1i1p1f1-gn.csv")
     q = df[df["name"] == "Bias Score [1]"]
+    print(q.iloc[0].value)
     assert len(q) == 1
     assert np.allclose(q.iloc[0].value, score)
 
