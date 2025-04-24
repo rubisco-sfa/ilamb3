@@ -168,7 +168,6 @@ class rmse_analysis(ILAMBAnalysis):
         ds_com["rmsescore"] = score
         df = []
         for region in self.regions:
-            print(rmse)
             val, unit = scalarify(rmse, varname, region, mean=True)
             df += [
                 {
