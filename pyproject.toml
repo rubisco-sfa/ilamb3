@@ -55,7 +55,14 @@ build-backend = "setuptools.build_meta"
 requires = ["setuptools>=42", "setuptools-scm>=7"]
 
 [tool.setuptools]
-packages = ["ilamb3", "ilamb3.analysis", "ilamb3.transform"]
+packages = [
+  "ilamb3",
+  "ilamb3.analysis",
+  "ilamb3.transform",
+  "ilamb3.tests",
+  "ilamb3.registry",
+  "ilamb3.templates",
+]
 
 [tool.setuptools_scm]
 version_scheme = "no-guess-dev"
