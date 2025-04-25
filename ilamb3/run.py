@@ -594,7 +594,11 @@ def parse_benchmark_setup(yaml_file: str | Path) -> dict:
     return analyses
 
 
-def run_study(study_setup: str, df_datasets: pd.DataFrame):
+def run_study(
+    study_setup: str,
+    df_datasets: pd.DataFrame,
+    ref_datasets: pd.DataFrame | None = None,
+):
     # Some yaml text that would get parsed like a dictionary.
     analyses = parse_benchmark_setup(study_setup)
     registry = analyses.pop("registry") if "registry" in analyses else "ilamb.txt"
@@ -621,7 +625,11 @@ def run_study(study_setup: str, df_datasets: pd.DataFrame):
         path = analysis.pop("path")
         try:
             run_simple(
-                registry_to_dataframe(reg),
+                (
+                    ref_datasets
+                    if ref_datasets is not None
+                    else registry_to_dataframe(reg)
+                ),
                 path.split("/")[-1],
                 df_datasets,
                 Path("_build") / path,
