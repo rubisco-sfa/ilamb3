@@ -67,7 +67,9 @@ def _load_reference_data(
     if depth is not None:
         ref = {
             key: (
-                ds.sel({dset.get_dim_name(ds, "depth"): depth}, method="nearest")
+                ds.sel(
+                    {dset.get_dim_name(ds, "depth"): depth}, method="nearest", drop=True
+                )
                 if "depth" in ds.dims
                 else ds
             )
@@ -123,7 +125,9 @@ def _load_comparison_data(
     if depth is not None:
         com = {
             key: (
-                ds.sel({dset.get_dim_name(ds, "depth"): depth}, method="nearest")
+                ds.sel(
+                    {dset.get_dim_name(ds, "depth"): depth}, method="nearest", drop=True
+                )
                 if dset.is_layered(ds)
                 else ds
             )
