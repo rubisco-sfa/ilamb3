@@ -3,13 +3,6 @@ import xarray as xr
 
 import ilamb3.dataset as dset
 
-try:
-    import gsw
-except ImportError:
-    print(
-        "The use of the `stratification_index` transform requires additional dependencies. Try `pip install ilamb3[gcb]` and then run again."
-    )
-
 
 def stratification_index(
     ds: xr.Dataset,
@@ -19,6 +12,13 @@ def stratification_index(
 ) -> xr.DataArray:
     """Computes a time series of the stratification index in the Southern Ocean
     (lat -55 to -30) using EN4.2.2 temperature and salinity data."""
+
+    try:
+        import gsw
+    except ImportError:
+        raise ImportError(
+            "The use of the `stratification_index` transform requires additional dependencies. Try `uv sync --group gcb` and then run again."
+        )
 
     if "thetao" not in ds:
         raise ValueError("Dataset requires the `thetao` variable.")
