@@ -88,15 +88,14 @@ class cycle_analysis(ILAMBAnalysis):
         varname = self.req_variable
 
         # Make the variables comparable and force loading into memory
-        ref, com = cmp.make_comparable(ref, com, varname)
+        ref, com = cmp.rename_dims(*cmp.make_comparable(ref, com, varname))
 
-        time_name = dset.get_dim_name(com, "time")
-        if len(com[time_name]) < 12:
+        if len(com["time"]) < 12:
             raise AnalysisNotAppropriate()
 
         # Compute the mean annual cycles
-        ref = ref[varname].groupby(f"{time_name}.month").mean()
-        com = com[varname].groupby(f"{time_name}.month").mean()
+        ref = ref[varname].groupby("time.month").mean()
+        com = com[varname].groupby("time.month").mean()
 
         # Get the timing of the maximum
         ref_tmax = xr.where(
@@ -107,9 +106,7 @@ class cycle_analysis(ILAMBAnalysis):
         )
 
         # Compute the phase shift (difference in max month)
-        ref_tmax_, com_tmax_ = cmp.rename_dims(
-            *cmp.nest_spatial_grids(ref_tmax, com_tmax)
-        )
+        ref_tmax_, com_tmax_ = cmp.nest_spatial_grids(ref_tmax, com_tmax)
         shift = com_tmax_ - ref_tmax_
         shift = xr.where(shift > 6, shift - 12, shift)
         shift = xr.where(shift < -6, shift + 12, shift)
