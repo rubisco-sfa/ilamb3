@@ -90,12 +90,13 @@ class cycle_analysis(ILAMBAnalysis):
         # Make the variables comparable and force loading into memory
         ref, com = cmp.make_comparable(ref, com, varname)
 
-        if len(com[dset.get_dim_name(com, "time")]) < 12:
+        time_name = dset.get_dim_name(com, "time")
+        if len(com[time_name]) < 12:
             raise AnalysisNotAppropriate()
 
         # Compute the mean annual cycles
-        ref = ref[varname].groupby("time.month").mean()
-        com = com[varname].groupby("time.month").mean()
+        ref = ref[varname].groupby(f"{time_name}.month").mean()
+        com = com[varname].groupby(f"{time_name}.month").mean()
 
         # Get the timing of the maximum
         ref_tmax = xr.where(
