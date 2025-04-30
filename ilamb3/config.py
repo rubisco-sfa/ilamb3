@@ -20,6 +20,7 @@ defaults = {
     "plot_central_longitude": 0,
     "comparison_groupby": ["source_id", "member_id", "grid_label"],
     "use_cached_results": False,
+    "figure_dpi": 100,
 }
 
 
@@ -69,6 +70,7 @@ class Config(dict):
         plot_central_longitude: float | None = None,
         comparison_groupby: list[str] | None = None,
         use_cached_results: bool | None = None,
+        figure_dpi: int | None = None,
     ):
         """Change ilamb3 configuration options."""
         temp = copy.deepcopy(self)
@@ -94,6 +96,8 @@ class Config(dict):
             self["comparison_groupby"] = comparison_groupby
         if use_cached_results is not None:
             self["use_cached_results"] = bool(use_cached_results)
+        if figure_dpi is not None:
+            self["figure_dpi"] = int(figure_dpi)
         return self._unset(temp)
 
     def __getitem__(self, item):
