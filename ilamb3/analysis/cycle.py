@@ -106,7 +106,9 @@ class cycle_analysis(ILAMBAnalysis):
         )
 
         # Compute the phase shift (difference in max month)
-        ref_tmax_, com_tmax_ = cmp.nest_spatial_grids(ref_tmax, com_tmax)
+        ref_tmax_, com_tmax_ = cmp.rename_dims(
+            *cmp.nest_spatial_grids(ref_tmax, com_tmax)
+        )
         shift = com_tmax_ - ref_tmax_
         shift = xr.where(shift > 6, shift - 12, shift)
         shift = xr.where(shift < -6, shift + 12, shift)
