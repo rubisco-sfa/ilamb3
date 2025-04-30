@@ -18,6 +18,7 @@ defaults = {
     "use_uncertainty": False,
     "model_name_facets": ["source_id", "member_id", "grid_label"],
     "plot_central_longitude": 0,
+    "comparison_groupby": ["source_id", "member_id", "grid_label"],
 }
 
 
@@ -65,6 +66,7 @@ class Config(dict):
         use_uncertainty: bool | None = None,
         model_name_facets: list[str] | None = None,
         plot_central_longitude: float | None = None,
+        comparison_groupby: list[str] | None = None,
     ):
         """Change ilamb3 configuration options."""
         temp = copy.deepcopy(self)
@@ -86,6 +88,8 @@ class Config(dict):
             self["model_name_facets"] = model_name_facets
         if plot_central_longitude is not None:
             self["plot_central_longitude"] = float(plot_central_longitude)
+        if comparison_groupby is not None:
+            self["comparison_groupby"] = comparison_groupby
         return self._unset(temp)
 
     def __getitem__(self, item):

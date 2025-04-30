@@ -213,7 +213,7 @@ def run_simple(
     df_all = []
     ds_com = {}
     ds_ref = None
-    for _, grp in comparison_data.groupby(["source_id", "member_id", "grid_label"]):
+    for _, grp in comparison_data.groupby(ilamb3.conf["comparison_groupby"]):
         row = grp.iloc[0]
 
         # Define what we will call the output artifacts
