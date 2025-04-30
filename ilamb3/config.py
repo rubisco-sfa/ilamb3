@@ -19,6 +19,7 @@ defaults = {
     "model_name_facets": ["source_id", "member_id", "grid_label"],
     "plot_central_longitude": 0,
     "comparison_groupby": ["source_id", "member_id", "grid_label"],
+    "use_cached_results": False,
 }
 
 
@@ -67,6 +68,7 @@ class Config(dict):
         model_name_facets: list[str] | None = None,
         plot_central_longitude: float | None = None,
         comparison_groupby: list[str] | None = None,
+        use_cached_results: bool | None = None,
     ):
         """Change ilamb3 configuration options."""
         temp = copy.deepcopy(self)
@@ -90,6 +92,8 @@ class Config(dict):
             self["plot_central_longitude"] = float(plot_central_longitude)
         if comparison_groupby is not None:
             self["comparison_groupby"] = comparison_groupby
+        if use_cached_results is not None:
+            self["use_cached_results"] = bool(use_cached_results)
         return self._unset(temp)
 
     def __getitem__(self, item):

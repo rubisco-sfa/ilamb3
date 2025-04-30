@@ -190,6 +190,18 @@ def run_transforms(ds: xr.Dataset, transforms: list) -> xr.Dataset:
     return ds
 
 
+def _load_local_assets(
+    csv_file: Path, ref_file: Path, com_file: Path
+) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
+    if not (csv_file.is_file() and ref_file.is_file() and com_file.is_file()):
+        raise ValueError()
+    df = pd.read_csv(str(csv_file))
+    df.loc[df["region"].isnull(), "region"] = "None"
+    ds_ref = xr.open_dataset(str(ref_file))
+    ds_com = xr.open_dataset(str(com_file))
+    return df, ds_ref, ds_com
+
+
 def run_simple(
     reference_data: pd.DataFrame,
     analysis_name: str,
@@ -223,6 +235,18 @@ def run_simple(
         com_file = output_path / f"{source_name}.nc"
         log_file = output_path / f"{source_name}.log"
         log_id = logger.add(log_file, backtrace=True, diagnose=True)
+
+        # Attempt to load local assets if preferred
+        if ilamb3.conf["use_cached_results"]:
+            try:
+                dfs, ds_ref, ds_com[source_name] = _load_local_assets(
+                    csv_file, ref_file, com_file
+                )
+                df_all.append(dfs)
+                logger.info(f"Using cached information {com_file}")
+                continue
+            except Exception:
+                pass
 
         try:
             # Load data and run comparison
@@ -265,7 +289,6 @@ def run_simple(
         raise ValueError(
             "Reference intermediate data was not generated."
         )  # pragma: no cover
-    ds_ref.attrs = ref.attrs
 
     # Phase 2: get plots and combine scalars and save
     plt.rcParams.update({"figure.max_open_warning": 0})
