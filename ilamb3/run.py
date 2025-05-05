@@ -196,7 +196,7 @@ def _load_local_assets(
     if not (csv_file.is_file() and ref_file.is_file() and com_file.is_file()):
         raise ValueError()
     df = pd.read_csv(str(csv_file))
-    df.loc[df["region"].isnull(), "region"] = "None"
+    df["region"] = df["region"].astype(str).str.replace("nan", "None")
     ds_ref = xr.open_dataset(str(ref_file))
     ds_com = xr.open_dataset(str(com_file))
     return df, ds_ref, ds_com
