@@ -596,7 +596,7 @@ def _to_leaf_list(current: dict, leaf_list: list | None = None) -> list:
     return leaf_list
 
 
-def _create_paths(current: dict, root: Path = Path("_build")):
+def _create_paths(current: dict, root: Path):
     """Recursively ensure paths in the leaves are created."""
     for _, val in current.items():
         if not isinstance(val, dict):
@@ -621,7 +621,9 @@ def run_study(
     study_setup: str,
     df_datasets: pd.DataFrame,
     ref_datasets: pd.DataFrame | None = None,
+    output_path: str | Path = "_build",
 ):
+    output_path = Path(output_path)
     # Some yaml text that would get parsed like a dictionary.
     analyses = parse_benchmark_setup(study_setup)
     registry = analyses.pop("registry") if "registry" in analyses else "ilamb.txt"
@@ -638,7 +640,7 @@ def run_study(
     analyses = _add_path(analyses)
 
     # Various traversal actions
-    _create_paths(analyses)
+    _create_paths(analyses, output_path)
 
     # Create a list of just the leaves to use in creation all work combinations
     analyses_list = _to_leaf_list(analyses)
@@ -655,7 +657,7 @@ def run_study(
                 ),
                 path.split("/")[-1],
                 df_datasets,
-                Path("_build") / path,
+                output_path / path,
                 **analysis,
             )
         except Exception:
