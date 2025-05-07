@@ -106,6 +106,11 @@ class rmse_analysis(ILAMBAnalysis):
         # Make the variables comparable and force loading into memory
         ref, com = cmp.make_comparable(ref, com, varname)
 
+        from loguru import logger
+
+        logger.debug("rmse_analysis")
+        print(com)
+
         # Is the time series long enough for this to be meaningful?
         if len(com[dset.get_dim_name(com, "time")]) < 24:
             raise AnalysisNotAppropriate()
