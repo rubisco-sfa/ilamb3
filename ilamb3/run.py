@@ -444,17 +444,22 @@ def plot_analyses(
     """
     plot_path.mkdir(exist_ok=True, parents=True)
     df_plots = []
+    logger.debug("plot_analysis")
     for name, a in analyses.items():
+        logger.debug(f"  {name} start")
         dfp = a.plots(df, ref, com)
+        print(dfp)
+        for _, row in dfp.iterrows():
+            row["axis"].get_figure().savefig(
+                plot_path / f"{row['source']}_{row['region']}_{row['name']}.png"
+            )
+        plt.close("all")
+        logger.debug(f"  {name} end")
         if "analysis" not in dfp.columns:
             dfp["analysis"] = name
         df_plots.append(dfp)
     df_plots = pd.concat(df_plots)
-    for _, row in df_plots.iterrows():
-        row["axis"].get_figure().savefig(
-            plot_path / f"{row['source']}_{row['region']}_{row['name']}.png"
-        )
-    plt.close("all")
+
     return df_plots
 
 
