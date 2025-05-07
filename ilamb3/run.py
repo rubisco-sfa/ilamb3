@@ -445,8 +445,9 @@ def plot_analyses(
     plot_path.mkdir(exist_ok=True, parents=True)
     df_plots = []
     logger.debug("plot_analysis")
+    print(analyses)
     for name, a in analyses.items():
-        logger.debug(f"  {name} start")
+        logger.debug(f"  {name} start {id(a)}")
         dfp = a.plots(df, ref, com)
         print(dfp)
         for _, row in dfp.iterrows():
