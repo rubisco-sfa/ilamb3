@@ -204,6 +204,10 @@ class rmse_analysis(ILAMBAnalysis):
         ref: xr.Dataset,
         com: dict[str, xr.Dataset],
     ) -> pd.DataFrame:
+        # This analysis was not run and we should skip plotting entirely
+        if "RMSE" not in df["analysis"].unique():
+            return pd.DataFrame()
+
         # Some initialization
         regions = [None if r == "None" else r for r in df["region"].unique()]
         com["Reference"] = ref
