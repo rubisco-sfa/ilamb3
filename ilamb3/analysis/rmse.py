@@ -207,7 +207,7 @@ class rmse_analysis(ILAMBAnalysis):
         from loguru import logger
 
         logger.debug("rmse.plots()")
-        print(df)
+        print(df[df["analysis"] == "RMSE"])
         # This analysis was not run and we should skip plotting entirely
         if "RMSE" not in df["analysis"].unique():
             logger.debug("returning a blank frame")
