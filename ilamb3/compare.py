@@ -166,9 +166,9 @@ def trim_time(*args: xr.Dataset, **kwargs: xr.Dataset) -> tuple[xr.Dataset]:
     tslice = slice(_stamp(tmin), _stamp(tmax))
     args = list(args)
     for i, arg in enumerate(args):
-        args[i] = arg.sel({"time": tslice})
+        args[i] = arg.sel({dset.get_dim_name(arg, "time"): tslice})
     for key, arg in kwargs.items():
-        kwargs[key] = arg.sel({"time": tslice})
+        kwargs[key] = arg.sel({dset.get_dim_name(arg, "time"): tslice})
 
     # Conditional returns based on what was passed in
     if args and not kwargs:
