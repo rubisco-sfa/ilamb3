@@ -301,7 +301,7 @@ def run_simple(
     # Generate an output page
     ds_ref.attrs["header"] = analysis_name
     html = generate_html_page(df, ds_ref, ds_com, df_plots)
-    with open(output_path / "index.html", mode="w") as out:
+    with open(output_path / f"{output_path.name}.html", mode="w") as out:
         out.write(html)
 
 
