@@ -297,11 +297,6 @@ def run_simple(
     )
     df = add_overall_score(df)
     df_plots = plot_analyses(df, ds_ref, ds_com, analyses, output_path)
-    for _, row in df_plots.iterrows():
-        row["axis"].get_figure().savefig(
-            output_path / f"{row['source']}_{row['region']}_{row['name']}.png"
-        )
-    plt.close("all")
 
     # Generate an output page
     ds_ref.attrs["header"] = analysis_name
