@@ -204,11 +204,16 @@ class rmse_analysis(ILAMBAnalysis):
         ref: xr.Dataset,
         com: dict[str, xr.Dataset],
     ) -> pd.DataFrame:
-        print("rmse.plots()")
+        from loguru import logger
+
+        logger.debug("rmse.plots()")
+        print(df)
         # This analysis was not run and we should skip plotting entirely
         if "RMSE" not in df["analysis"].unique():
+            logger.debug("returning a blank frame")
             return pd.DataFrame()
 
+        logger.debug("trying to plot stuff")
         # Some initialization
         regions = [None if r == "None" else r for r in df["region"].unique()]
         com["Reference"] = ref
