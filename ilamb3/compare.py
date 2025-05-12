@@ -142,15 +142,26 @@ def trim_time(*args: xr.Dataset, **kwargs: xr.Dataset) -> tuple[xr.Dataset]:
     def _stamp(ymd: tuple[int]):
         return f"{ymd[0]:4d}-{ymd[1]:02d}"
 
+    # If all the data is monthly, then skip the time bounds in computing the
+    # time extents as they tend to mess up the logic with arbitrary calendars.
+    # However, if the data is a mean over a long time span (as in biomass or
+    # soil carbon), we need the time bounds in the extent to compute the mean of
+    # the appropriate quantity.
+    time_frequency = [
+        float(dset.compute_time_measures(arg).mean().values)
+        for arg in list(args) + [arg for _, arg in kwargs.items()]
+    ]
+    inc_bounds = False if np.allclose(time_frequency, 30, atol=3) else True
+
     # Get the time extents in the original calendars
     t0 = []
     tf = []
     for arg in args:
-        tbegin, tend = dset.get_time_extent(arg, include_bounds=False)
+        tbegin, tend = dset.get_time_extent(arg, include_bounds=inc_bounds)
         t0.append(tbegin)
         tf.append(tend)
     for _, arg in kwargs.items():
-        tbegin, tend = dset.get_time_extent(arg, include_bounds=False)
+        tbegin, tend = dset.get_time_extent(arg, include_bounds=inc_bounds)
         t0.append(tbegin)
         tf.append(tend)
 
