@@ -166,6 +166,10 @@ def _load_local_csvs(csv_files: list[Path]) -> pd.DataFrame:
 def build_global_dataframe(root: Path):
     dfs = []
     for parent, _, files in root.walk():
+        # the dashboard needs html files to be {DATASET}.html
+        for html_file in [parent / f for f in files if f.endswith(".html")]:
+            html_file.rename(html_file.parent / f"{html_file.parent.name}.html")
+
         csv_files = [parent / f for f in files if f.endswith(".csv")]
         if not csv_files:
             continue
