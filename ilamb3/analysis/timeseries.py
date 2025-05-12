@@ -101,6 +101,9 @@ class timeseries_analysis(ILAMBAnalysis):
             ]
         )
 
+        # When writing intermediate outputs, make sure dims are a consistent name
+        ref, com = cmp.rename_dims(ref, com)
+
         return df, ref, com
 
     def plots(
