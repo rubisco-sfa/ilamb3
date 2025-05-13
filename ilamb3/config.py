@@ -21,6 +21,7 @@ defaults = {
     "comparison_groupby": ["source_id", "member_id", "grid_label"],
     "use_cached_results": False,
     "figure_dpi": 100,
+    "debug_mode": False,
 }
 
 
@@ -71,6 +72,7 @@ class Config(dict):
         comparison_groupby: list[str] | None = None,
         use_cached_results: bool | None = None,
         figure_dpi: int | None = None,
+        debug_mode: bool | None = None,
     ):
         """Change ilamb3 configuration options."""
         temp = copy.deepcopy(self)
@@ -98,6 +100,8 @@ class Config(dict):
             self["use_cached_results"] = bool(use_cached_results)
         if figure_dpi is not None:
             self["figure_dpi"] = int(figure_dpi)
+        if debug_mode is not None:
+            self["debug_mode"] = bool(debug_mode)
         return self._unset(temp)
 
     def __getitem__(self, item):

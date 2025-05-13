@@ -299,6 +299,8 @@ def run_simple(
     df_plots = plot_analyses(df, ds_ref, ds_com, analyses, output_path)
 
     # Generate an output page
+    if ilamb3.conf["debug_mode"] and (output_path / "index.html").is_file():
+        return
     ds_ref.attrs["header"] = analysis_name
     html = generate_html_page(df, ds_ref, ds_com, df_plots)
     with open(output_path / "index.html", mode="w") as out:
@@ -414,6 +416,24 @@ def run_analyses(
     return dfs, ds_ref, ds_com
 
 
+def regenerate_figs(path: Path) -> bool:
+    """
+    Do we need to regenerate the figures?
+    """
+    path.mkdir(exist_ok=True, parents=True)
+    png_files = list(path.glob("*.png"))
+    if not png_files:
+        return True
+    first_png_time = min([p.stat().st_mtime for p in png_files])
+    nc_files = list(path.glob("*.nc"))
+    if not nc_files:
+        return True
+    last_nc_time = max([p.stat().st_mtime for p in nc_files])
+    if last_nc_time > first_png_time:
+        return True
+    return False
+
+
 def plot_analyses(
     df: pd.DataFrame,
     ref: xr.Dataset,
@@ -442,6 +462,8 @@ def plot_analyses(
     pd.DataFrame
         A dataframe containing plot information and matplotlib axes.
     """
+    if ilamb3.conf["debug_mode"] and not regenerate_figs(plot_path):
+        return pd.DataFrame([])
     plot_path.mkdir(exist_ok=True, parents=True)
     df_plots = []
     for name, a in analyses.items():
