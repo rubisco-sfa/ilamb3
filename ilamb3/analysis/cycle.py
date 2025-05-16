@@ -90,7 +90,10 @@ class cycle_analysis(ILAMBAnalysis):
         # Make the variables comparable and force loading into memory
         ref, com = cmp.rename_dims(*cmp.make_comparable(ref, com, varname))
 
-        if len(com["time"]) < 12:
+        # Is the time series long enough for this to be meaningful?
+        if len(ref[dset.get_dim_name(ref, "time")]) < 12:
+            raise AnalysisNotAppropriate()
+        if len(com[dset.get_dim_name(com, "time")]) < 12:
             raise AnalysisNotAppropriate()
 
         # Compute the mean annual cycles
@@ -174,25 +177,28 @@ class cycle_analysis(ILAMBAnalysis):
         ref: xr.Dataset,
         com: dict[str, xr.Dataset],
     ) -> pd.DataFrame:
+        if "Annual Cycle" not in df["analysis"].unique():
+            return pd.DataFrame()
+
         # Some initialization
         regions = [None if r == "None" else r for r in df["region"].unique()]
         com["Reference"] = ref
 
         # Setup plot data
-        df = plt.determine_plot_limits(com).set_index("name")
-        df.loc["tmax", ["cmap", "title", "low", "high"]] = [
+        dfp = plt.determine_plot_limits(com).set_index("name")
+        dfp.loc["tmax", ["cmap", "title", "low", "high"]] = [
             "rainbow",
             "Month of Maximum",
             -0.5,
             11.5,
         ]
-        df.loc["shift", ["cmap", "title", "low", "high"]] = [
+        dfp.loc["shift", ["cmap", "title", "low", "high"]] = [
             "PRGn",
             "Phase Shift",
             -6,
             6,
         ]
-        df.loc["cyclescore", ["cmap", "title"]] = ["plasma", "Cycle Score"]
+        dfp.loc["cyclescore", ["cmap", "title"]] = ["plasma", "Cycle Score"]
 
         # Build up a dataframe of matplotlib axes
         plot_cbar_kwargs = {
@@ -203,17 +209,17 @@ class cycle_analysis(ILAMBAnalysis):
         axs = [
             {
                 "name": plot,
-                "title": df.loc[plot, "title"],
+                "title": dfp.loc[plot, "title"],
                 "region": region,
                 "source": source,
                 "axis": (
                     plt.plot_map(
                         ds[plot],
                         region=region,
-                        vmin=df.loc[plot, "low"],
-                        vmax=df.loc[plot, "high"],
-                        cmap=df.loc[plot, "cmap"],
-                        title=source + " " + df.loc[plot, "title"],
+                        vmin=dfp.loc[plot, "low"],
+                        vmax=dfp.loc[plot, "high"],
+                        cmap=dfp.loc[plot, "cmap"],
+                        title=source + " " + dfp.loc[plot, "title"],
                         ncolors=12 if plot == "tmax" else 9,
                         ticklabels=(
                             [
@@ -254,10 +260,10 @@ class cycle_analysis(ILAMBAnalysis):
                     plt.plot_curve(
                         {source: ds} | {"Reference": ref},
                         plot,
-                        vmin=df.loc[plot, "low"]
-                        - 0.05 * (df.loc[plot, "high"] - df.loc[plot, "low"]),
-                        vmax=df.loc[plot, "high"]
-                        + 0.05 * (df.loc[plot, "high"] - df.loc[plot, "low"]),
+                        vmin=dfp.loc[plot, "low"]
+                        - 0.05 * (dfp.loc[plot, "high"] - dfp.loc[plot, "low"]),
+                        vmax=dfp.loc[plot, "high"]
+                        + 0.05 * (dfp.loc[plot, "high"] - dfp.loc[plot, "low"]),
                         title=f"{source} Annual Cycle",
                         xticks=range(1, 13),
                         xticklabels=[

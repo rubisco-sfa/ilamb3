@@ -972,3 +972,11 @@ def fix_missing_bounds_attrs(ds: xr.Dataset) -> xr.Dataset:
     for d in ds.dims:
         ds = _fix(ds, d)
     return ds
+
+
+def get_mean_time_frequency(ds: xr.Dataset) -> float:
+    """
+    Return the mean time frequency of the dataset.
+    """
+    tm = compute_time_measures(ds)
+    return float(tm.mean())

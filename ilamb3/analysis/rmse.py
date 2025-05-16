@@ -107,6 +107,8 @@ class rmse_analysis(ILAMBAnalysis):
         ref, com = cmp.make_comparable(ref, com, varname)
 
         # Is the time series long enough for this to be meaningful?
+        if len(ref[dset.get_dim_name(ref, "time")]) < 24:
+            raise AnalysisNotAppropriate()
         if len(com[dset.get_dim_name(com, "time")]) < 24:
             raise AnalysisNotAppropriate()
 

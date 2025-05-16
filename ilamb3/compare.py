@@ -262,16 +262,44 @@ def adjust_lon(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset
     return dsa, dsb
 
 
+def handle_timescale_mismatch(
+    ref: xr.Dataset, com: xr.Dataset
+) -> tuple[xr.Dataset, xr.Dataset]:
+    # Initially, we are only going to handle the case where our reference data
+    # is a single time entry representing a span significantly larger than a
+    # month.
+    dt_ref = dset.get_mean_time_frequency(ref)
+    dt_com = dset.get_mean_time_frequency(com)
+    if np.allclose(dt_ref, dt_com, atol=3):
+        return ref, com
+    if len(ref[dset.get_dim_name(ref, "time")]) == 1:
+        t0, tf = dset.get_time_extent(ref, include_bounds=True)
+        com = com.sel(
+            {
+                dset.get_dim_name(com, "time"): slice(
+                    f"{t0.dt.year:04d}-{t0.dt.month:02d}",
+                    f"{tf.dt.year:04d}-{tf.dt.month:02d}",
+                )
+            }
+        )
+        return ref, com
+    raise NotImplementedError(
+        f"We encountered a time scale mismatch that we have no logic to handle. {ref} {com}"
+    )
+
+
 def make_comparable(
     ref: xr.Dataset, com: xr.Dataset, varname: str
 ) -> tuple[xr.Dataset, xr.Dataset]:
     """Return the datasets in a form where they are comparable."""
 
-    # trim away time
-    try:
+    # sometimes our data represents a single time step over a long span
+    if dset.is_temporal(ref):
+        ref, com = handle_timescale_mismatch(ref, com)
+
+    # trim away time, assuming data is monthly
+    if dset.is_temporal(ref):
         ref, com = trim_time(ref, com)
-    except KeyError:
-        pass  # no time dimension
 
     # latlon needs to be 1D arrays
     if dset.is_latlon2d(com[varname]):
