@@ -151,7 +151,11 @@ def trim_time(*args: xr.Dataset, **kwargs: xr.Dataset) -> tuple[xr.Dataset]:
         float(dset.compute_time_measures(arg).mean().values)
         for arg in list(args) + [arg for _, arg in kwargs.items()]
     ]
-    inc_bounds = False if np.allclose(time_frequency, 30, atol=3) else True
+    inc_bounds = True
+    if np.allclose(time_frequency, 30, atol=3):
+        inc_bounds = False
+    if np.allclose(time_frequency, 365, atol=3):
+        inc_bounds = False
 
     # Get the time extents in the original calendars
     t0 = []
