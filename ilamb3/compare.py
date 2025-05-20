@@ -142,15 +142,30 @@ def trim_time(*args: xr.Dataset, **kwargs: xr.Dataset) -> tuple[xr.Dataset]:
     def _stamp(ymd: tuple[int]):
         return f"{ymd[0]:4d}-{ymd[1]:02d}"
 
+    # If all the data is monthly, then skip the time bounds in computing the
+    # time extents as they tend to mess up the logic with arbitrary calendars.
+    # However, if the data is a mean over a long time span (as in biomass or
+    # soil carbon), we need the time bounds in the extent to compute the mean of
+    # the appropriate quantity.
+    time_frequency = [
+        float(dset.compute_time_measures(arg).mean().values)
+        for arg in list(args) + [arg for _, arg in kwargs.items()]
+    ]
+    inc_bounds = True
+    if np.allclose(time_frequency, 30, atol=3):
+        inc_bounds = False
+    if np.allclose(time_frequency, 365, atol=3):
+        inc_bounds = False
+
     # Get the time extents in the original calendars
     t0 = []
     tf = []
     for arg in args:
-        tbegin, tend = dset.get_time_extent(arg, include_bounds=False)
+        tbegin, tend = dset.get_time_extent(arg, include_bounds=inc_bounds)
         t0.append(tbegin)
         tf.append(tend)
     for _, arg in kwargs.items():
-        tbegin, tend = dset.get_time_extent(arg, include_bounds=False)
+        tbegin, tend = dset.get_time_extent(arg, include_bounds=inc_bounds)
         t0.append(tbegin)
         tf.append(tend)
 
@@ -166,9 +181,9 @@ def trim_time(*args: xr.Dataset, **kwargs: xr.Dataset) -> tuple[xr.Dataset]:
     tslice = slice(_stamp(tmin), _stamp(tmax))
     args = list(args)
     for i, arg in enumerate(args):
-        args[i] = arg.sel({"time": tslice})
+        args[i] = arg.sel({dset.get_dim_name(arg, "time"): tslice})
     for key, arg in kwargs.items():
-        kwargs[key] = arg.sel({"time": tslice})
+        kwargs[key] = arg.sel({dset.get_dim_name(arg, "time"): tslice})
 
     # Conditional returns based on what was passed in
     if args and not kwargs:
@@ -251,16 +266,44 @@ def adjust_lon(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset
     return dsa, dsb
 
 
+def handle_timescale_mismatch(
+    ref: xr.Dataset, com: xr.Dataset
+) -> tuple[xr.Dataset, xr.Dataset]:
+    # Initially, we are only going to handle the case where our reference data
+    # is a single time entry representing a span significantly larger than a
+    # month.
+    dt_ref = dset.get_mean_time_frequency(ref)
+    dt_com = dset.get_mean_time_frequency(com)
+    if np.allclose(dt_ref, dt_com, atol=3):
+        return ref, com
+    if len(ref[dset.get_dim_name(ref, "time")]) == 1:
+        t0, tf = dset.get_time_extent(ref, include_bounds=True)
+        com = com.sel(
+            {
+                dset.get_dim_name(com, "time"): slice(
+                    f"{t0.dt.year:04d}-{t0.dt.month:02d}",
+                    f"{tf.dt.year:04d}-{tf.dt.month:02d}",
+                )
+            }
+        )
+        return ref, com
+    raise NotImplementedError(
+        f"We encountered a time scale mismatch that we have no logic to handle. {ref} {com}"
+    )
+
+
 def make_comparable(
     ref: xr.Dataset, com: xr.Dataset, varname: str
 ) -> tuple[xr.Dataset, xr.Dataset]:
     """Return the datasets in a form where they are comparable."""
 
-    # trim away time
-    try:
+    # sometimes our data represents a single time step over a long span
+    if dset.is_temporal(ref):
+        ref, com = handle_timescale_mismatch(ref, com)
+
+    # trim away time, assuming data is monthly
+    if dset.is_temporal(ref):
         ref, com = trim_time(ref, com)
-    except KeyError:
-        pass  # no time dimension
 
     # latlon needs to be 1D arrays
     if dset.is_latlon2d(com[varname]):

@@ -121,7 +121,7 @@ def plot_map(da: xr.DataArray, **kwargs):
     proj, aspect = pick_projection(extents)
     figsize = kwargs.pop("figsize") if "figsize" in kwargs else (6 * 1.03, 6 / aspect)
     _, ax = plt.subplots(
-        dpi=200,
+        dpi=ilamb3.conf["figure_dpi"],
         tight_layout=(kwargs.pop("tight_layout") if "tight_layout" in kwargs else True),
         figsize=figsize,
         subplot_kw={"projection": proj},
@@ -176,7 +176,7 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
     ASPECT = 1.618
     figsize = kwargs.pop("figsize") if "figsize" in kwargs else (6, 6 / ASPECT)
     _, ax = plt.subplots(
-        dpi=200,
+        dpi=ilamb3.conf["figure_dpi"],
         tight_layout=(kwargs.pop("tight_layout") if "tight_layout" in kwargs else True),
         figsize=figsize,
     )
@@ -205,7 +205,9 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
 
 
 def plot_distribution(da: xr.DataArray, **kwargs):
-    _, ax = plt.subplots(dpi=200, tight_layout=True, figsize=(6, 5.25))
+    _, ax = plt.subplots(
+        dpi=ilamb3.conf["figure_dpi"], tight_layout=True, figsize=(6, 5.25)
+    )
     da.plot(
         ax=ax,
         norm=LogNorm(),
@@ -239,7 +241,9 @@ def plot_response(
         m.plot(ax=ax, color=c, label=f"{lbl} mean")
         return ax
 
-    _, ax = plt.subplots(dpi=200, tight_layout=True, figsize=(6, 5.25))
+    _, ax = plt.subplots(
+        dpi=ilamb3.conf["figure_dpi"], tight_layout=True, figsize=(6, 5.25)
+    )
     ax = _plot(ax, ref_mean, ref_std)
     ax = _plot(ax, mean, std, "r", comparison_name)
     ax.legend()
@@ -279,7 +283,7 @@ def plot_taylor_diagram(df: pd.DataFrame):
 
     # create figure
     with mpl.rc_context({"font.size": 13}):
-        fig = plt.figure(dpi=200, figsize=(6, 6))
+        fig = plt.figure(dpi=ilamb3.conf["figure_dpi"], figsize=(6, 6))
         ax = FA.FloatingSubplot(fig, 111, grid_helper=ghelper)
         fig.add_subplot(ax)
         ax.axis["top"].set_axis_direction("bottom")

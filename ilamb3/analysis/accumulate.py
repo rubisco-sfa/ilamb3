@@ -10,7 +10,7 @@ import ilamb3.plot as ilplt
 from ilamb3.analysis.base import ILAMBAnalysis
 
 
-class timeseries_analysis(ILAMBAnalysis):
+class accumulate_analysis(ILAMBAnalysis):
     def __init__(self, required_variable: str, **kwargs: Any):
         self.required_variable = required_variable
         self.description = kwargs.get("description", "Period Mean")
@@ -32,14 +32,8 @@ class timeseries_analysis(ILAMBAnalysis):
         com_mean = dset.integrate_time(com, varname, mean=True)
 
         # score the difference as a bias
-        bias_score = np.exp(-np.abs((com_mean - ref_mean) / ref_mean))
-
-        # taylor score the time series
-        ref_std = float(dset.std_time(ref, varname))
-        com_std = float(dset.std_time(com, varname))
-        norm_std = com_std / ref_std
-        corr = float(np.corrcoef(ref[varname], com[varname].squeeze())[0, 1])
-        taylor_score = 4 * (1 + corr) / ((norm_std + 1 / norm_std) ** 2 * 2)
+        bias = com_mean - ref_mean
+        bias_score = np.exp(-np.abs((bias) / ref_mean))
 
         # create a dataframe of scalars
         df = pd.DataFrame(
@@ -47,7 +41,7 @@ class timeseries_analysis(ILAMBAnalysis):
                 {
                     "source": "Reference",
                     "region": "None",
-                    "analysis": "timeseries",
+                    "analysis": "accumulate",
                     "name": self.description,
                     "type": "scalar",
                     "units": unit,
@@ -56,7 +50,7 @@ class timeseries_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": "None",
-                    "analysis": "timeseries",
+                    "analysis": "accumulate",
                     "name": self.description,
                     "type": "scalar",
                     "units": unit,
@@ -65,38 +59,20 @@ class timeseries_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": "None",
-                    "analysis": "timeseries",
+                    "analysis": "accumulate",
+                    "name": "Bias",
+                    "type": "scalar",
+                    "units": unit,
+                    "value": float(bias),
+                },
+                {
+                    "source": "Comparison",
+                    "region": "None",
+                    "analysis": "accumulate",
                     "name": "Bias Score",
                     "type": "score",
                     "units": "1",
                     "value": float(bias_score),
-                },
-                {
-                    "source": "Comparison",
-                    "region": "None",
-                    "analysis": "timeseries",
-                    "name": "Normalized Standard Deviation",
-                    "type": "scalar",
-                    "units": "1",
-                    "value": norm_std,
-                },
-                {
-                    "source": "Comparison",
-                    "region": "None",
-                    "analysis": "timeseries",
-                    "name": "Correlation",
-                    "type": "scalar",
-                    "units": "1",
-                    "value": corr,
-                },
-                {
-                    "source": "Comparison",
-                    "region": "None",
-                    "analysis": "timeseries",
-                    "name": "Taylor Score",
-                    "type": "score",
-                    "units": "1",
-                    "value": taylor_score,
                 },
             ]
         )
@@ -162,17 +138,6 @@ class timeseries_analysis(ILAMBAnalysis):
                         title=f"Combined {self.description}",
                     )
                 ),
-            }
-        ]
-
-        # Add the Taylor diagram
-        axs += [
-            {
-                "name": "taylor",
-                "title": "Taylor Diagram",
-                "region": None,
-                "source": None,
-                "axis": ilplt.plot_taylor_diagram(df),
             }
         ]
         axs = pd.DataFrame(axs).dropna(subset=["axis"])

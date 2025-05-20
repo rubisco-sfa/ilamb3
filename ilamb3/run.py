@@ -47,56 +47,63 @@ def fix_pint_units(ds: xr.Dataset) -> xr.Dataset:
 
 
 def _load_reference_data(
-    variable_id: str,
     reference_data: pd.DataFrame,
+    variable_id: str,
     sources: dict[str, str],
     relationships: dict[str, str] | None = None,
-    depth: float | None = None,
+    transforms: list | None = None,
 ) -> xr.Dataset:
     """
     Load the reference data into containers and merge if more than 1 variable is
     used.
     """
-    if relationships is not None:  # pragma: no cover
+    # First load all variables defined as `sources` or in `relationships`.
+    if relationships is not None:
         sources = sources | relationships
     ref = {
         key: xr.open_dataset(reference_data.loc[str(filename), "path"])
         for key, filename in sources.items()
     }
-    # If a depth is given and present in the dims, select the nearest slice
-    if depth is not None:
-        ref = {
-            key: (
-                ds.sel(
-                    {dset.get_dim_name(ds, "depth"): depth}, method="nearest", drop=True
-                )
-                if "depth" in ds.dims
-                else ds
-            )
-            for key, ds in ref.items()
-        }
-    # Fix bounds attributes
+    # Sometimes there is a bounds variable but it isn't in the attributes
     ref = {key: dset.fix_missing_bounds_attrs(ds) for key, ds in ref.items()}
+    # Merge all the data together
     if len(ref) > 1:
         ref = cmp.trim_time(**ref)
         ref = cmp.same_spatial_grid(ref[variable_id], **ref)
         ds_ref = xr.merge([v for _, v in ref.items()], compat="override")
     else:
         ds_ref = ref[variable_id]
+    # pint can't handle some units like `0.001`, so we have to intercept and fix
     ds_ref = fix_pint_units(ds_ref)
+    # Finally apply transforms
+    if transforms is not None:
+        ds_ref = run_transforms(ds_ref, transforms)
     return ds_ref
 
 
 def _load_comparison_data(
-    variable_id: str,
     df: pd.DataFrame,
-    depth: float | None = None,
+    variable_id: str,
     alternate_vars: list[str] | None = None,
+    related_vars: list[str] | None = None,
     transforms: list | None = None,
 ) -> xr.Dataset:
     """
     Load the comparison (model) data into containers and merge if more than 1
     variable is used.
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        The database of all possible variables and where to load them.
+    variable_id: str
+        The name of the variable that is the focus in the comparison.
+    alternate_vars: list[str], optional
+        A list of acceptable synonyms to be used if `variable_id` is not found.
+    related_vars: list[str], optional
+        A list of variables that can be used by transforms to product `variable_id`.
+    transforms: list, optional
+        A list of functions that operate on the combined dataset.
     """
     # First load all variables passed into the input dataframe. This will
     # include all relationship variables as well as alternates.
@@ -104,12 +111,7 @@ def _load_comparison_data(
         var: xr.open_mfdataset(sorted((df[df["variable_id"] == var]["path"]).to_list()))
         for var in df["variable_id"].unique()
     }
-    # Fix bounds attributes
-    com = {var: dset.fix_missing_bounds_attrs(ds) for var, ds in com.items()}
-    # Next attempt to apply transforms. These may create the needed variable.
-    if transforms is not None:
-        com = {v: run_transforms(ds, transforms) for v, ds in com.items()}
-    # If we still haven't found the required variable, see if we can rename
+    # If the variable_id is not present, it may be called something else
     if alternate_vars is not None and variable_id not in com:
         found = [v for v in alternate_vars if v in com]
         if found:
@@ -120,27 +122,35 @@ def _load_comparison_data(
                 else com[found]
             )
             com.pop(found)
-    # If we are dealing with a layered dataset and a depth has been given,
-    # extract that layer.
-    if depth is not None:
-        com = {
-            key: (
-                ds.sel(
-                    {dset.get_dim_name(ds, "depth"): depth}, method="nearest", drop=True
-                )
-                if dset.is_layered(ds)
-                else ds
+    # If the variable_id still isn't present, we may have to apply transforms to
+    # form it. Thus we load all related variables.
+    if related_vars is not None and variable_id not in com:
+        com = com | {
+            var: xr.open_mfdataset(
+                sorted((df[df["variable_id"] == var]["path"]).to_list())
             )
-            for key, ds in com.items()
+            for var in related_vars
+            if var in df["variable_id"].unique()
         }
+    # Fix bounds attributes (there is a bounds variable but it isn't in the
+    # attributes)
+    com = {var: dset.fix_missing_bounds_attrs(ds) for var, ds in com.items()}
+    # Merge all the data together
     if len(com) > 1:
-        # Sometimes models generate output with very small differences in
-        # lat/lon
-        com = cmp.same_spatial_grid(com[variable_id], **com)
+        # The grids should be the same, but sometimes models generate output
+        # with very small differences in lat/lon
+        try:
+            com = cmp.same_spatial_grid(com[next(iter(com))], **com)
+        except KeyError:
+            pass
         ds_com = xr.merge([v for _, v in com.items()], compat="override")
     else:
-        ds_com = com[variable_id]
+        ds_com = com[next(iter(com))]
+    # pint can't handle some units like `0.001`, so we have to intercept and fix
     ds_com = fix_pint_units(ds_com)
+    # Finally apply transforms. These may create the needed variable.
+    if transforms is not None:
+        ds_com = run_transforms(ds_com, transforms)
     return ds_com
 
 
@@ -179,6 +189,7 @@ def remove_irrelevant_variables(df: pd.DataFrame, **setup: Any) -> pd.DataFrame:
             list(setup["sources"].keys())
             + list(setup.get("relationships", {}).keys())
             + setup.get("alternate_vars", [])
+            + setup.get("related_vars", [])
         )
     ]
     return reduce
@@ -186,8 +197,24 @@ def remove_irrelevant_variables(df: pd.DataFrame, **setup: Any) -> pd.DataFrame:
 
 def run_transforms(ds: xr.Dataset, transforms: list) -> xr.Dataset:
     for transform in transforms:
-        ds = ALL_TRANSFORMS[transform](ds)
+        if isinstance(transform, dict):
+            fcn = next(iter(transform))
+            ds = ALL_TRANSFORMS[fcn](ds, **transform[fcn])
+        else:
+            ds = ALL_TRANSFORMS[transform](ds)
     return ds
+
+
+def _load_local_assets(
+    csv_file: Path, ref_file: Path, com_file: Path
+) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
+    if not (csv_file.is_file() and ref_file.is_file() and com_file.is_file()):
+        raise ValueError()
+    df = pd.read_csv(str(csv_file))
+    df["region"] = df["region"].astype(str).str.replace("nan", "None")
+    ds_ref = xr.open_dataset(str(ref_file))
+    ds_com = xr.open_dataset(str(com_file))
+    return df, ds_ref, ds_com
 
 
 def run_simple(
@@ -203,8 +230,6 @@ def run_simple(
     if "relationships" not in setup:
         setup["relationships"] = {}
     variable, analyses = setup_analyses(reference_data, **setup)
-    depth = setup.get("depth", None)
-    alternate_vars = setup.get("alternate_vars", [])
 
     # Thin out the dataframe to only contain possible variables we are using
     comparison_data = remove_irrelevant_variables(comparison_data, **setup)
@@ -213,7 +238,7 @@ def run_simple(
     df_all = []
     ds_com = {}
     ds_ref = None
-    for _, grp in comparison_data.groupby(["source_id", "member_id", "grid_label"]):
+    for _, grp in comparison_data.groupby(ilamb3.conf["comparison_groupby"]):
         row = grp.iloc[0]
 
         # Define what we will call the output artifacts
@@ -224,20 +249,32 @@ def run_simple(
         log_file = output_path / f"{source_name}.log"
         log_id = logger.add(log_file, backtrace=True, diagnose=True)
 
+        # Attempt to load local assets if preferred
+        if ilamb3.conf["use_cached_results"]:
+            try:
+                dfs, ds_ref, ds_com[source_name] = _load_local_assets(
+                    csv_file, ref_file, com_file
+                )
+                df_all.append(dfs)
+                logger.info(f"Using cached information {com_file}")
+                continue
+            except Exception:
+                pass
+
         try:
             # Load data and run comparison
             ref = _load_reference_data(
-                variable,
                 reference_data,
+                variable,
                 setup["sources"],
                 setup["relationships"],
-                depth=depth,
+                transforms=setup.get("transform", None),
             )
             com = _load_comparison_data(
-                variable,
                 grp,
-                depth=depth,
-                alternate_vars=alternate_vars,
+                variable,
+                alternate_vars=setup.get("alternate_vars", []),
+                related_vars=setup.get("related_vars", None),
                 transforms=setup.get("transform", None),
             )
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
@@ -265,7 +302,6 @@ def run_simple(
         raise ValueError(
             "Reference intermediate data was not generated."
         )  # pragma: no cover
-    ds_ref.attrs = ref.attrs
 
     # Phase 2: get plots and combine scalars and save
     plt.rcParams.update({"figure.max_open_warning": 0})
@@ -274,13 +310,10 @@ def run_simple(
     )
     df = add_overall_score(df)
     df_plots = plot_analyses(df, ds_ref, ds_com, analyses, output_path)
-    for _, row in df_plots.iterrows():
-        row["axis"].get_figure().savefig(
-            output_path / f"{row['source']}_{row['region']}_{row['name']}.png"
-        )
-    plt.close("all")
 
     # Generate an output page
+    if ilamb3.conf["debug_mode"] and (output_path / "index.html").is_file():
+        return
     ds_ref.attrs["header"] = analysis_name
     html = generate_html_page(df, ds_ref, ds_com, df_plots)
     with open(output_path / "index.html", mode="w") as out:
@@ -396,6 +429,24 @@ def run_analyses(
     return dfs, ds_ref, ds_com
 
 
+def regenerate_figs(path: Path) -> bool:
+    """
+    Do we need to regenerate the figures?
+    """
+    path.mkdir(exist_ok=True, parents=True)
+    png_files = list(path.glob("*.png"))
+    if not png_files:
+        return True
+    first_png_time = min([p.stat().st_mtime for p in png_files])
+    nc_files = list(path.glob("*.nc"))
+    if not nc_files:
+        return True
+    last_nc_time = max([p.stat().st_mtime for p in nc_files])
+    if last_nc_time > first_png_time:
+        return True
+    return False
+
+
 def plot_analyses(
     df: pd.DataFrame,
     ref: xr.Dataset,
@@ -424,19 +475,21 @@ def plot_analyses(
     pd.DataFrame
         A dataframe containing plot information and matplotlib axes.
     """
+    if ilamb3.conf["debug_mode"] and not regenerate_figs(plot_path):
+        return pd.DataFrame([])
     plot_path.mkdir(exist_ok=True, parents=True)
     df_plots = []
     for name, a in analyses.items():
         dfp = a.plots(df, ref, com)
+        for _, row in dfp.iterrows():
+            row["axis"].get_figure().savefig(
+                plot_path / f"{row['source']}_{row['region']}_{row['name']}.png"
+            )
+        plt.close("all")
         if "analysis" not in dfp.columns:
             dfp["analysis"] = name
         df_plots.append(dfp)
     df_plots = pd.concat(df_plots)
-    for _, row in df_plots.iterrows():
-        row["axis"].get_figure().savefig(
-            plot_path / f"{row['source']}_{row['region']}_{row['name']}.png"
-        )
-    plt.close("all")
     return df_plots
 
 
@@ -573,7 +626,7 @@ def _to_leaf_list(current: dict, leaf_list: list | None = None) -> list:
     return leaf_list
 
 
-def _create_paths(current: dict, root: Path = Path("_build")):
+def _create_paths(current: dict, root: Path):
     """Recursively ensure paths in the leaves are created."""
     for _, val in current.items():
         if not isinstance(val, dict):
@@ -594,7 +647,13 @@ def parse_benchmark_setup(yaml_file: str | Path) -> dict:
     return analyses
 
 
-def run_study(study_setup: str, df_datasets: pd.DataFrame):
+def run_study(
+    study_setup: str,
+    df_datasets: pd.DataFrame,
+    ref_datasets: pd.DataFrame | None = None,
+    output_path: str | Path = "_build",
+):
+    output_path = Path(output_path)
     # Some yaml text that would get parsed like a dictionary.
     analyses = parse_benchmark_setup(study_setup)
     registry = analyses.pop("registry") if "registry" in analyses else "ilamb.txt"
@@ -611,7 +670,7 @@ def run_study(study_setup: str, df_datasets: pd.DataFrame):
     analyses = _add_path(analyses)
 
     # Various traversal actions
-    _create_paths(analyses)
+    _create_paths(analyses, output_path)
 
     # Create a list of just the leaves to use in creation all work combinations
     analyses_list = _to_leaf_list(analyses)
@@ -621,10 +680,14 @@ def run_study(study_setup: str, df_datasets: pd.DataFrame):
         path = analysis.pop("path")
         try:
             run_simple(
-                registry_to_dataframe(reg),
+                (
+                    ref_datasets
+                    if ref_datasets is not None
+                    else registry_to_dataframe(reg)
+                ),
                 path.split("/")[-1],
                 df_datasets,
-                Path("_build") / path,
+                output_path / path,
                 **analysis,
             )
         except Exception:

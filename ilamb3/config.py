@@ -18,6 +18,10 @@ defaults = {
     "use_uncertainty": False,
     "model_name_facets": ["source_id", "member_id", "grid_label"],
     "plot_central_longitude": 0,
+    "comparison_groupby": ["source_id", "member_id", "grid_label"],
+    "use_cached_results": False,
+    "figure_dpi": 100,
+    "debug_mode": False,
 }
 
 
@@ -65,6 +69,10 @@ class Config(dict):
         use_uncertainty: bool | None = None,
         model_name_facets: list[str] | None = None,
         plot_central_longitude: float | None = None,
+        comparison_groupby: list[str] | None = None,
+        use_cached_results: bool | None = None,
+        figure_dpi: int | None = None,
+        debug_mode: bool | None = None,
     ):
         """Change ilamb3 configuration options."""
         temp = copy.deepcopy(self)
@@ -86,6 +94,14 @@ class Config(dict):
             self["model_name_facets"] = model_name_facets
         if plot_central_longitude is not None:
             self["plot_central_longitude"] = float(plot_central_longitude)
+        if comparison_groupby is not None:
+            self["comparison_groupby"] = comparison_groupby
+        if use_cached_results is not None:
+            self["use_cached_results"] = bool(use_cached_results)
+        if figure_dpi is not None:
+            self["figure_dpi"] = int(figure_dpi)
+        if debug_mode is not None:
+            self["debug_mode"] = bool(debug_mode)
         return self._unset(temp)
 
     def __getitem__(self, item):

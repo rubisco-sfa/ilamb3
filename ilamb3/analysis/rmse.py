@@ -107,6 +107,8 @@ class rmse_analysis(ILAMBAnalysis):
         ref, com = cmp.make_comparable(ref, com, varname)
 
         # Is the time series long enough for this to be meaningful?
+        if len(ref[dset.get_dim_name(ref, "time")]) < 24:
+            raise AnalysisNotAppropriate()
         if len(com[dset.get_dim_name(com, "time")]) < 24:
             raise AnalysisNotAppropriate()
 
@@ -204,6 +206,10 @@ class rmse_analysis(ILAMBAnalysis):
         ref: xr.Dataset,
         com: dict[str, xr.Dataset],
     ) -> pd.DataFrame:
+        # This analysis was not run and we should skip plotting entirely
+        if "RMSE" not in df["analysis"].unique():
+            return pd.DataFrame()
+
         # Some initialization
         regions = [None if r == "None" else r for r in df["region"].unique()]
         com["Reference"] = ref

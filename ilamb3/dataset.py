@@ -765,27 +765,32 @@ def integrate_depth(
     var = dset[varname]
 
     # do we have a depth dimension
-    if "depth" not in dset.dims:
+    try:
+        depth_name = get_dim_name(dset, "depth")
+    except KeyError:
         raise ValueError("Cannot integrate in depth without a depth dimension.")
 
     # does depth have bounds?
-    if "bounds" not in dset["depth"].attrs or dset["depth"].attrs["bounds"] not in dset:
-        dset = dset.cf.add_bounds("depth")
+    if (
+        "bounds" not in dset[depth_name].attrs
+        or dset[depth_name].attrs["bounds"] not in dset
+    ):
+        dset = dset.cf.add_bounds(depth_name)
 
     # compute measures
-    msr = dset[dset["depth"].attrs["bounds"]]
+    msr = dset[dset[depth_name].attrs["bounds"]]
     msr = msr.diff(dim=msr.dims[-1])
     msr.attrs["units"] = (
-        dset["depth"].attrs["units"] if "units" in dset["depth"].attrs else "m"
+        dset[depth_name].attrs["units"] if "units" in dset[depth_name].attrs else "m"
     )
 
     # integrate
     out = var.weighted(msr.fillna(0))
     if mean:
-        out = out.mean(dim="depth")
+        out = out.mean(dim=depth_name)
         out.attrs["units"] = var.attrs["units"]
     else:
-        out = out.sum(dim="depth")
+        out = out.sum(dim=depth_name)
         out.attrs["units"] = f"({var.attrs['units']})*({msr.attrs['units']})"
     return out
 
@@ -967,3 +972,11 @@ def fix_missing_bounds_attrs(ds: xr.Dataset) -> xr.Dataset:
     for d in ds.dims:
         ds = _fix(ds, d)
     return ds
+
+
+def get_mean_time_frequency(ds: xr.Dataset) -> float:
+    """
+    Return the mean time frequency of the dataset.
+    """
+    tm = compute_time_measures(ds)
+    return float(tm.mean())

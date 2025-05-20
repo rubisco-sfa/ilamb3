@@ -103,7 +103,7 @@ class spatial_distribution_analysis(ILAMBAnalysis):
         )
 
         # ... on the same grid
-        ref, com = cmp.nest_spatial_grids(ref, com)
+        ref, com = cmp.rename_dims(*cmp.nest_spatial_grids(ref, com))
 
         # Compute scalars over all regions
         dfs = []
