@@ -19,7 +19,16 @@ This package is being developed and not currently listed in PyPI or conda-forge.
 pip install git+https://github.com/rubisco-sfa/ilamb3
 ```
 
-We will make *releases* as new methods and functionality are ready, updating the documentation as we develop. Eventually this package will replace the current [ILAMB](https://github.com/rubisco-sfa/ILAMB) package. Consult the [documentation](https://ilamb3.readthedocs.io/) for more information on current status and to see what is functional.
+The above command will install the latest code from the repository.
+We will make *releases* as new methods and functionality are ready, updating the documentation as we develop.
+To install a specific version of the code, append it to the URL.
+The following will install the released version v2025.5.20:
+
+```bash
+pip install git+https://github.com/rubisco-sfa/ilamb3@v2025.5.20
+```
+
+Eventually this package will replace the current [ILAMB](https://github.com/rubisco-sfa/ILAMB) package. Consult the [documentation](https://ilamb3.readthedocs.io/) for more information on current status and to see what is functional.
 
 ## Funding
 
