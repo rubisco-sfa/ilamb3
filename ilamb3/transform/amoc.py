@@ -1,7 +1,7 @@
 import xarray as xr
 
 import ilamb3.dataset as dset
-from ilamb3.transform import ILAMBTransform
+from ilamb3.transform.base import ILAMBTransform
 
 
 class msftmz_to_rapid(ILAMBTransform):

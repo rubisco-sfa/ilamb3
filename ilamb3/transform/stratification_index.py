@@ -2,7 +2,7 @@ import numpy as np
 import xarray as xr
 
 import ilamb3.dataset as dset
-from ilamb3.transform import ILAMBTransform
+from ilamb3.transform.base import ILAMBTransform
 
 
 class stratification_index(ILAMBTransform):

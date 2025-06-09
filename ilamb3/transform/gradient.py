@@ -1,7 +1,7 @@
 import xarray as xr
 
 import ilamb3.dataset as dset
-from ilamb3.transform import ILAMBTransform
+from ilamb3.transform.base import ILAMBTransform
 
 
 class depth_gradient(ILAMBTransform):
