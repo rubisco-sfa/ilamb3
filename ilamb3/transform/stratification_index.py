@@ -9,16 +9,20 @@ class stratification_index(ILAMBTransform):
     """Computes a time series of the stratification index in the Southern Ocean
     (lat -55 to -30) using EN4.2.2 temperature and salinity data."""
 
-    def required_variables(self):
-        return ["thetao", "so"]
-
-    def __call__(
+    def __init__(
         self,
-        ds: xr.Dataset,
         depth_horizon: float = 1000,
         lat_min: float = -55,
         lat_max: float = -30,
-    ) -> xr.DataArray:
+    ):
+        self.depth_horizon = depth_horizon
+        self.lat_min = lat_min
+        self.lat_max = lat_max
+
+    def required_variables(self):
+        return ["thetao", "so"]
+
+    def __call__(self, ds: xr.Dataset) -> xr.DataArray:
         # Just return if we do not have what it takes
         if not set(self.required_variables()).issubset(ds):
             return ds
@@ -60,9 +64,9 @@ class stratification_index(ILAMBTransform):
         rho = gsw.rho(SA, gsw.CT_from_pt(SA, Ts), Pp)
 
         # Calculate the stratification index using density differences
-        SO_SI = rho.interp({depth_name: depth_horizon}, method="linear") - rho.isel(
-            {depth_name: 0}
-        ).sel({lat_name: slice(lat_min, lat_max)})
+        SO_SI = rho.interp(
+            {depth_name: self.depth_horizon}, method="linear"
+        ) - rho.isel({depth_name: 0}).sel({lat_name: slice(self.lat_min, self.lat_max)})
 
         # Area weights
         area_SO_SI = np.cos(np.deg2rad(SO_SI[lat_name]))

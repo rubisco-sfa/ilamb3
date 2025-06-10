@@ -7,18 +7,21 @@ from ilamb3.transform.base import ILAMBTransform
 
 
 class ocean_heat_content(ILAMBTransform):
+    def __init__(self, reference_year: int | None = None):
+        self.reference_year = reference_year
+
     def required_variables(self) -> list[str]:
         return ["thetao", "volcello"]
 
-    def __call__(self, ds: xr.Dataset, reference_year: int | None = None) -> xr.Dataset:
+    def __call__(self, ds: xr.Dataset) -> xr.Dataset:
         if "ohc" in ds:
             return ds
         if not set(self.required_variables()).issubset(ds):
             return ds
         time_name = dset.get_dim_name(ds, "time")
-        if reference_year is None:
-            reference_year = int(ds[time_name].min().dt.year.values)
-        ds = ds.sel({time_name: slice(f"{reference_year}-01", None)})
+        if self.reference_year is None:
+            self.reference_year = int(ds[time_name].min().dt.year.values)
+        ds = ds.sel({time_name: slice(f"{self.reference_year}-01", None)})
         ds = ds.pint.quantify()
         Cp = 3991.868 * ilamb3.units.J / ilamb3.units.kg / ilamb3.units.K
         rho = 1026.0 * ilamb3.units.kg / ilamb3.units.m**3
@@ -29,7 +32,7 @@ class ocean_heat_content(ILAMBTransform):
         ohc.name = "ohc"
         ohc.attrs = {
             "standard_name": "Ocean Heat Content",
-            "comment": f"Relative to {reference_year}",
+            "comment": f"Relative to {self.reference_year}",
         }
         ds = ds.drop_vars(["thetao", "volcello"], errors="ignore")
         ds["ohc"] = ohc

@@ -9,6 +9,9 @@ class depth_gradient(ILAMBTransform):
     Compute the depth gradient of the dataset using least squares regression.
     """
 
+    def __init__(self):
+        pass
+
     def required_variables(self) -> list[str]:
         return []
 

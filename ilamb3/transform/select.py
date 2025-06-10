@@ -7,10 +7,14 @@ from ilamb3.transform.base import ILAMBTransform
 
 
 class select_depth(ILAMBTransform):
+    def __init__(self, **kwargs: Any):
+        self.kwargs = kwargs
+
     def required_variables(self) -> list[str]:
         return []
 
-    def __call__(self, ds: xr.Dataset, **kwargs: Any) -> xr.Dataset:
+    def __call__(self, ds: xr.Dataset) -> xr.Dataset:
+        kwargs = self.kwargs
         if not dset.is_layered(ds):
             return ds
         depth_name = dset.get_dim_name(ds, "depth")

@@ -5,6 +5,9 @@ from ilamb3.transform.base import ILAMBTransform
 
 
 class msftmz_to_rapid(ILAMBTransform):
+    def __init__(self):
+        pass
+
     def required_variables(self) -> list[str]:
         return ["msftmz"]
 
