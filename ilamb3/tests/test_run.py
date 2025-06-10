@@ -116,8 +116,8 @@ def test_run(reference_key: str, registry_name: str, score: float):
     ilamb3.conf.set(prefer_regional_quantiles=False, use_uncertainty=False)
     setup = {"sources": {variable_id: reference_key}}
     if registry_name == "test":
-        setup["transform"] = [{"select_depth": {"value": 10.0}}]
-    run.run_simple(df_registry, reference_key, df_com, output_path, **setup)
+        setup["transforms"] = [{"select_depth": {"value": 10.0}}]
+    run.run_single_block(reference_key, df_registry, df_com, output_path, **setup)
 
     # are the scores correct?
     df = pd.read_csv(output_path / "Junk-r1i1p1f1-gn.csv")
