@@ -1,13 +1,18 @@
 import xarray as xr
 
 import ilamb3.dataset as dset
+from ilamb3.transform.base import ILAMBTransform
 
 
-def soil_moisture_to_vol_fraction(ds: xr.Dataset) -> xr.Dataset:
-    for var in ["mrsos", "mrsol"]:
-        if var in ds:
-            ds[var] = _to_vol_fraction(ds, var).squeeze()
-    return ds
+class soil_moisture_to_vol_fraction(ILAMBTransform):
+    def required_variables(self) -> list[str]:
+        return ["mrsos", "mrsol"]
+
+    def __call__(self, ds: xr.Dataset) -> xr.Dataset:
+        for var in self.required_variables():
+            if var in ds:
+                ds[var] = _to_vol_fraction(ds, var).squeeze()
+        return ds
 
 
 def _to_vol_fraction(ds: xr.Dataset, varname: str) -> xr.DataArray:

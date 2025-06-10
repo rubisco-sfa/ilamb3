@@ -2,6 +2,7 @@
 
 import importlib
 import re
+from itertools import chain
 from pathlib import Path
 from typing import Any
 
@@ -20,8 +21,9 @@ import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 import ilamb3.regions as ilr
 from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
-from ilamb3.exceptions import AnalysisNotAppropriate
+from ilamb3.exceptions import AnalysisNotAppropriate, VarNotInModel
 from ilamb3.transform import ALL_TRANSFORMS
+from ilamb3.transform.base import ILAMBTransform
 
 
 def fix_pint_units(ds: xr.Dataset) -> xr.Dataset:
@@ -44,6 +46,178 @@ def fix_pint_units(ds: xr.Dataset) -> xr.Dataset:
             continue
         ds[var].attrs["units"] = _fix(da.attrs["units"])
     return ds
+
+
+def select_analysis_variable(setup: dict[str, Any]) -> str:
+    """
+    Return the main variable to be used in this analysis.
+
+    We will try to guess it from what the user has specified, but to avoid
+    ambiguity please specify `analysis_variable` in your configure block.
+
+    Parameters
+    ----------
+    setup: dict
+        A dictionary of keywords parsed from the configure files.
+
+    Returns
+    -------
+    str
+        The main setup variable.
+
+    """
+    variable = setup.get("analysis_variable", None)
+    if variable is None and "sources" in setup:
+        if len(setup["sources"]) > 1:
+            raise ValueError(
+                "Ambiguous definition of the main variable of this analysis. "
+                "If you have multiple sources, you should specify `analysis_variable` "
+                f"in your configure file. This is the problematic portion:\n{yaml.dump(setup)}"
+            )
+        variable = next(iter(setup["sources"]))
+    return variable
+
+
+def setup_analyses(setup: dict[str, Any]) -> dict[ILAMBAnalysis]:
+    """
+    Return the initialized analysis components to be used for this block.
+
+    You may list individual analyses to run in a `analyses` line in the
+    configure block or we will run the ilamb3.analysis.DEFAULT_ANALYSES by
+    default. Note that we have special rules for invoking the `relationship`
+    analysis. It is run by including a configure line similar to `sources` but
+    call `relationships` for each independent variable you wish to compare to
+    the main variable of this block.
+
+    Parameters
+    ----------
+    setup: dict
+        A dictionary of keywords parsed from the configure files.
+
+    Returns
+    -------
+    dict
+        A dictionary of initialized ilamb3.analysis.base.ILAMBAnalysis objects.
+
+    """
+    main_variable = select_analysis_variable(setup)
+    analyses = setup.get("analyses", list(anl.DEFAULT_ANALYSES.keys()))
+    invalid = set(analyses) - set(anl.ALL_ANALYSES)
+    if invalid:
+        raise ValueError(
+            f"Invalid analyses given, {invalid} not in {list(anl.ALL_ANALYSES.keys())}. "
+            f"This is the problematic portion:\n{yaml.dump(setup)}"
+        )
+    analyses = {
+        a: anl.ALL_ANALYSES[a](**(setup | {"required_variable": main_variable}))
+        for a in analyses
+    }
+    if "relationships" in setup:
+        analyses.update(
+            {
+                f"Relationship {ind_variable}": anl.ALL_ANALYSES["relationship"](
+                    main_variable, ind_variable, **setup
+                )
+                for ind_variable in setup["relationships"]
+            }
+        )
+    return analyses
+
+
+def setup_transforms(setup: dict[str, Any]) -> list[ILAMBTransform]:
+    """
+    Return the initialized transforms to be used for this block.
+
+    Parameters
+    ----------
+    setup: dict
+        A dictionary of keywords parsed from the configure files.
+
+    Returns
+    -------
+    list
+        A list of initialized ilamb3.transform.base.ILAMBTransform objects.
+
+    """
+    transforms = setup.get("transforms", [])
+    transform_names = [
+        next(iter(t.keys())) if isinstance(t, dict) else t for t in transforms
+    ]
+    invalid = set(transform_names) - set(ALL_TRANSFORMS)
+    if invalid:
+        raise ValueError(
+            f"Invalid transform{'s' if len(invalid)>1 else ''} given. "
+            f"{list(invalid)} not in {list(ALL_TRANSFORMS.keys())}. "
+            f"This is the problematic portion:\n{yaml.dump(setup)}"
+        )
+    transforms = [
+        ALL_TRANSFORMS[t](**args[t]) if isinstance(args, dict) else ALL_TRANSFORMS[t]()
+        for t, args in zip(transform_names, transforms)
+    ]
+    return transforms
+
+
+def find_related_variables(
+    analyses: dict[ILAMBAnalysis],
+    transforms: list[ILAMBTransform],
+    alternate_vars: list[str] | None,
+) -> list[str]:
+    """
+    Return the list of required variables for the given analyses/transforms.
+
+    Parameters
+    ----------
+    analyses: dict
+        A dictionary of initialized ilamb3.analysis.base.ILAMBAnalysis objects.
+    transforms: list
+        A list of ilamb3.transform.base.ILAMBTransform to apply.
+    alternate_vars: list, optional
+        A list of alternate variables that this analysis will accept.
+
+    Returns
+    -------
+    list
+        A list of the related variables to be used in query the model database.
+
+    """
+    related = list(
+        chain(
+            *[a.required_variables() for _, a in analyses.items()],
+            *[t.required_variables() for t in transforms],
+            [] if alternate_vars is None else alternate_vars,
+        )
+    )
+    related = list(set(related))
+    return related
+
+
+def augment_setup_with_options(
+    setup: dict[str, Any], reference_data: pd.DataFrame
+) -> dict[str, Any]:
+    """
+    Augment the configure block with global ilamb3 options.
+    """
+    # Augment options with things in the global options
+    if "regions" not in setup:
+        setup["regions"] = ilamb3.conf["regions"]
+    if "method" not in setup:
+        if ilamb3.conf["prefer_regional_quantiles"]:
+            setup["method"] = "RegionalQuantiles"
+            try:
+                setup["quantile_database"] = pd.read_parquet(
+                    reference_data.loc[ilamb3.conf["quantile_database"], "path"]
+                )
+                setup["quantile_threshold"] = ilamb3.conf["quantile_threshold"]
+                ilr.Regions().add_netcdf(
+                    xr.load_dataset(reference_data.loc["regions/Whittaker.nc", "path"])
+                )
+            except Exception:
+                setup["method"] = "Collier2018"
+        else:
+            setup["method"] = "Collier2018"
+    if "use_uncertainty" not in setup:
+        setup["use_uncertainty"] = ilamb3.conf["use_uncertainty"]
+    return setup
 
 
 def _load_reference_data(
@@ -76,8 +250,12 @@ def _load_reference_data(
     # pint can't handle some units like `0.001`, so we have to intercept and fix
     ds_ref = fix_pint_units(ds_ref)
     # Finally apply transforms
-    if transforms is not None:
-        ds_ref = run_transforms(ds_ref, transforms)
+    for transform in transforms:
+        ds_ref = transform(ds_ref)
+    if variable_id not in ds_ref:
+        raise VarNotInModel(
+            f"Could not find or create '{variable_id}' from reference data {list(reference_data['variable_id'].unique())}"
+        )
     return ds_ref
 
 
@@ -85,7 +263,6 @@ def _load_comparison_data(
     df: pd.DataFrame,
     variable_id: str,
     alternate_vars: list[str] | None = None,
-    related_vars: list[str] | None = None,
     transforms: list | None = None,
 ) -> xr.Dataset:
     """
@@ -100,8 +277,6 @@ def _load_comparison_data(
         The name of the variable that is the focus in the comparison.
     alternate_vars: list[str], optional
         A list of acceptable synonyms to be used if `variable_id` is not found.
-    related_vars: list[str], optional
-        A list of variables that can be used by transforms to product `variable_id`.
     transforms: list, optional
         A list of functions that operate on the combined dataset.
     """
@@ -122,16 +297,6 @@ def _load_comparison_data(
                 else com[found]
             )
             com.pop(found)
-    # If the variable_id still isn't present, we may have to apply transforms to
-    # form it. Thus we load all related variables.
-    if related_vars is not None and variable_id not in com:
-        com = com | {
-            var: xr.open_mfdataset(
-                sorted((df[df["variable_id"] == var]["path"]).to_list())
-            )
-            for var in related_vars
-            if var in df["variable_id"].unique()
-        }
     # Fix bounds attributes (there is a bounds variable but it isn't in the
     # attributes)
     com = {var: dset.fix_missing_bounds_attrs(ds) for var, ds in com.items()}
@@ -149,8 +314,12 @@ def _load_comparison_data(
     # pint can't handle some units like `0.001`, so we have to intercept and fix
     ds_com = fix_pint_units(ds_com)
     # Finally apply transforms. These may create the needed variable.
-    if transforms is not None:
-        ds_com = run_transforms(ds_com, transforms)
+    for transform in transforms:
+        ds_com = transform(ds_com)
+    if variable_id not in ds_com:
+        raise VarNotInModel(
+            f"Could not find or create '{variable_id}' from model variables {list(df['variable_id'].unique())}"
+        )
     return ds_com
 
 
@@ -195,16 +364,6 @@ def remove_irrelevant_variables(df: pd.DataFrame, **setup: Any) -> pd.DataFrame:
     return reduce
 
 
-def run_transforms(ds: xr.Dataset, transforms: list) -> xr.Dataset:
-    for transform in transforms:
-        if isinstance(transform, dict):
-            fcn = next(iter(transform))
-            ds = ALL_TRANSFORMS[fcn](ds, **transform[fcn])
-        else:
-            ds = ALL_TRANSFORMS[transform](ds)
-    return ds
-
-
 def _load_local_assets(
     csv_file: Path, ref_file: Path, com_file: Path
 ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
@@ -217,32 +376,46 @@ def _load_local_assets(
     return df, ds_ref, ds_com
 
 
-def run_simple(
+def run_single_block(
+    block_name: str,
     reference_data: pd.DataFrame,
-    analysis_name: str,
     comparison_data: pd.DataFrame,
     output_path: Path,
     **setup: Any,
 ):
     """
-    Run the ILAMB standard analysis.
-    """
-    if "relationships" not in setup:
-        setup["relationships"] = {}
-    variable, analyses = setup_analyses(reference_data, **setup)
+    Run a configuration block.
 
-    # Thin out the dataframe to only contain possible variables we are using
-    comparison_data = remove_irrelevant_variables(comparison_data, **setup)
+    Parameters
+    ----------
+
+    """
+    # Initialize
+    if reference_data.index.name != "key":
+        reference_data = reference_data.set_index("key")
+    setup = augment_setup_with_options(setup, reference_data)
+    variable = select_analysis_variable(setup)
+    analyses = setup_analyses(setup)
+    transforms = setup_transforms(setup)
+
+    # Thin out the dataframe to only contain variables we need for this block.
+    comparison_data = comparison_data[
+        comparison_data["variable_id"].isin(
+            find_related_variables(
+                analyses, transforms, setup.get("alternate_vars", [])
+            )
+        )
+    ]
 
     # Phase I: loop over each model in the group and run an analysis function
     df_all = []
     ds_com = {}
     ds_ref = None
     for _, grp in comparison_data.groupby(ilamb3.conf["comparison_groupby"]):
-        row = grp.iloc[0]
-
         # Define what we will call the output artifacts
-        source_name = "-".join([row[f] for f in ilamb3.conf["model_name_facets"]])
+        source_name = "-".join(
+            [grp.iloc[0][f] for f in ilamb3.conf["model_name_facets"]]
+        )
         csv_file = output_path / f"{source_name}.csv"
         ref_file = output_path / "Reference.nc"
         com_file = output_path / f"{source_name}.nc"
@@ -267,15 +440,14 @@ def run_simple(
                 reference_data,
                 variable,
                 setup["sources"],
-                setup["relationships"],
-                transforms=setup.get("transform", None),
+                setup["relationships"] if "relationships" in setup else {},
+                transforms=transforms,
             )
             com = _load_comparison_data(
                 grp,
                 variable,
                 alternate_vars=setup.get("alternate_vars", []),
-                related_vars=setup.get("related_vars", None),
-                transforms=setup.get("transform", None),
+                transforms=transforms,
             )
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
             dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
@@ -288,7 +460,7 @@ def run_simple(
             df_all.append(dfs)
         except Exception:  # pragma: no cover
             logger.exception(
-                f"ILAMB analysis '{analysis_name}' failed for '{source_name}'."
+                f"ILAMB analysis '{block_name}' failed for '{source_name}'."
             )
             continue
 
@@ -314,80 +486,10 @@ def run_simple(
     # Generate an output page
     if ilamb3.conf["debug_mode"] and (output_path / "index.html").is_file():
         return
-    ds_ref.attrs["header"] = analysis_name
+    ds_ref.attrs["header"] = block_name
     html = generate_html_page(df, ds_ref, ds_com, df_plots)
     with open(output_path / "index.html", mode="w") as out:
         out.write(html)
-
-
-def setup_analyses(
-    reference_data: pd.DataFrame, **analysis_setup: Any
-) -> tuple[str, dict[str, ILAMBAnalysis]]:
-    """.
-
-    sources
-    relationships
-
-    variable_cmap
-    skip_XXX
-
-    """
-    # Make sure we can index the reference data
-    if reference_data.index.name != "key":
-        reference_data = reference_data.set_index("key")
-
-    # Check on sources
-    sources = analysis_setup.get("sources", {})
-    relationships = analysis_setup.get("relationships", {})
-    if len(sources) != 1:
-        raise ValueError(
-            f"The default ILAMB analysis requires a single variable and source, but I found: {sources}"
-        )
-    variable = list(sources.keys())[0]
-
-    # Augment options with things in the global options
-    if "regions" not in analysis_setup:
-        analysis_setup["regions"] = ilamb3.conf["regions"]
-    if "method" not in analysis_setup:
-        if ilamb3.conf["prefer_regional_quantiles"]:
-            analysis_setup["method"] = "RegionalQuantiles"
-            analysis_setup["quantile_database"] = pd.read_parquet(
-                reference_data.loc[ilamb3.conf["quantile_database"], "path"]
-            )
-            analysis_setup["quantile_threshold"] = ilamb3.conf["quantile_threshold"]
-            ilr.Regions().add_netcdf(
-                xr.load_dataset(reference_data.loc["regions/Whittaker.nc", "path"])
-            )
-        else:
-            analysis_setup["method"] = "Collier2018"
-    if "use_uncertainty" not in analysis_setup:
-        analysis_setup["use_uncertainty"] = ilamb3.conf["use_uncertainty"]
-
-    # If specialized analyses are given, setup those and return
-    if "analyses" in analysis_setup:
-        analysis_setup["required_variable"] = variable
-        analyses = {
-            a: anl.ALL_ANALYSES[a](**analysis_setup)
-            for a in analysis_setup.pop("analyses", [])
-            if a in anl.ALL_ANALYSES
-        }
-        return variable, analyses
-
-    # Setup the default analysis
-    analyses = {
-        name: a(variable, **analysis_setup)
-        for name, a in anl.DEFAULT_ANALYSES.items()
-        if analysis_setup.get(f"skip_{name.lower()}", False) is False
-    }
-    analyses.update(
-        {
-            f"Relationship {ind_variable}": anl.relationship_analysis(
-                variable, ind_variable, **analysis_setup
-            )
-            for ind_variable in relationships
-        }
-    )
-    return variable, analyses
 
 
 def run_analyses(
@@ -679,13 +781,13 @@ def run_study(
     for analysis in analyses_list:
         path = analysis.pop("path")
         try:
-            run_simple(
+            run_single_block(
+                path.split("/")[-1],
                 (
                     ref_datasets
                     if ref_datasets is not None
                     else registry_to_dataframe(reg)
                 ),
-                path.split("/")[-1],
                 df_datasets,
                 output_path / path,
                 **analysis,

@@ -3,6 +3,7 @@
 # import these packages so that units via pint will be possible once anything
 # from ilamb is imported.
 import importlib
+import warnings
 
 import pint_xarray  # noqa
 import pooch
@@ -20,6 +21,9 @@ units.define("Sv = 1e6 m**3 / s")
 
 # we don't really have data versions for the collection :/
 ILAMB_DATA_VERSION = "0.1"
+
+# remove nuissance warnings from multiple fill values
+warnings.simplefilter("ignore", category=xr.SerializationWarning)
 
 
 def ilamb_catalog() -> pooch.Pooch:
