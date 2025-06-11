@@ -1,3 +1,7 @@
+"""
+An ILAMB transform for computing the depth gradient.
+"""
+
 import xarray as xr
 
 import ilamb3.dataset as dset
@@ -13,9 +17,20 @@ class depth_gradient(ILAMBTransform):
         pass
 
     def required_variables(self) -> list[str]:
+        """Return the variables this transform requires, none in this case."""
         return []
 
     def __call__(ds: xr.Dataset) -> xr.Dataset:
+        """
+        Return the depth gradient of the input dataset, if a depth dimension
+        exists.
+
+        Note
+        ----
+        This transform will also integrate out the temporal dimension. It may be
+        useful to use this transform in conjunction with the `select_depth` to
+        pick a range of depths across which you want to estimate the gradient.
+        """
         if not dset.is_layered(ds):
             return ds
         for var, da in ds.items():

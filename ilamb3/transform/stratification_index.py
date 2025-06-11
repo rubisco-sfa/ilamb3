@@ -1,3 +1,7 @@
+"""
+An ILAMB transform for estimating the stratification index from thetao and so.
+"""
+
 import numpy as np
 import xarray as xr
 
@@ -6,8 +10,18 @@ from ilamb3.transform.base import ILAMBTransform
 
 
 class stratification_index(ILAMBTransform):
-    """Computes a time series of the stratification index in the Southern Ocean
-    (lat -55 to -30) using EN4.2.2 temperature and salinity data."""
+    """
+    An ILAMB transform for estimating the stratification index over a region.
+
+    Parameters
+    ----------
+    depth_horizon : float, optional
+        The maxmimum depth to consider in the calculation.
+    lat_min : float, optional
+        The minimum latitude to consider.
+    lat_max : float, optional
+        The maximum latitude to consider.
+    """
 
     def __init__(
         self,
@@ -20,10 +34,15 @@ class stratification_index(ILAMBTransform):
         self.lat_max = lat_max
 
     def required_variables(self):
+        """
+        Return the variables required by this transform.
+        """
         return ["thetao", "so"]
 
     def __call__(self, ds: xr.Dataset) -> xr.DataArray:
-        # Just return if we do not have what it takes
+        """
+        Estimate the stratification index from thetao and so using the `gsw` package.
+        """
         if not set(self.required_variables()).issubset(ds):
             return ds
 
