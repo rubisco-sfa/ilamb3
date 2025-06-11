@@ -29,7 +29,8 @@ This package is being developed and *not* currently listed in PyPI or conda-forg
    :caption: I want to...
 
    jupyter
-   analysis
+   expansion
+   run
 
 .. toctree::
    :maxdepth: 2
