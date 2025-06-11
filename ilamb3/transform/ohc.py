@@ -1,3 +1,7 @@
+"""
+An ILAMB transform for computing the accumulated ocean heat content.
+"""
+
 import cftime as cf
 import xarray as xr
 
@@ -7,13 +11,29 @@ from ilamb3.transform.base import ILAMBTransform
 
 
 class ocean_heat_content(ILAMBTransform):
+    """
+    An ILAMB transform for computing the accumulated ocean heat content.
+
+    Parameters
+    ----------
+    reference_year : int, optional
+        The year from which to compute the ocean heat content. Defaults to the
+        first year of the input dataset.
+    """
+
     def __init__(self, reference_year: int | None = None):
         self.reference_year = reference_year
 
     def required_variables(self) -> list[str]:
+        """
+        Return the required variables for the transform.
+        """
         return ["thetao", "volcello"]
 
     def __call__(self, ds: xr.Dataset) -> xr.Dataset:
+        """
+        Compute the ocean heat content in [ZJ].
+        """
         if "ohc" in ds:
             return ds
         if not set(self.required_variables()).issubset(ds):

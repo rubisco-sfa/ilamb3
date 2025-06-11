@@ -1,3 +1,7 @@
+"""
+An ILAMB transform for converting integrated soil moisture to a density.
+"""
+
 import xarray as xr
 
 import ilamb3.dataset as dset
@@ -5,10 +9,23 @@ from ilamb3.transform.base import ILAMBTransform
 
 
 class soil_moisture_to_vol_fraction(ILAMBTransform):
+    """
+    Convert depth integrated moisture to a volumetric fraction.
+    """
+
+    def __init__(self):
+        pass
+
     def required_variables(self) -> list[str]:
+        """
+        Return the variables this transform can convert.
+        """
         return ["mrsos", "mrsol"]
 
     def __call__(self, ds: xr.Dataset) -> xr.Dataset:
+        """
+        Convert depth integrated moisture to a volumnetric fraction.
+        """
         for var in self.required_variables():
             if var in ds:
                 ds[var] = _to_vol_fraction(ds, var).squeeze()
