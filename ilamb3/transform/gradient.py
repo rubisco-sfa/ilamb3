@@ -20,7 +20,7 @@ class depth_gradient(ILAMBTransform):
         """Return the variables this transform requires, none in this case."""
         return []
 
-    def __call__(ds: xr.Dataset) -> xr.Dataset:
+    def __call__(self, ds: xr.Dataset) -> xr.Dataset:
         """
         Return the depth gradient of the input dataset, if a depth dimension
         exists.

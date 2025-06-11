@@ -2,6 +2,8 @@
 An ILAMB transform for estimating the stratification index from thetao and so.
 """
 
+from typing import Any
+
 import numpy as np
 import xarray as xr
 
@@ -28,6 +30,7 @@ class stratification_index(ILAMBTransform):
         depth_horizon: float = 1000,
         lat_min: float = -55,
         lat_max: float = -30,
+        **kwargs: Any,
     ):
         self.depth_horizon = depth_horizon
         self.lat_min = lat_min

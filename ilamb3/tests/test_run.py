@@ -20,6 +20,8 @@ def generate_test_dset(
     nlon: int | None = None,
     ndepth: int | None = None,
     latlon2d: bool = False,
+    scale: float = 20.0,
+    shift: float = 0.0,
 ):
     rs = np.random.RandomState(seed)
     coords = {}
@@ -52,7 +54,7 @@ def generate_test_dset(
     ds = xr.Dataset(
         data_vars={
             name: xr.DataArray(
-                rs.rand(*[len(coords[d]) for d in dims]) * 20,
+                rs.rand(*[len(coords[d]) for d in dims]) * scale + shift,
                 coords=coords,
                 dims=dims,
                 name=name,

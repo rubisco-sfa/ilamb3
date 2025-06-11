@@ -18,21 +18,38 @@ class select_depth(ILAMBTransform):
     ----------
     value : float
         The value at which to select the nearest depth.
-    min : float
+    vmin : float
         The minimum depth to slice.
-    max : float
+    vmax : float
         The maximum depth to slice.
 
     Note
     ----
-    Either `value` should be specified or `min` and `max` but not both.
+    Either `value` should be specified or `vmin` and `vmax` but not both.
     """
 
-    def __init__(self, **kwargs: Any):
-        self.kwargs = kwargs
-        raise ValueError(
-            f"This transform allows for a single depth selection with `value` or a range with both `min` and `max`, but I found {kwargs}"
-        )
+    def __init__(
+        self,
+        value: float | None = None,
+        vmin: float | None = None,
+        vmax: float | None = None,
+        **kwargs: Any,
+    ):
+        self.value = value
+        self.vmin = vmin
+        self.vmax = vmax
+        ok = True
+        if value is None:
+            ok = vmin is not None and vmax is not None
+        if vmin is None:
+            ok = vmax is None and value is not None
+        if vmax is None:
+            ok = vmin is None and value is not None
+        if not ok:
+            raise ValueError(
+                "This transform allows for a single depth selection with `value` or a range with "
+                f"both `vmin` and `vmax`, but I found {value=} {vmin=} {vmax=} and these other keywords {kwargs}"
+            )
 
     def required_variables(self) -> list[str]:
         """
@@ -44,12 +61,11 @@ class select_depth(ILAMBTransform):
         """
         Select a depth or depth range of the input dataset, if a depth dimension is found.
         """
-        kwargs = self.kwargs
         if not dset.is_layered(ds):
             return ds
         depth_name = dset.get_dim_name(ds, "depth")
-        if "value" in kwargs:
-            return ds.sel({depth_name: kwargs["value"]}, method="nearest", drop=True)
-        if "min" in kwargs and "max" in kwargs:
-            return ds.sel({depth_name: slice(kwargs["min"], kwargs["max"])})
+        if self.value is not None:
+            return ds.sel({depth_name: self.value}, method="nearest", drop=True)
+        else:
+            return ds.sel({depth_name: slice(self.vmin, self.vmax)})
         return ds
