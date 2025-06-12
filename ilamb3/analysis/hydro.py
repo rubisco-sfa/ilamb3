@@ -84,10 +84,10 @@ def score_difference(ref: xr.Dataset, com: xr.Dataset) -> xr.Dataset:
 
 class hydro_analysis(ILAMBAnalysis):
     def __init__(
-        self, required_variable: str, regions: list[str | None] = [None], **kwargs: Any
+        self, required_variable: str, regions: list[str] | None = None, **kwargs: Any
     ):
         self.req_variable = required_variable
-        self.regions = regions
+        self.regions = regions if isinstance(regions, list) else [None]
         self.kwargs = kwargs
 
         # This analysis will split plots/scalars into sections as organized below
@@ -99,28 +99,28 @@ class hydro_analysis(ILAMBAnalysis):
                 "annual_std",
                 "annual_std_difference",
             ],
-            "Seasonal DJF": [
+            "Winter (DJF)": [
                 "seasonal_mean_DJF",
                 "seasonal_mean_DJF_difference",
                 "seasonal_mean_DJF_score",
                 "seasonal_std_DJF",
                 "seasonal_std_DJF_difference",
             ],
-            "Seasonal MAM": [
+            "Spring (MAM)": [
                 "seasonal_mean_MAM",
                 "seasonal_mean_MAM_difference",
                 "seasonal_mean_MAM_score",
                 "seasonal_std_MAM",
                 "seasonal_std_MAM_difference",
             ],
-            "Seasonal JJA": [
+            "Summer (JJA)": [
                 "seasonal_mean_JJA",
                 "seasonal_mean_JJA_difference",
                 "seasonal_mean_JJA_score",
                 "seasonal_std_JJA",
                 "seasonal_std_JJA_difference",
             ],
-            "Seasonal SON": [
+            "Fall (SON)": [
                 "seasonal_mean_SON",
                 "seasonal_mean_SON_difference",
                 "seasonal_mean_SON_score",
@@ -147,6 +147,28 @@ class hydro_analysis(ILAMBAnalysis):
             raise ValueError(f"Could not find {varname} in {self.sections}.")
         return section[0]
 
+    def _make_comparable(
+        self, ref: xr.Dataset, com: xr.Dataset
+    ) -> tuple[xr.Dataset, xr.Dataset]:
+        if dset.is_temporal(ref):
+            ref, com = cmp.trim_time(ref, com)
+        # ensure longitudes are uniform
+        ref, com = cmp.adjust_lon(ref, com)
+        # ensure the lat/lon dims are sorted
+        if dset.is_spatial(ref):
+            ref = ref.sortby(
+                [dset.get_dim_name(ref, "lat"), dset.get_dim_name(ref, "lon")]
+            )
+        if dset.is_spatial(com):
+            com = com.sortby(
+                [dset.get_dim_name(com, "lat"), dset.get_dim_name(com, "lon")]
+            )
+        # convert units
+        com = dset.convert(
+            com, ref[self.req_variable].attrs["units"], varname=self.req_variable
+        )
+        return ref, com
+
     def __call__(
         self,
         ref: xr.Dataset,
@@ -158,8 +180,8 @@ class hydro_analysis(ILAMBAnalysis):
         # Initialize
         varname = self.req_variable
 
-        # Make the variables comparable and force loading into memory
-        ref_, com_ = cmp.make_comparable(ref, com, varname)
+        # Make the variables comparable
+        ref_, com_ = self._make_comparable(ref, com)
 
         # Run the hydro metrics
         ref = metric_maps(ref_, varname)
@@ -299,5 +321,4 @@ class hydro_analysis(ILAMBAnalysis):
         ]
 
         axs = pd.DataFrame(axs).dropna(subset=["axis"])
-        print(axs)
         return axs
