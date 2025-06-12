@@ -146,7 +146,7 @@ def setup_transforms(setup: dict[str, Any]) -> list[ILAMBTransform]:
     invalid = set(transform_names) - set(ALL_TRANSFORMS)
     if invalid:
         raise ValueError(
-            f"Invalid transform{'s' if len(invalid)>1 else ''} given. "
+            f"Invalid transform{'s' if len(invalid) > 1 else ''} given. "
             f"{list(invalid)} not in {list(ALL_TRANSFORMS.keys())}. "
             f"This is the problematic portion:\n{yaml.dump(setup)}"
         )
@@ -220,6 +220,20 @@ def augment_setup_with_options(
     return setup
 
 
+def _lookup(df: xr.Dataset, key: str) -> list[str]:
+    """
+    Lookup the key in the dataframe, allowing that it may be a regular expression.
+    """
+    try:
+        return [df.loc[key, "path"]]
+    except KeyError:
+        pass
+    out = sorted(df[df.index.str.contains(key)]["path"].to_list())
+    if not out:
+        raise ValueError(f"Could not find {key} in the reference dataframe.")
+    return out
+
+
 def _load_reference_data(
     reference_data: pd.DataFrame,
     variable_id: str,
@@ -235,7 +249,7 @@ def _load_reference_data(
     if relationships is not None:
         sources = sources | relationships
     ref = {
-        key: xr.open_dataset(reference_data.loc[str(filename), "path"])
+        key: xr.open_mfdataset(_lookup(reference_data, str(filename)))
         for key, filename in sources.items()
     }
     # Sometimes there is a bounds variable but it isn't in the attributes
