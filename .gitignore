@@ -67,3 +67,5 @@ venv.bak/
 
 #
 *.nc
+*_*build*
+*_version.py
