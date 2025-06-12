@@ -188,6 +188,10 @@ class hydro_analysis(ILAMBAnalysis):
         com = metric_maps(com_, varname)
         com = score_difference(ref, com)
 
+        # Ensure that arrays are now in memory
+        ref.load()
+        com.load()
+
         # Create scalars
         df = []
         for source, ds in {"Reference": ref, "Comparison": com}.items():
