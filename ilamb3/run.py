@@ -596,8 +596,15 @@ def plot_analyses(
     plot_path.mkdir(exist_ok=True, parents=True)
     df_plots = []
     for name, a in analyses.items():
-        dfp = a.plots(df, ref, com)
+        dfp = a.plots(
+            df,
+            ref,
+            com,
+            None if ilamb3.conf["run_mode"] == "interactive" else plot_path,
+        )
         for _, row in dfp.iterrows():
+            if not row["axis"]:
+                continue
             row["axis"].get_figure().savefig(
                 plot_path / f"{row['source']}_{row['region']}_{row['name']}.png"
             )
@@ -769,6 +776,7 @@ def run_study(
     ref_datasets: pd.DataFrame | None = None,
     output_path: str | Path = "_build",
 ):
+    ilamb3.conf["run_mode"] = "batch"
     output_path = Path(output_path)
     # Some yaml text that would get parsed like a dictionary.
     analyses = parse_benchmark_setup(study_setup)

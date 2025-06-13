@@ -8,8 +8,6 @@ import yaml
 
 import ilamb3.regions as reg
 
-# how do we add data collections?
-
 defaults = {
     "regions": [None],
     "prefer_regional_quantiles": False,
@@ -22,6 +20,7 @@ defaults = {
     "use_cached_results": False,
     "figure_dpi": 100,
     "debug_mode": False,
+    "run_mode": "interactive",  # for internal use
 }
 
 

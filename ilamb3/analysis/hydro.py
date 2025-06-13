@@ -1,4 +1,5 @@
 from itertools import chain
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -251,6 +252,7 @@ class hydro_analysis(ILAMBAnalysis):
         df: pd.DataFrame,
         ref: xr.Dataset,
         com: dict[str, xr.Dataset],
+        output_path: Path | None = None,
     ) -> pd.DataFrame:
         com["Reference"] = ref
 
@@ -273,16 +275,21 @@ class hydro_analysis(ILAMBAnalysis):
         ]
         df["cmap"] = df.index.map(_choose_cmap)
 
-        # Build up a dataframe of matplotlib axes
-        axs = [
-            {
-                "name": plot,
-                "title": df.loc[plot, "title"],
-                "region": region,
-                "source": source,
-                "analysis": self._get_analysis_section(plot),
-                "axis": (
-                    plt.plot_map(
+        # Plot the maps, saving if requested on the fly
+        axs = []
+        for plot in plots:
+            for source, ds in com.items():
+                if plot not in ds:
+                    continue
+                for region in self.regions:
+                    row = {
+                        "name": plot,
+                        "title": df.loc[plot, "title"],
+                        "region": region,
+                        "source": source,
+                        "analysis": self._get_analysis_section(plot),
+                    }
+                    ax = plt.plot_map(
                         ds[plot],
                         region=region,
                         vmin=df.loc[plot, "low"],
@@ -290,22 +297,32 @@ class hydro_analysis(ILAMBAnalysis):
                         cmap=df.loc[plot, "cmap"],
                         title=source + " " + df.loc[plot, "title"],
                     )
-                    if plot in ds
-                    else pd.NA
-                ),
-            }
-            for plot in plots
-            for source, ds in com.items()
-            for region in self.regions
-        ]
+                    if output_path is None:
+                        row["axis"] = ax
+                        continue
+                    row["axis"] = False
+                    fig = ax.get_figure()
+                    fig.savefig(
+                        output_path
+                        / f"{row['source']}_{row['region']}_{row['name']}.png"
+                    )
+                    plt.close(fig)
 
-        axs += [
-            {
-                "name": "mean",
-                "title": "Regional Mean",
-                "region": plot.split("_")[-1],
-                "source": source,
-                "axis": (
+        # Plot the curves, saving if requested on the fly
+        for plot in [f"mean_{region}" for region in self.regions]:
+            for source, ds in com.items():
+                if source == "Reference":
+                    continue
+                if plot not in ds:
+                    continue
+                for region in self.regions:
+                    row = {
+                        "name": "mean",
+                        "title": "Regional Mean",
+                        "region": plot.split("_")[-1],
+                        "source": source,
+                        "analysis": "Annual",
+                    }
                     plt.plot_curve(
                         {source: ds} | {"Reference": ref},
                         plot,
@@ -315,14 +332,17 @@ class hydro_analysis(ILAMBAnalysis):
                         + 0.05 * (df.loc[plot, "high"] - df.loc[plot, "low"]),
                         title=f"{source} Regional Mean",
                     )
-                    if plot in ds
-                    else pd.NA
-                ),
-            }
-            for plot in [f"mean_{region}" for region in self.regions]
-            for source, ds in com.items()
-            if source != "Reference"
-        ]
+                    if output_path is None:
+                        row["axis"] = ax
+                    else:
+                        # We are saving as we go
+                        row["axis"] = False
+                        fig = ax.get_figure()
+                        fig.savefig(
+                            output_path
+                            / f"{row['source']}_{row['region']}_{row['name']}.png"
+                        )
+                        plt.close(fig)
 
         axs = pd.DataFrame(axs).dropna(subset=["axis"])
         return axs
