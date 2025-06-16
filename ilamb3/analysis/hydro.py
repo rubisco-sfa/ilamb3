@@ -2,6 +2,7 @@ from itertools import chain
 from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as mpl
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -93,7 +94,8 @@ class hydro_analysis(ILAMBAnalysis):
 
         # This analysis will split plots/scalars into sections as organized below
         self.sections = {
-            "Annual": [
+            "Annual": [f"mean_{region}" for region in self.regions]
+            + [
                 "annual_mean",
                 "annual_mean_difference",
                 "annual_mean_score",
@@ -263,9 +265,9 @@ class hydro_analysis(ILAMBAnalysis):
                 return "bwr"
             return "viridis"
 
-        # Which plots are we handling in here?
+        # Which plots are we handling in here? I am building this list from a
+        # section layout I created in the constructor.
         plots = list(chain(*[vs for _, vs in self.sections.items()]))
-        com = {key: ds[set(ds) & set(plots)] for key, ds in com.items()}
 
         # Setup plots
         df = plt.determine_plot_limits(com, symmetrize=["difference"]).set_index("name")
@@ -280,6 +282,8 @@ class hydro_analysis(ILAMBAnalysis):
         for plot in plots:
             for source, ds in com.items():
                 if plot not in ds:
+                    continue
+                if not dset.is_spatial(ds[plot]):
                     continue
                 for region in self.regions:
                     row = {
@@ -299,14 +303,15 @@ class hydro_analysis(ILAMBAnalysis):
                     )
                     if output_path is None:
                         row["axis"] = ax
-                        continue
-                    row["axis"] = False
-                    fig = ax.get_figure()
-                    fig.savefig(
-                        output_path
-                        / f"{row['source']}_{row['region']}_{row['name']}.png"
-                    )
-                    plt.close(fig)
+                    else:
+                        row["axis"] = False
+                        fig = ax.get_figure()
+                        fig.savefig(
+                            output_path
+                            / f"{row['source']}_{row['region']}_{row['name']}.png"
+                        )
+                        mpl.close(fig)
+                    axs.append(row)
 
         # Plot the curves, saving if requested on the fly
         for plot in [f"mean_{region}" for region in self.regions]:
@@ -314,6 +319,8 @@ class hydro_analysis(ILAMBAnalysis):
                 if source == "Reference":
                     continue
                 if plot not in ds:
+                    continue
+                if not dset.is_temporal(ds[plot]):
                     continue
                 for region in self.regions:
                     row = {
@@ -323,7 +330,7 @@ class hydro_analysis(ILAMBAnalysis):
                         "source": source,
                         "analysis": "Annual",
                     }
-                    plt.plot_curve(
+                    ax = plt.plot_curve(
                         {source: ds} | {"Reference": ref},
                         plot,
                         vmin=df.loc[plot, "low"]
@@ -334,15 +341,15 @@ class hydro_analysis(ILAMBAnalysis):
                     )
                     if output_path is None:
                         row["axis"] = ax
+                        continue
                     else:
-                        # We are saving as we go
                         row["axis"] = False
                         fig = ax.get_figure()
                         fig.savefig(
                             output_path
                             / f"{row['source']}_{row['region']}_{row['name']}.png"
                         )
-                        plt.close(fig)
-
+                        mpl.close(fig)
+                    axs.append(row)
         axs = pd.DataFrame(axs).dropna(subset=["axis"])
         return axs
