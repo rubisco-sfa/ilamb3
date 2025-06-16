@@ -6,6 +6,7 @@ import matplotlib.pyplot as mpl
 import numpy as np
 import pandas as pd
 import xarray as xr
+from loguru import logger
 
 import ilamb3.compare as cmp
 import ilamb3.dataset as dset
@@ -86,11 +87,15 @@ def score_difference(ref: xr.Dataset, com: xr.Dataset) -> xr.Dataset:
 
 class hydro_analysis(ILAMBAnalysis):
     def __init__(
-        self, required_variable: str, regions: list[str] | None = None, **kwargs: Any
+        self,
+        required_variable: str,
+        regions: list[str] | None = None,
+        output_path: Path | None = None,
+        **kwargs: Any,
     ):
         self.req_variable = required_variable
         self.regions = regions if isinstance(regions, list) else [None]
-        self.kwargs = kwargs
+        self.output_path = output_path
 
         # This analysis will split plots/scalars into sections as organized below
         self.sections = {
@@ -186,14 +191,24 @@ class hydro_analysis(ILAMBAnalysis):
         # Make the variables comparable
         ref_, com_ = self._make_comparable(ref, com)
 
-        # Run the hydro metrics
-        ref = metric_maps(ref_, varname)
+        # Run the hydro metrics, read cached reference if running in batch mode
+        if (
+            self.output_path is not None
+            and (self.output_path / "Reference.nc").is_file()
+        ):
+            logger.info(
+                f"Reading in cached reference data: {self.output_path / 'Reference.nc'}"
+            )
+            ref = xr.open_dataset(self.output_path / "Reference.nc")
+        else:
+            ref = metric_maps(ref_, varname)
         com = metric_maps(com_, varname)
-        com = score_difference(ref, com)
 
-        # Ensure that arrays are now in memory
+        # Ensure that arrays are now in memory and score
+        logger.info("Computing hydro metrics...")
         ref.load()
         com.load()
+        com = score_difference(ref, com)
 
         # Create scalars
         df = []
@@ -258,7 +273,6 @@ class hydro_analysis(ILAMBAnalysis):
         df: pd.DataFrame,
         ref: xr.Dataset,
         com: dict[str, xr.Dataset],
-        output_path: Path | None = None,
     ) -> pd.DataFrame:
         com["Reference"] = ref
 
@@ -283,6 +297,7 @@ class hydro_analysis(ILAMBAnalysis):
 
         # Plot the maps, saving if requested on the fly
         axs = []
+        logger.info("Plotting maps...")
         for plot in plots:
             for source, ds in com.items():
                 if plot not in ds:
@@ -305,19 +320,20 @@ class hydro_analysis(ILAMBAnalysis):
                         cmap=df.loc[plot, "cmap"],
                         title=source + " " + df.loc[plot, "title"],
                     )
-                    if output_path is None:
+                    if self.output_path is None:
                         row["axis"] = ax
                     else:
                         row["axis"] = False
                         fig = ax.get_figure()
                         fig.savefig(
-                            output_path
+                            self.output_path
                             / f"{row['source']}_{row['region']}_{row['name']}.png"
                         )
                         mpl.close(fig)
                     axs.append(row)
 
         # Plot the curves, saving if requested on the fly
+        logger.info("Plotting curves...")
         for plot in [f"mean_{region}" for region in self.regions]:
             for source, ds in com.items():
                 if source == "Reference":
@@ -343,14 +359,14 @@ class hydro_analysis(ILAMBAnalysis):
                         + 0.05 * (df.loc[plot, "high"] - df.loc[plot, "low"]),
                         title=f"{source} Regional Mean",
                     )
-                    if output_path is None:
+                    if self.output_path is None:
                         row["axis"] = ax
                         continue
                     else:
                         row["axis"] = False
                         fig = ax.get_figure()
                         fig.savefig(
-                            output_path
+                            self.output_path
                             / f"{row['source']}_{row['region']}_{row['name']}.png"
                         )
                         mpl.close(fig)
