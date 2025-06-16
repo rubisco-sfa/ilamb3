@@ -78,7 +78,9 @@ def select_analysis_variable(setup: dict[str, Any]) -> str:
     return variable
 
 
-def setup_analyses(setup: dict[str, Any]) -> dict[ILAMBAnalysis]:
+def setup_analyses(
+    setup: dict[str, Any], output_path: Path | None
+) -> dict[ILAMBAnalysis]:
     """
     Return the initialized analysis components to be used for this block.
 
@@ -109,7 +111,17 @@ def setup_analyses(setup: dict[str, Any]) -> dict[ILAMBAnalysis]:
             f"This is the problematic portion:\n{yaml.dump(setup)}"
         )
     analyses = {
-        a: anl.ALL_ANALYSES[a](**(setup | {"required_variable": main_variable}))
+        a: anl.ALL_ANALYSES[a](
+            **(
+                setup
+                | {
+                    "required_variable": main_variable,
+                    "output_path": None
+                    if ilamb3.conf["run_mode"] == "interactive"
+                    else output_path,
+                }
+            )
+        )
         for a in analyses
     }
     if "relationships" in setup:
@@ -409,7 +421,7 @@ def run_single_block(
         reference_data = reference_data.set_index("key")
     setup = augment_setup_with_options(setup, reference_data)
     variable = select_analysis_variable(setup)
-    analyses = setup_analyses(setup)
+    analyses = setup_analyses(setup, output_path)
     transforms = setup_transforms(setup)
 
     # Thin out the dataframe to only contain variables we need for this block.
@@ -600,7 +612,6 @@ def plot_analyses(
             df,
             ref,
             com,
-            None if ilamb3.conf["run_mode"] == "interactive" else plot_path,
         )
         for _, row in dfp.iterrows():
             if not row["axis"]:
