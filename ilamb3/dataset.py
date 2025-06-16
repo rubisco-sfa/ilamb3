@@ -980,3 +980,16 @@ def get_mean_time_frequency(ds: xr.Dataset) -> float:
     """
     tm = compute_time_measures(ds)
     return float(tm.mean())
+
+
+def compute_monthly_mean(ds: xr.Dataset) -> xr.Dataset:
+    """
+    Return the monthly mean of the input dataset in a `noleap` calendar.
+    """
+    if not is_temporal(ds):
+        raise ValueError("Input dataset has no temporal dimension.")
+    dt = get_mean_time_frequency(ds)
+    if dt > 31:
+        raise ValueError(f"Input dataset is already coarser than monthly {dt=}.")
+    ds = ds.resample(time=xr.groupers.TimeResampler("MS")).mean()
+    return ds

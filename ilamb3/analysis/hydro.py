@@ -220,17 +220,21 @@ class hydro_analysis(ILAMBAnalysis):
 
         # Compute the regional means
         for region in self.regions:
-            ref[f"mean_{region}"] = dset.integrate_space(
-                ref_,
-                varname,
-                region=region,
-                mean=True,
+            ref[f"mean_{region}"] = dset.compute_monthly_mean(
+                dset.integrate_space(
+                    ref_,
+                    varname,
+                    region=region,
+                    mean=True,
+                )
             )
-            com[f"mean_{region}"] = dset.integrate_space(
-                com_,
-                varname,
-                region=region,
-                mean=True,
+            com[f"mean_{region}"] = dset.compute_monthly_mean(
+                dset.integrate_space(
+                    com_,
+                    varname,
+                    region=region,
+                    mean=True,
+                )
             )
 
         # Convert to dataframe
