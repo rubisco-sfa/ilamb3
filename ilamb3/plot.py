@@ -183,7 +183,11 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
 
     # Convert to single calendar for plotting
     dad = {
-        source: ds[varname].convert_calendar("noleap") if "time" in ds else ds[varname]
+        source: (
+            ds[varname].convert_calendar("noleap")
+            if "time" in ds[varname]
+            else ds[varname]
+        )
         for source, ds in dsd.items()
     }
     ref = dad.pop("Reference")
