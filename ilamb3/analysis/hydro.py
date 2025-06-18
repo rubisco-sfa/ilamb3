@@ -78,6 +78,11 @@ def score_difference(ref: xr.Dataset, com: xr.Dataset) -> xr.Dataset:
             if "mean" in v and v.replace("_mean_", "_std_") in diff
         }
     )
+    # Set the units of these scores
+    for var, da in diff.items():
+        if "score" not in var:
+            continue
+        diff[var].attrs["units"] = "1"
     # Rename the lat dimension for merging with the comparison on return
     lat_name = dset.get_dim_name(diff, "lat")
     lon_name = dset.get_dim_name(diff, "lon")
