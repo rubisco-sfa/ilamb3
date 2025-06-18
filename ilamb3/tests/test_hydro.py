@@ -14,7 +14,7 @@ def test_hydro():
     df, ds_ref, ds_com["Comparison"] = analysis(ref, com)
     # check scalars
     assert len(df) == 35
-    q = df[(df["analysis"] == "Seasonal SON") & (df["type"] == "score")]
+    q = df[(df["analysis"] == "Fall (SON)") & (df["type"] == "score")]
     assert len(q) == 1
     assert np.allclose(q.iloc[0].value, 0.6474532320617079)
     plt.rcParams.update({"figure.max_open_warning": 0})

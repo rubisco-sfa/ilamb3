@@ -78,7 +78,9 @@ def select_analysis_variable(setup: dict[str, Any]) -> str:
     return variable
 
 
-def setup_analyses(setup: dict[str, Any]) -> dict[ILAMBAnalysis]:
+def setup_analyses(
+    setup: dict[str, Any], output_path: Path | None
+) -> dict[ILAMBAnalysis]:
     """
     Return the initialized analysis components to be used for this block.
 
@@ -109,7 +111,17 @@ def setup_analyses(setup: dict[str, Any]) -> dict[ILAMBAnalysis]:
             f"This is the problematic portion:\n{yaml.dump(setup)}"
         )
     analyses = {
-        a: anl.ALL_ANALYSES[a](**(setup | {"required_variable": main_variable}))
+        a: anl.ALL_ANALYSES[a](
+            **(
+                setup
+                | {
+                    "required_variable": main_variable,
+                    "output_path": None
+                    if ilamb3.conf["run_mode"] == "interactive"
+                    else output_path,
+                }
+            )
+        )
         for a in analyses
     }
     if "relationships" in setup:
@@ -146,7 +158,7 @@ def setup_transforms(setup: dict[str, Any]) -> list[ILAMBTransform]:
     invalid = set(transform_names) - set(ALL_TRANSFORMS)
     if invalid:
         raise ValueError(
-            f"Invalid transform{'s' if len(invalid)>1 else ''} given. "
+            f"Invalid transform{'s' if len(invalid) > 1 else ''} given. "
             f"{list(invalid)} not in {list(ALL_TRANSFORMS.keys())}. "
             f"This is the problematic portion:\n{yaml.dump(setup)}"
         )
@@ -220,6 +232,20 @@ def augment_setup_with_options(
     return setup
 
 
+def _lookup(df: xr.Dataset, key: str) -> list[str]:
+    """
+    Lookup the key in the dataframe, allowing that it may be a regular expression.
+    """
+    try:
+        return [df.loc[key, "path"]]
+    except KeyError:
+        pass
+    out = sorted(df[df.index.str.contains(key)]["path"].to_list())
+    if not out:
+        raise ValueError(f"Could not find {key} in the reference dataframe.")
+    return out
+
+
 def _load_reference_data(
     reference_data: pd.DataFrame,
     variable_id: str,
@@ -235,7 +261,7 @@ def _load_reference_data(
     if relationships is not None:
         sources = sources | relationships
     ref = {
-        key: xr.open_dataset(reference_data.loc[str(filename), "path"])
+        key: xr.open_mfdataset(_lookup(reference_data, str(filename)))
         for key, filename in sources.items()
     }
     # Sometimes there is a bounds variable but it isn't in the attributes
@@ -395,7 +421,7 @@ def run_single_block(
         reference_data = reference_data.set_index("key")
     setup = augment_setup_with_options(setup, reference_data)
     variable = select_analysis_variable(setup)
-    analyses = setup_analyses(setup)
+    analyses = setup_analyses(setup, output_path)
     transforms = setup_transforms(setup)
 
     # Thin out the dataframe to only contain variables we need for this block.
@@ -582,8 +608,14 @@ def plot_analyses(
     plot_path.mkdir(exist_ok=True, parents=True)
     df_plots = []
     for name, a in analyses.items():
-        dfp = a.plots(df, ref, com)
+        dfp = a.plots(
+            df,
+            ref,
+            com,
+        )
         for _, row in dfp.iterrows():
+            if not row["axis"]:
+                continue
             row["axis"].get_figure().savefig(
                 plot_path / f"{row['source']}_{row['region']}_{row['name']}.png"
             )
@@ -755,6 +787,7 @@ def run_study(
     ref_datasets: pd.DataFrame | None = None,
     output_path: str | Path = "_build",
 ):
+    ilamb3.conf["run_mode"] = "batch"
     output_path = Path(output_path)
     # Some yaml text that would get parsed like a dictionary.
     analyses = parse_benchmark_setup(study_setup)
