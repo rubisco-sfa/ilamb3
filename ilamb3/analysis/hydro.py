@@ -90,6 +90,24 @@ def score_difference(ref: xr.Dataset, com: xr.Dataset) -> xr.Dataset:
     return com
 
 
+def generate_titles(qname: str) -> str:
+    """
+    Transform the quantity name into a display string.
+    """
+    tokens = [v.capitalize() if v.islower() else v for v in qname.split("_")]
+    if (
+        len(tokens) > 2
+        and tokens[0] == "Seasonal"
+        and tokens[2] in ["DJF", "MAM", "JJA", "SON"]
+    ):
+        tokens[0] = {"DJF": "Winter", "MAM": "Spring", "JJA": "Summer", "SON": "Fall"}[
+            tokens.pop(2)
+        ]
+    title = " ".join(tokens)
+    print(f"{qname:30} | {title}")
+    return title
+
+
 class hydro_analysis(ILAMBAnalysis):
     def __init__(
         self,
@@ -228,12 +246,7 @@ class hydro_analysis(ILAMBAnalysis):
                             source,
                             str(region),
                             self._get_analysis_section(vname),
-                            " ".join(
-                                [
-                                    v.capitalize() if v.islower() else v
-                                    for v in vname.split("_")
-                                ]
-                            ),
+                            generate_titles(vname),
                             "score" if "score" in vname else "scalar",
                             unit,
                             scalar,
@@ -242,14 +255,15 @@ class hydro_analysis(ILAMBAnalysis):
 
         # Compute the regional means
         for region in self.regions:
-            ref[f"mean_{region}"] = dset.compute_monthly_mean(
-                dset.integrate_space(
-                    ref_,
-                    varname,
-                    region=region,
-                    mean=True,
+            if f"mean_{region}" not in ref:
+                ref[f"mean_{region}"] = dset.compute_monthly_mean(
+                    dset.integrate_space(
+                        ref_,
+                        varname,
+                        region=region,
+                        mean=True,
+                    )
                 )
-            )
             com[f"mean_{region}"] = dset.compute_monthly_mean(
                 dset.integrate_space(
                     com_,
@@ -296,10 +310,7 @@ class hydro_analysis(ILAMBAnalysis):
 
         # Setup plots
         df = plt.determine_plot_limits(com, symmetrize=["difference"]).set_index("name")
-        df["title"] = [
-            " ".join([v.capitalize() if v.islower() else v for v in plot.split("_")])
-            for plot in df.index
-        ]
+        df["title"] = [generate_titles(plot) for plot in df.index]
         df["cmap"] = df.index.map(_choose_cmap)
 
         # Plot the maps, saving if requested on the fly
