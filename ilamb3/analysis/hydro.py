@@ -342,6 +342,7 @@ class hydro_analysis(ILAMBAnalysis):
         # Plot the curves, saving if requested on the fly
         logger.info("Plotting curves...")
         for plot in [f"mean_{region}" for region in self.regions]:
+            region = plot.split("_")[-1]
             for source, ds in com.items():
                 if source == "Reference":
                     continue
@@ -349,34 +350,33 @@ class hydro_analysis(ILAMBAnalysis):
                     continue
                 if not dset.is_temporal(ds[plot]):
                     continue
-                for region in self.regions:
-                    row = {
-                        "name": "mean",
-                        "title": "Regional Mean",
-                        "region": plot.split("_")[-1],
-                        "source": source,
-                        "analysis": "Annual",
-                    }
-                    ax = plt.plot_curve(
-                        {source: ds} | {"Reference": ref},
-                        plot,
-                        vmin=df.loc[plot, "low"]
-                        - 0.05 * (df.loc[plot, "high"] - df.loc[plot, "low"]),
-                        vmax=df.loc[plot, "high"]
-                        + 0.05 * (df.loc[plot, "high"] - df.loc[plot, "low"]),
-                        title=f"{source} Regional Mean",
+                row = {
+                    "name": "mean",
+                    "title": "Regional Mean",
+                    "region": region,
+                    "source": source,
+                    "analysis": "Annual",
+                }
+                ax = plt.plot_curve(
+                    {source: ds} | {"Reference": ref},
+                    plot,
+                    vmin=df.loc[plot, "low"]
+                    - 0.05 * (df.loc[plot, "high"] - df.loc[plot, "low"]),
+                    vmax=df.loc[plot, "high"]
+                    + 0.05 * (df.loc[plot, "high"] - df.loc[plot, "low"]),
+                    title=f"{source} Regional Mean",
+                )
+                if self.output_path is None:
+                    row["axis"] = ax
+                    continue
+                else:
+                    row["axis"] = False
+                    fig = ax.get_figure()
+                    fig.savefig(
+                        self.output_path
+                        / f"{row['source']}_{row['region']}_{row['name']}.png"
                     )
-                    if self.output_path is None:
-                        row["axis"] = ax
-                        continue
-                    else:
-                        row["axis"] = False
-                        fig = ax.get_figure()
-                        fig.savefig(
-                            self.output_path
-                            / f"{row['source']}_{row['region']}_{row['name']}.png"
-                        )
-                        mpl.close(fig)
-                    axs.append(row)
+                    mpl.close(fig)
+                axs.append(row)
         axs = pd.DataFrame(axs).dropna(subset=["axis"])
         return axs
