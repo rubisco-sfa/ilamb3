@@ -219,6 +219,8 @@ class hydro_analysis(ILAMBAnalysis):
         df = []
         for source, ds in {"Reference": ref, "Comparison": com}.items():
             for vname, da in ds.items():
+                if vname.startswith("mean_"):
+                    continue
                 for region in self.regions:
                     scalar, unit = scalarify(da, vname, region=region, mean=True)
                     df.append(
