@@ -13,6 +13,8 @@ import ilamb3.dataset as dset
 import ilamb3.plot as plt
 from ilamb3.analysis.base import ILAMBAnalysis, scalarify
 
+from ilamb3.plot import unify_units
+
 
 def metric_maps(
     da: xr.Dataset | xr.DataArray, varname: str | None = None
@@ -304,6 +306,15 @@ class hydro_analysis(ILAMBAnalysis):
                 return "bwr"
             return "viridis"
 
+
+        def _set_ylabel(name:str, units:str) -> str:
+
+            units_str = unify_units(units)
+            return f"{name} {unit_str}"
+
+
+
+
         # Which plots are we handling in here? I am building this list from a
         # section layout I created in the constructor.
         plots = list(chain(*[vs for _, vs in self.sections.items()]))
@@ -368,6 +379,13 @@ class hydro_analysis(ILAMBAnalysis):
                     "source": source,
                     "analysis": "Annual",
                 }
+
+                ylabel = None
+                try:
+                    ylabel = _set_ylabel(ref[plot].attrs["long_name"], ref[plot].attrs["units"])
+                except KeyError:
+                    raise ValueError("Reference Dataset attributes missing 'long_name' or 'units' key")
+
                 ax = plt.plot_curve(
                     {source: ds} | {"Reference": ref},
                     plot,
@@ -376,6 +394,7 @@ class hydro_analysis(ILAMBAnalysis):
                     vmax=df.loc[plot, "high"]
                     + 0.05 * (df.loc[plot, "high"] - df.loc[plot, "low"]),
                     title=f"{source} Regional Mean",
+                    ylabel=ylabel,
                 )
                 if self.output_path is None:
                     row["axis"] = ax

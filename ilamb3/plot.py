@@ -11,6 +11,22 @@ import ilamb3
 import ilamb3.dataset as dset
 from ilamb3.regions import Regions
 
+import pint
+ureg = pint.UnitRegistry()
+
+
+def unify_units(units: str) -> str:
+    """ unify units form for plotting. """
+    try:
+        unit_value = ureg(units)
+        if isinstance(unit_value, int):
+            unit_str = str(unit_value)
+        else:
+            unit_str = f"{unit_value.units:~}"
+
+    except (AttributeError, pint.DimensionalityError) as e:
+        raise ValueError(f"Invalid unit specification: {str(e)}")
+
 
 def get_extents(da: xr.DataArray) -> list[float]:
     """Find the extent of the non-null data."""
@@ -128,7 +144,15 @@ def plot_map(da: xr.DataArray, **kwargs):
     )
 
     # Setup colorbar arguments
-    cba = {"label": da.attrs["units"]}
+
+    try:
+        unit_value = da.attrs["units"]
+        cba_unit_str = unify_units(da.attrs["units"])
+        cba = {"label": cba_unit_str}
+        
+    except KeyError:
+        raise ValueError("Dataset attributes missing 'units' key")
+
     if "cbar_kwargs" in kwargs:
         cba.update(kwargs.pop("cbar_kwargs"))
 
@@ -170,6 +194,7 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
     vmax = kwargs.pop("vmax") if "vmax" in kwargs else None
     xticks = kwargs.pop("xticks") if "xticks" in kwargs else None
     xticklabels = kwargs.pop("xticklabels") if "xticklabels" in kwargs else None
+    ylabel = kwargs.pop("ylabel") if "ylabel" in kwargs else None
     title = kwargs.pop("title") if "title" in kwargs else ""
 
     # Setup figure
@@ -203,6 +228,8 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
         ax.set_xticks(xticks)
     if xticklabels is not None:
         ax.set_xticklabels(xticklabels)
+    if ylabel:
+        ax.set_ylabel(ylabel)
     if vmin is not None and vmax is not None:
         ax.set_ylim(vmin, vmax)
     return ax
