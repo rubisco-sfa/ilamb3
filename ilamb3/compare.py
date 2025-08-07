@@ -287,8 +287,11 @@ def handle_timescale_mismatch(
             }
         )
         return ref, com
+    if np.allclose(dt_ref, 30, atol=3) and dt_com < 28:
+        com = dset.compute_monthly_mean(com)
+        return ref, com
     raise NotImplementedError(
-        f"We encountered a time scale mismatch that we have no logic to handle. {ref} {com}"
+        f"We encountered a time scale mismatch ({dt_ref=:.1f} vs. {dt_com=:.1f}) that we have no logic to handle. {ref} {com}"
     )
 
 
