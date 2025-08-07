@@ -116,6 +116,9 @@ class spatial_distribution_analysis(ILAMBAnalysis):
             # Spatial standard deviation
             ref_std = float(rref.std())
             com_std = float(rcom.std())
+            if np.allclose(ref_std, 0):
+                # There is no spatial variance for this region and we should skip
+                continue
             norm_std = com_std / ref_std
 
             # Correlation
@@ -170,6 +173,7 @@ class spatial_distribution_analysis(ILAMBAnalysis):
     ) -> pd.DataFrame:
         # Add the Taylor diagram
         axs = []
+        df = df[df["analysis"] == "Spatial Distribution"]
         for region in df["region"].unique():
             axs += [
                 {
@@ -180,5 +184,5 @@ class spatial_distribution_analysis(ILAMBAnalysis):
                     "axis": ilplt.plot_taylor_diagram(df[df["region"] == region]),
                 }
             ]
-        axs = pd.DataFrame(axs).dropna(subset=["axis"])
+        axs = pd.DataFrame(axs)
         return axs
