@@ -992,3 +992,18 @@ def compute_monthly_mean(ds: xr.Dataset) -> xr.Dataset:
         raise ValueError(f"Input dataset is already coarser than monthly {dt=}.")
     ds = ds.resample(time=xr.groupers.TimeResampler("MS")).mean()
     return ds
+
+
+def shift_time_by_years(ds: xr.Dataset, years: int) -> xr.Dataset:
+    """
+    Return the dataset shifted by the given number of years.
+    """
+    time_dim = get_dim_name(ds, "time")
+    cls = ds[time_dim].values[0].__class__
+    ds[time_dim] = [
+        cls(
+            t.dt.year + years, t.dt.month, t.dt.day, t.dt.hour, t.dt.minute, t.dt.second
+        )
+        for t in ds[time_dim]
+    ]
+    return ds
