@@ -322,8 +322,10 @@ def make_comparable(
         com = com.sortby([dset.get_dim_name(com, "lat"), dset.get_dim_name(com, "lon")])
 
     # pick just the sites
-    if dset.is_site(ref[varname]):
+    if dset.is_site(ref[varname]) and dset.is_spatial(com[varname]):
         com = extract_sites(ref, com, varname)
+    if dset.is_site(com[varname]) and dset.is_spatial(ref[varname]):
+        ref = extract_sites(com, ref, varname)
 
     # convert units
     com = dset.convert(com, ref[varname].attrs["units"], varname=varname)
