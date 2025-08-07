@@ -852,18 +852,17 @@ def convert(
     xr.Dataset or xr.DataArray
         The converted dataset.
     """
-    dset = dset.pint.quantify()
     if isinstance(dset, xr.DataArray):
         da = dset
     else:
         assert varname is not None
         da = dset[varname]
+    da = da.pint.quantify()
     da = scale_by_water_density(da, unit)
     da = da.pint.to(unit)
     if isinstance(dset, xr.DataArray):
         return da.pint.dequantify()
-    dset[varname] = da
-    dset = dset.pint.dequantify()
+    dset[varname] = da.pint.dequantify()
     return dset
 
 
