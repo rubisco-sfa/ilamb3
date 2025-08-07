@@ -48,6 +48,21 @@ def fix_pint_units(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
+def fix_lndgrid_coords(ds: xr.Dataset) -> xr.Dataset:
+    """
+    Return a dataset with coordinates properly assigned.
+
+    Note
+    ----
+    E3SM/CESM2 raw land model output comes as if it were run over sites in the
+    `lndgrid` dimension. Some of the variables that are listed in these files
+    are only of this dimension and really belong in the coordinates. These tend
+    to be things like `lat`, `lon`, etc. and ilamb3 needs them to be associated
+    with the dataset coordinates to work.
+    """
+    return ds.assign_coords({v: ds[v] for v in ds if ds[v].dims == ("lndgrid",)})
+
+
 def select_analysis_variable(setup: dict[str, Any]) -> str:
     """
     Return the main variable to be used in this analysis.
