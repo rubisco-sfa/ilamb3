@@ -67,7 +67,8 @@ def pick_projection(
         return ccrs.Robinson(central_longitude=lon), 2.0  # Global
     # If none of above, use cyclindrical
     aspect_ratio = max(extents[1], extents[0]) - min(extents[1], extents[0])
-    aspect_ratio /= max(extents[3], extents[2]) - min(extents[3], extents[2])
+    denom = max(extents[3], extents[2]) - min(extents[3], extents[2])
+    aspect_ratio = 1.0 if denom < 1e-14 else aspect_ratio / denom
     proj = ccrs.PlateCarree(central_longitude=np.array(extents)[:2].mean())
     return proj, aspect_ratio
 
