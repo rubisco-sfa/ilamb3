@@ -21,6 +21,7 @@ defaults = {
     "figure_dpi": 100,
     "debug_mode": False,
     "run_mode": "interactive",  # for internal use
+    "model_colors": {},  # for internal use
 }
 
 

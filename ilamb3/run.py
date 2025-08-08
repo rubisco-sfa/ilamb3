@@ -22,6 +22,7 @@ import ilamb3.dataset as dset
 import ilamb3.regions as ilr
 from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
 from ilamb3.exceptions import AnalysisNotAppropriate, VarNotInModel
+from ilamb3.plot import set_model_colors
 from ilamb3.transform import ALL_TRANSFORMS
 from ilamb3.transform.base import ILAMBTransform
 
@@ -440,6 +441,15 @@ def run_single_block(
     variable = select_analysis_variable(setup)
     analyses = setup_analyses(setup, output_path)
     transforms = setup_transforms(setup)
+    if not ilamb3.conf["model_colors"]:
+        ilamb3.conf["model_colors"] = set_model_colors(
+            list(
+                comparison_data[ilamb3.conf["model_name_facets"]]
+                .astype(str)
+                .apply(lambda row: "-".join(row), axis=1)
+                .unique()
+            )
+        )
 
     # Thin out the dataframe to only contain variables we need for this block.
     comparison_data = comparison_data[
