@@ -518,21 +518,34 @@ def run_single_block(
             "Reference intermediate data was not generated."
         )  # pragma: no cover
 
+    log_file = output_path / "post.log"
+    log_id = logger.add(log_file, backtrace=True, diagnose=True)
+
     # Phase 2: get plots and combine scalars and save
-    plt.rcParams.update({"figure.max_open_warning": 0})
-    df = pd.concat(df_all).drop_duplicates(
-        subset=["source", "region", "analysis", "name"]
-    )
-    df = add_overall_score(df)
-    df_plots = plot_analyses(df, ds_ref, ds_com, analyses, output_path)
+    try:
+        plt.rcParams.update({"figure.max_open_warning": 0})
+        df = pd.concat(df_all).drop_duplicates(
+            subset=["source", "region", "analysis", "name"]
+        )
+        df = add_overall_score(df)
+        df_plots = plot_analyses(df, ds_ref, ds_com, analyses, output_path)
+    except Exception:
+        logger.exception(f"ILAMB analysis '{block_name}' failed in plotting.")
+        return
 
     # Generate an output page
-    if ilamb3.conf["debug_mode"] and (output_path / "index.html").is_file():
+    try:
+        if ilamb3.conf["debug_mode"] and (output_path / "index.html").is_file():
+            logger.remove(log_id)
+            return
+        ds_ref.attrs["header"] = block_name
+        html = generate_html_page(df, ds_ref, ds_com, df_plots)
+        with open(output_path / "index.html", mode="w") as out:
+            out.write(html)
+    except Exception:
+        logger.exception(f"ILAMB analysis '{block_name}' failed in generating html.")
         return
-    ds_ref.attrs["header"] = block_name
-    html = generate_html_page(df, ds_ref, ds_com, df_plots)
-    with open(output_path / "index.html", mode="w") as out:
-        out.write(html)
+    logger.remove(log_id)
 
 
 def run_analyses(
