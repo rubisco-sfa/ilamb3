@@ -69,3 +69,36 @@ class select_depth(ILAMBTransform):
         else:
             return ds.sel({depth_name: slice(self.vmin, self.vmax)})
         return ds
+
+
+class select_time(ILAMBTransform):
+    """
+    Select a time if the dimension exists.
+
+    Parameters
+    ----------
+    vmin : timestamp
+        The minimum depth to slice.
+    vmax : timestamp
+        The maximum depth to slice.
+
+    """
+
+    def __init__(self, vmin: str, vmax: str, **kwargs: Any):
+        self.vmin = vmin
+        self.vmax = vmax
+
+    def required_variables(self) -> list[str]:
+        """
+        Return the variables this transform uses.
+        """
+        return []
+
+    def __call__(self, ds: xr.Dataset) -> xr.Dataset:
+        """
+        Select a depth or depth range of the input dataset, if a depth dimension is found.
+        """
+        if not dset.is_temporal(ds):
+            return ds
+        time_name = dset.get_dim_name(ds, "time")
+        return ds.sel({time_name: slice(self.vmin, self.vmax)})
