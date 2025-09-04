@@ -58,7 +58,7 @@ def generate_test_dset(
                 coords=coords,
                 dims=dims,
                 name=name,
-                attrs={"units": unit},
+                attrs={"long_name": "something", "units": unit},
             ),
         }
     )
