@@ -164,6 +164,7 @@ class rmse_analysis(ILAMBAnalysis):
         )
         crms = np.sqrt(dset.integrate_time((ref - ref_mean) ** 2, varname, mean=True))
         score = np.exp(-crmse / crms)
+        score.attrs["units"] = "1"
 
         # Load outputs and scalars
         ds_com["rmse"] = rmse
