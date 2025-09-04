@@ -2,6 +2,7 @@
 
 import contextlib
 import copy
+import os
 from pathlib import Path
 
 import yaml
@@ -28,11 +29,12 @@ class Config(dict):
     """A global configuration object used in the package."""
 
     def __init__(self, filename: Path | None = None, **kwargs):
-        self.filename = (
-            Path(filename)
-            if filename is not None
-            else Path.home() / ".config/ilamb3/conf.yaml"
-        )
+        if filename is not None:
+            self.filename = Path(filename)
+        elif "ILAMB3_CONFIGURATION" in os.environ:
+            self.filename = Path(os.environ["ILAMB3_CONFIGURATION"])
+        else:
+            self.filename = Path.home() / ".config/ilamb3/conf.yaml"
         self.filename.parent.mkdir(parents=True, exist_ok=True)
         self.reload_all()
         self.temp = None
