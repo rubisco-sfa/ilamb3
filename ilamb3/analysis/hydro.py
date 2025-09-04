@@ -12,7 +12,6 @@ import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 import ilamb3.plot as plt
 from ilamb3.analysis.base import ILAMBAnalysis, scalarify
-
 from ilamb3.plot import unify_units
 
 
@@ -306,14 +305,9 @@ class hydro_analysis(ILAMBAnalysis):
                 return "bwr"
             return "viridis"
 
-
-        def _set_ylabel(name:str, units:str) -> str:
-
+        def _set_ylabel(name: str, units: str) -> str:
             units_str = unify_units(units)
-            return f"{name} {unit_str}"
-
-
-
+            return f"{name} {units_str}"
 
         # Which plots are we handling in here? I am building this list from a
         # section layout I created in the constructor.
@@ -382,9 +376,13 @@ class hydro_analysis(ILAMBAnalysis):
 
                 ylabel = None
                 try:
-                    ylabel = _set_ylabel(ref[plot].attrs["long_name"], ref[plot].attrs["units"])
+                    ylabel = _set_ylabel(
+                        ref[plot].attrs["long_name"], ref[plot].attrs["units"]
+                    )
                 except KeyError:
-                    raise ValueError("Reference Dataset attributes missing 'long_name' or 'units' key")
+                    raise ValueError(
+                        "Reference Dataset attributes missing 'long_name' or 'units' key"
+                    )
 
                 ax = plt.plot_curve(
                     {source: ds} | {"Reference": ref},

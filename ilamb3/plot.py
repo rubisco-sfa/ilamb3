@@ -4,6 +4,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pint
 import xarray as xr
 from matplotlib.colors import LogNorm
 
@@ -11,12 +12,11 @@ import ilamb3
 import ilamb3.dataset as dset
 from ilamb3.regions import Regions
 
-import pint
 ureg = pint.UnitRegistry()
 
 
 def unify_units(units: str) -> str:
-    """ unify units form for plotting. """
+    """unify units form for plotting."""
     try:
         unit_value = ureg(units)
         if isinstance(unit_value, int):
@@ -26,6 +26,7 @@ def unify_units(units: str) -> str:
 
     except (AttributeError, pint.DimensionalityError) as e:
         raise ValueError(f"Invalid unit specification: {str(e)}")
+    return unit_str
 
 
 def get_extents(da: xr.DataArray) -> list[float]:
@@ -144,15 +145,11 @@ def plot_map(da: xr.DataArray, **kwargs):
     )
 
     # Setup colorbar arguments
-
     try:
-        unit_value = da.attrs["units"]
         cba_unit_str = unify_units(da.attrs["units"])
         cba = {"label": cba_unit_str}
-        
     except KeyError:
         raise ValueError("Dataset attributes missing 'units' key")
-
     if "cbar_kwargs" in kwargs:
         cba.update(kwargs.pop("cbar_kwargs"))
 
