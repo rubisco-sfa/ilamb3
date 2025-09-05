@@ -12,6 +12,15 @@ import ilamb3.dataset as dset
 from ilamb3.regions import Regions
 
 
+def coerce_to_cf_compliance(da: xr.DataArray) -> xr.DataArray:
+    """Try to make the units CF-compliant using the pint/cf-xarray formatter."""
+    try:
+        da.attrs["units"] = f"{da.pint.quantify().pint.units:~cf}"
+    except Exception:
+        pass
+    return da
+
+
 def get_extents(da: xr.DataArray) -> list[float]:
     """Find the extent of the non-null data."""
     lat = xr.where(da.notnull(), da[dset.get_coord_name(da, "lat")], np.nan)
@@ -110,6 +119,7 @@ def plot_map(da: xr.DataArray, **kwargs):
         kwargs["cmap"] if "cmap" in kwargs else "viridis", ncolors
     )
     title = kwargs.pop("title") if "title" in kwargs else ""
+    da = coerce_to_cf_compliance(da)
 
     # Process region if given
     ilamb_regions = Regions()
@@ -171,6 +181,7 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
     xticks = kwargs.pop("xticks") if "xticks" in kwargs else None
     xticklabels = kwargs.pop("xticklabels") if "xticklabels" in kwargs else None
     title = kwargs.pop("title") if "title" in kwargs else ""
+    ylabel = kwargs.pop("ylabel") if "ylabel" in kwargs else None
 
     # Setup figure
     ASPECT = 1.618
@@ -190,9 +201,12 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
         )
         for source, ds in dsd.items()
     }
-    ref = dad.pop("Reference")
+
+    # Coerce units
+    dad = {source: coerce_to_cf_compliance(da) for source, da in dad.items()}
 
     # Plot curves
+    ref = dad.pop("Reference")
     ref.plot(ax=ax, color="k", label="Reference")
     for source, da in dad.items():
         da.plot(ax=ax, color=get_model_color(source), label=source)
@@ -205,10 +219,13 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
         ax.set_xticklabels(xticklabels)
     if vmin is not None and vmax is not None:
         ax.set_ylim(vmin, vmax)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
     return ax
 
 
 def plot_distribution(da: xr.DataArray, **kwargs):
+    da = coerce_to_cf_compliance(da)
     _, ax = plt.subplots(
         dpi=ilamb3.conf["figure_dpi"], tight_layout=True, figsize=(6, 5.25)
     )

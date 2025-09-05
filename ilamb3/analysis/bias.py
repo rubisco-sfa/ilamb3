@@ -208,6 +208,7 @@ class bias_analysis(ILAMBAnalysis):
                 f"'RegionalQuantiles' but found {self.method=}"
             )
             raise ValueError(msg)
+        score.attrs["units"] = 1
 
         # Build output datasets
         ref_out = ref_mean.to_dataset(name="mean")
