@@ -368,6 +368,14 @@ class hydro_analysis(ILAMBAnalysis):
                     "source": source,
                     "analysis": "Annual",
                 }
+                # Try to set the ylabel but if it fails, use xarray default
+                ylabel = None
+                try:
+                    ylabel = (
+                        f"{ref[plot].attrs['long_name']} {ref[plot].attrs['units']}"
+                    )
+                except Exception:
+                    pass
                 ax = plt.plot_curve(
                     {source: ds} | {"Reference": ref},
                     plot,
@@ -376,6 +384,7 @@ class hydro_analysis(ILAMBAnalysis):
                     vmax=df.loc[plot, "high"]
                     + 0.05 * (df.loc[plot, "high"] - df.loc[plot, "low"]),
                     title=f"{source} Regional Mean",
+                    ylabel=ylabel,
                 )
                 if self.output_path is None:
                     row["axis"] = ax

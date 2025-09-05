@@ -181,6 +181,7 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
     xticks = kwargs.pop("xticks") if "xticks" in kwargs else None
     xticklabels = kwargs.pop("xticklabels") if "xticklabels" in kwargs else None
     title = kwargs.pop("title") if "title" in kwargs else ""
+    ylabel = kwargs.pop("ylabel") if "ylabel" in kwargs else None
 
     # Setup figure
     ASPECT = 1.618
@@ -218,6 +219,8 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
         ax.set_xticklabels(xticklabels)
     if vmin is not None and vmax is not None:
         ax.set_ylim(vmin, vmax)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
     return ax
 
 
