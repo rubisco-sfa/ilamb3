@@ -206,12 +206,12 @@ class Relationship:
         """
         ds = xr.Dataset(
             data_vars={
-                f"distribution_{self.ind_var}": (
+                f"distribution-{self.ind_var}": (
                     [self.dep_var, self.ind_var],
                     self._dist2d,
                 ),
-                f"response_{self.ind_var}": ([self.ind_var], self._response_mean),
-                f"response_{self.ind_var}_variability": (
+                f"response-{self.ind_var}": ([self.ind_var], self._response_mean),
+                f"response-{self.ind_var}-variability": (
                     [self.ind_var],
                     self._response_std,
                 ),
@@ -227,8 +227,8 @@ class Relationship:
                 ),
             },
         )
-        ds[f"response_{self.ind_var}"].attrs = {
-            "ancillary_variables": f"response_{self.ind_var}_variability"
+        ds[f"response-{self.ind_var}"].attrs = {
+            "ancillary_variables": f"response-{self.ind_var}-variability"
         }
         ds[self.ind_var].attrs = {"standard_name": self.ind_label}
         ds[self.dep_var].attrs = {"standard_name": self.dep_label}
@@ -393,16 +393,16 @@ class relationship_analysis(ILAMBAnalysis):
         # Build up a dataframe of matplotlib axes, first the distribution plots
         axs = [
             {
-                "name": f"distribution_{self.ind_variable}",
+                "name": f"distribution-{self.ind_variable}",
                 "title": f"{self.dep_variable} vs. {self.ind_variable}",
                 "region": region,
                 "source": source,
                 "axis": (
                     plt.plot_distribution(
-                        ds[f"distribution_{self.ind_variable}_{region}"],
+                        ds[f"distribution-{self.ind_variable}_{region}"],
                         title=f"{source} {self.dep_variable} vs. {self.ind_variable}",
                     )
-                    if f"distribution_{self.ind_variable}_{region}" in ds
+                    if f"distribution-{self.ind_variable}_{region}" in ds
                     else pd.NA
                 ),
             }
@@ -412,20 +412,20 @@ class relationship_analysis(ILAMBAnalysis):
         com.pop("Reference")
         axs += [
             {
-                "name": f"response_{self.ind_variable}",
+                "name": f"response-{self.ind_variable}",
                 "title": f"{self.dep_variable} vs. {self.ind_variable}",
                 "region": region,
                 "source": source,
                 "axis": (
                     plt.plot_response(
-                        ref[f"response_{self.ind_variable}_{region}"],
-                        ref[f"response_{self.ind_variable}_variability_{region}"],
-                        ds[f"response_{self.ind_variable}_{region}"],
-                        ds[f"response_{self.ind_variable}_variability_{region}"],
+                        ref[f"response-{self.ind_variable}_{region}"],
+                        ref[f"response-{self.ind_variable}-variability_{region}"],
+                        ds[f"response-{self.ind_variable}_{region}"],
+                        ds[f"response-{self.ind_variable}-variability_{region}"],
                         source,
                         title=f"{source} {self.dep_variable} vs. {self.ind_variable}",
                     )
-                    if f"response_{self.ind_variable}_{region}" in ds
+                    if f"response-{self.ind_variable}_{region}" in ds
                     else pd.NA
                 ),
             }
