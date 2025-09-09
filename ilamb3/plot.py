@@ -174,6 +174,22 @@ def plot_map(da: xr.DataArray, **kwargs):
     return ax
 
 
+def _pick_convert_calendar_align_on_option(da: xr.DataArray) -> None | str:
+    """
+    Resturn the best option based on guidance in the xarray documentation.
+    """
+    t = da[dset.get_dim_name(da, "time")]
+    if (hasattr(t, "dt") and t.dt.calendar == "360_day") or (
+        "calendar" in t.attrs and t.attrs["calendar"] == "360_day"
+    ):
+        dt = dset.get_mean_time_frequency(da)
+        if dt < 1:
+            return "year"
+        else:
+            return "date"
+    return None
+
+
 def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
     # Parse some options
     vmin = kwargs.pop("vmin") if "vmin" in kwargs else None
@@ -195,7 +211,9 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
     # Convert to single calendar for plotting
     dad = {
         source: (
-            ds[varname].convert_calendar("noleap")
+            ds[varname].convert_calendar(
+                "noleap", align_on=_pick_convert_calendar_align_on_option(ds[varname])
+            )
             if "time" in ds[varname].dims
             else ds[varname]
         )
