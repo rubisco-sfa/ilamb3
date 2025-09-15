@@ -1,5 +1,6 @@
 """Convenience functions which operate on datasets."""
 
+import warnings
 from typing import Any, Literal
 
 import numpy as np
@@ -428,14 +429,16 @@ def compute_cell_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     return msr
 
 
-def coarsen_dataset(dset: xr.Dataset, res: float = 0.5) -> xr.Dataset:
+def coarsen_dataset(dset: xr.Dataset, varname: str, res: float = 0.5) -> xr.Dataset:
     """
-    Return the mass-conversing spatially coarsened dataset.
+    Return the convervative spatially coarsened dataset.
 
     Parameters
     ----------
     dset : xr.Dataset
         The input dataset.
+    varname : str
+        The name of the dataarray to be coarsened.
     res : float, optional
         The target resolution in degrees.
 
@@ -443,40 +446,46 @@ def coarsen_dataset(dset: xr.Dataset, res: float = 0.5) -> xr.Dataset:
     -------
     xr.Dataset
         The coarsened dataset.
-
-    Notes
-    -----
-    Coarsens the source dataset to the target resolution while conserving the
-    overall integral and apply masks where all values are nan.
     """
+    assert varname in dset
+    # This coarsening does not permit you to give the lats/lons, only the resolution
     lat_name = get_dim_name(dset, "lat")
     lon_name = get_dim_name(dset, "lon")
-    fine_per_coarse = int(
-        round(res / np.abs(dset[lat_name].diff(lat_name).mean().values))  # type: ignore
+    ds_res = np.sqrt(
+        dset[lat_name].diff(lat_name).mean().values ** 2
+        + dset[lon_name].diff(lon_name).mean().values ** 2
     )
-    # To spatially coarsen this dataset we will use the xarray 'coarsen'
-    # functionality. However, if we want the area weighted sums to be the same,
-    # we need to integrate over the coarse cells and then divide through by the
-    # new areas. We also need to keep track of nan's to apply a mask to the
-    # coarsened dataset.
+    if res < ds_res:
+        raise ValueError(
+            f"Cannot coarsen as the dataset resolution was already coarser than the target resolution: {res} < {ds_res}"
+        )
+    fine_per_coarse = int(round(res / ds_res))
+    # In order for our coarsening to be conservative, we will need to use cell measures
     if "cell_measures" not in dset:
         dset["cell_measures"] = compute_cell_measures(dset)
-    nll = (
-        dset.notnull()
-        .any(dim=[d for d in dset.dims if d not in [lat_name, lon_name]])
-        .coarsen({"lat": fine_per_coarse, "lon": fine_per_coarse}, boundary="pad")
-        .sum()  # type: ignore
-        .astype(int)
-    )
-    dset_coarse = (
-        (dset.drop_vars("cell_measures") * dset["cell_measures"])
-        .coarsen({"lat": fine_per_coarse, "lon": fine_per_coarse}, boundary="pad")
-        .sum()  # type: ignore
-    )
-    cell_measures = compute_cell_measures(dset_coarse)
-    dset_coarse = dset_coarse / cell_measures
-    dset_coarse["cell_measures"] = cell_measures
-    dset_coarse = xr.where(nll == 0, np.nan, dset_coarse)
+    # The data to be coarsened may contain nan's. If a variable is nan for all
+    # dimensions not part of the measures (usually just 'time') then make the
+    # measure also nan.
+    msr = dset["cell_measures"]
+    var = dset[varname]
+    other_dims = set(var.dims).difference(msr.dims)
+    dset["cell_measures"] = msr.where(~(var.isnull().all(dim=other_dims)), drop=True)
+    # Sometimes variables have nan's in some but not all slices. For noe we will
+    # detect this and warn. A fix will require extending the measures into those
+    # other dimensions and then masking as data requires.
+    if ((~var.isnull().all(dim=other_dims)) & (var.isnull().any(dim=other_dims))).sum():
+        warnings.warn(
+            f"Non-uniformly distributed nan's found in {other_dims} dimensions. Coarsened result may not be conservative."
+        )
+
+    # The 'weighted' accessor does not work with coarsen and so we will do a
+    # weighted average here manually.
+    dset[varname] *= dset["cell_measures"]
+    dset_coarse = dset.coarsen(
+        {"lat": fine_per_coarse, "lon": fine_per_coarse}, boundary="pad"
+    ).sum()
+    dset[varname] /= dset["cell_measures"]
+    dset_coarse[varname] /= dset_coarse["cell_measures"]
     return dset_coarse
 
 
