@@ -15,6 +15,7 @@ defaults = {
     "quantile_threshold": 70,
     "use_uncertainty": False,
     "model_name_facets": ["source_id", "member_id", "grid_label"],
+    "group_name_facets": None,
     "plot_central_longitude": 0,
     "comparison_groupby": ["source_id", "member_id", "grid_label"],
     "use_cached_results": False,
@@ -67,6 +68,7 @@ class Config(dict):
         prefer_regional_quantiles: bool | None = None,
         use_uncertainty: bool | None = None,
         model_name_facets: list[str] | None = None,
+        group_name_facets: list[str] | None = None,
         plot_central_longitude: float | None = None,
         comparison_groupby: list[str] | None = None,
         use_cached_results: bool | None = None,
@@ -91,6 +93,8 @@ class Config(dict):
             self["use_uncertainty"] = bool(use_uncertainty)
         if model_name_facets is not None:
             self["model_name_facets"] = model_name_facets
+        if group_name_facets is not None:
+            self["group_name_facets"] = group_name_facets
         if plot_central_longitude is not None:
             self["plot_central_longitude"] = float(plot_central_longitude)
         if comparison_groupby is not None:

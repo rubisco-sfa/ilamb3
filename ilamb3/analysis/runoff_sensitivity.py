@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+import ilamb3
 from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.exceptions import MissingVariable
 from ilamb3.regions import Regions
@@ -85,12 +86,14 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
     def __init__(
         self,
         basin_source: str | Path | None = None,
+        output_path: str | Path | None = None,
         **kwargs: Any,
     ):
         # Register basins in the ILAMB region system
         assert basin_source is not None
         ilamb_regions = Regions()
         self.basins = ilamb_regions.add_netcdf(basin_source)
+        self.output_path = Path(output_path) if output_path is not None else None
 
     def required_variables(self) -> list[str]:
         """
@@ -228,46 +231,120 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
         # tanked bar plot, how does a given model
         # bottom left
 
-        # The first plot is meant to help us understand if our scoring methodology makes sense.
-        for model, ds in com.items():
-            for basin in ref["basin"]:
-                debug_plot(ref, ds, "psens_obs", basin)
+        rows = []
+        for basin in sorted(ref["basin"]):
+            if rows:
+                continue
+            for model in com:
+                _basin_plots(df, ref, com, basin, model, self.output_path)
+                rows.append(
+                    {
+                        "name": str(basin.values),
+                        "title": f"Basin plot for {str(basin.values)}",
+                        "region": None,
+                        "source": model,
+                        "axis": False,
+                    }
+                )
+        return pd.DataFrame(rows)
 
-        return pd.DataFrame(
-            [
-                {
-                    "name": "",
-                    "title": "",
-                    "region": None,
-                    "source": None,
-                    "axis": False,
-                }
-            ]
+
+def _basin_plots(
+    df: pd.DataFrame,
+    ref: xr.Dataset,
+    com: dict[str, xr.Dataset],
+    basin: str,
+    model: str,
+    output_path: Path | None,
+):
+    def _errorbar(ax, mod: xr.DataArray, loc: int, color: str):
+        ax.errorbar(
+            [loc],
+            mod.isel(sens_type=0).values,
+            yerr=np.abs(
+                mod.isel(sens_type=0) - mod.isel(sens_type=[1, 2])
+            ).values.reshape((-1, 1)),
+            color=color,
+            marker="o",
+            markersize=2,
+            capsize=2,
         )
 
+    def _errorbarxy(ax, mod: xr.DataArray, color: str):
+        ax.errorbar(
+            mod["psens_obs"].isel(sens_type=0).values,
+            mod["tsens_obs"].isel(sens_type=0).values,
+            xerr=np.abs(
+                mod["psens_obs"].isel(sens_type=0)
+                - mod["psens_obs"].isel(sens_type=[1, 2])
+            ).values.reshape((-1, 1)),
+            yerr=np.abs(
+                mod["tsens_obs"].isel(sens_type=0)
+                - mod["tsens_obs"].isel(sens_type=[1, 2])
+            ).values.reshape((-1, 1)),
+            color=color,
+            marker="o",
+            markersize=2,
+            capsize=2,
+        )
 
-def debug_plot(ref: xr.Dataset, com: xr.Dataset, vname: str, basin: str):
-    import matplotlib.patches as mpatches
+    NAME_CLEANUP = {
+        "psens_obs": r"$\Delta Q / \Delta P$",
+        "tsens_obs": r"$\Delta Q / \Delta T$",
+    }
+    # Define the unique groups, if more than 1 models is available
+    groups = (
+        list(df["group"].dropna().unique()) if ("group" in df and len(com) > 1) else []
+    )
 
-    score = com[f"score_{vname}"].sel(basin=basin).mean().values
-    fig, ax = plt.subplots(tight_layout=True)
-    ind = np.linspace(0, 1, 100).reshape((4, 25))
-    for i, c in zip(range(3), ["r", "g", "b"]):
-        ax.plot(ind, ref[vname].sel(basin=basin).isel(sens_type=i), ".", color=c)
-    ax.plot([1.123] * 3, com[vname].sel(basin=basin).values, "^", color="k")
-    ax.set_xticks([0.125, 0.375, 0.625, 0.875], ref["foc"].astype(str).values)
-    ax.set_ylabel(vname)
-    ax.set_title(
-        f"{vname} | {ref['basin'].sel(basin=basin).astype(str).values} | {score:.2f}"
+    fig, axs = plt.subplots(
+        figsize=(6.4, 2.0),
+        ncols=3,
+        width_ratios=[1, 1, 2],
+        tight_layout=True,
+        dpi=ilamb3.conf["figure_dpi"],
     )
-    fig.legend(
-        handles=[
-            mpatches.Patch(color="b", label="Upper"),
-            mpatches.Patch(color="r", label="Sensitivity"),
-            mpatches.Patch(color="g", label="Lower"),
-        ],
-        loc=2,
+    for i, vname in enumerate(["psens_obs", "tsens_obs"]):
+        _errorbar(axs[i], ref[vname].sel(basin=basin).mean(dim=["foc", "ens"]), 1, "k")
+        _errorbar(axs[i], com[model][vname].sel(basin=basin), 2, "r")
+        for loc, group in enumerate(groups):
+            grp = xr.concat(
+                [
+                    ds
+                    for name, ds in com.items()
+                    if name in df[df["group"] == group]["source"].unique()
+                ],
+                dim="model",
+            ).mean(dim="model")
+            _errorbar(axs[i], grp[vname].sel(basin=basin), 3 + loc, "b")
+        axs[i].set_ylabel(f"{NAME_CLEANUP[vname]} [{ref[vname].attrs['units']}]")
+        axs[i].set_xticks(
+            range(1, (3 + len(groups))),
+            [
+                "Reference",
+                model,
+            ]
+            + groups,
+        )
+        axs[i].spines["top"].set_visible(False)
+        axs[i].spines["right"].set_visible(False)
+        axs[i].tick_params(axis="x", labelrotation=45)
+
+    # Scatter plots for all models
+    _errorbarxy(axs[2], ref.sel(basin=basin).mean(dim=["foc", "ens"]), color="k")
+    for _, cm in com.items():
+        _errorbarxy(axs[2], cm.sel(basin=basin), color="r")
+    axs[2].spines["top"].set_visible(False)
+    axs[2].spines["right"].set_visible(False)
+    axs[2].set_xlabel(
+        f"{NAME_CLEANUP['psens_obs']} [{ref['psens_obs'].attrs['units']}]"
     )
-    name = f"{score:.4f}"[2:]
-    fig.savefig(f"_build_runoff/{name}.png")
-    plt.close()
+    axs[2].set_ylabel(
+        f"{NAME_CLEANUP['tsens_obs']} [{ref['tsens_obs'].attrs['units']}]"
+    )
+    fig.suptitle(f"{str(basin.values)}")
+    if output_path is None:
+        return fig
+    else:
+        fig.savefig(output_path / f"{model}_None_{str(basin.values)}.png")
+        plt.close()

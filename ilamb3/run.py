@@ -116,9 +116,11 @@ def setup_analyses(
                 setup
                 | {
                     "required_variable": main_variable,
-                    "output_path": None
-                    if ilamb3.conf["run_mode"] == "interactive"
-                    else output_path,
+                    "output_path": (
+                        None
+                        if ilamb3.conf["run_mode"] == "interactive"
+                        else output_path
+                    ),
                 }
             )
         )
@@ -477,6 +479,18 @@ def run_single_block(
             )
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
             dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
+
+            # Set a group name optionally, if facets were specified
+            if ilamb3.conf["group_name_facets"] is not None:
+                if not set(ilamb3.conf["group_name_facets"]).issubset(grp.columns):
+                    raise ValueError(
+                        f"Could not set model group name. You gave these facets {ilamb3.conf['group_name_facets']} but I am not finding them in the comparison dataset dataframe {grp.columns}."
+                    )
+                group_name = grp[ilamb3.conf["group_name_facets"]].apply(
+                    lambda row: "-".join(row), axis=1
+                )
+                assert all(group_name == group_name.iloc[0])
+                dfs["group"] = str(group_name.iloc[0])
 
             # Write out artifacts
             dfs.to_csv(csv_file, index=False)
