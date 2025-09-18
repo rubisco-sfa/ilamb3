@@ -19,6 +19,7 @@ import ilamb3
 import ilamb3.analysis as anl
 import ilamb3.compare as cmp
 import ilamb3.dataset as dset
+import ilamb3.plot as ilp
 import ilamb3.regions as ilr
 from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
 from ilamb3.exceptions import AnalysisNotAppropriate, VarNotInModel
@@ -812,6 +813,22 @@ def run_study(
         reg = ilamb3.iomb_catalog()
     else:
         raise ValueError("Unsupported registry.")
+
+    # Set model colors, some hard coded
+    ilamb3.conf.set(
+        label_colors={
+            "Reference": (0.0, 0.0, 0.0, 1.0),
+            "CMIP5": (0.19215, 0.35294, 0.81176, 1.0),
+            "CMIP6": (0.81568, 0.21176, 0.21176, 1.0),
+        }
+    )
+    model_names = sorted(
+        df_datasets[ilamb3.conf["model_name_facets"]]
+        .apply(lambda row: "-".join(row), axis=1)
+        .unique(),
+        key=lambda m: m.lower(),
+    )
+    ilamb3.conf.set(label_colors=ilp.set_label_colors(model_names))
 
     # The yaml analysis setup can be as structured as the user needs. We are no longer
     # limited to the `h1` and `h2` headers from ILAMB 2.x. We will detect leaf nodes by

@@ -22,6 +22,7 @@ defaults = {
     "figure_dpi": 100,
     "debug_mode": False,
     "run_mode": "interactive",  # for internal use
+    "label_colors": {},
 }
 
 
@@ -74,6 +75,7 @@ class Config(dict):
         use_cached_results: bool | None = None,
         figure_dpi: int | None = None,
         debug_mode: bool | None = None,
+        label_colors: dict[str, tuple[float, float, float, float]] | None = None,
     ):
         """Change ilamb3 configuration options."""
         temp = copy.deepcopy(self)
@@ -105,6 +107,9 @@ class Config(dict):
             self["figure_dpi"] = int(figure_dpi)
         if debug_mode is not None:
             self["debug_mode"] = bool(debug_mode)
+        if label_colors is not None:
+            assert isinstance(label_colors, dict)
+            self["label_colors"].update(label_colors)
         return self._unset(temp)
 
     def __getitem__(self, item):
