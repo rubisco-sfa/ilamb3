@@ -227,14 +227,8 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
         """
         Return figures of the reference and comparison data.
         """
-        # basin time series
-        # tanked bar plot, how does a given model
-        # bottom left
-
         rows = []
         for basin in sorted(ref["basin"]):
-            if rows:
-                continue
             for model in com:
                 _basin_plots(df, ref, com, basin, model, self.output_path)
                 rows.append(
@@ -249,6 +243,13 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
         return pd.DataFrame(rows)
 
 
+def _get_group_membership(df: pd.DataFrame, model: str) -> str | None:
+    """Return the group to which the model belongs if any."""
+    if "group" not in df.columns:
+        return None
+    return df[df["source"] == model].dropna(subset="group")["group"].unique()[0]
+
+
 def _basin_plots(
     df: pd.DataFrame,
     ref: xr.Dataset,
@@ -257,6 +258,8 @@ def _basin_plots(
     model: str,
     output_path: Path | None,
 ):
+    """Create a basin/model specific plot."""
+
     def _errorbar(ax, mod: xr.DataArray, loc: int, color: str):
         ax.errorbar(
             [loc],
@@ -288,25 +291,39 @@ def _basin_plots(
             capsize=2,
         )
 
+    # Map the variable names to something more aesthetic
     NAME_CLEANUP = {
         "psens_obs": r"$\Delta Q / \Delta P$",
         "tsens_obs": r"$\Delta Q / \Delta T$",
     }
+
     # Define the unique groups, if more than 1 models is available
     groups = (
         list(df["group"].dropna().unique()) if ("group" in df and len(com) > 1) else []
     )
 
+    # Scores
+    score = xr.concat(
+        [da for var, da in com[model].items() if "score" in var], dim="score"
+    ).mean(dim=["foc", "ens", "score"])
+
+    # Create the plot
     fig, axs = plt.subplots(
-        figsize=(6.4, 2.0),
+        figsize=(6.4, 3.0),
         ncols=3,
         width_ratios=[1, 1, 2],
         tight_layout=True,
         dpi=ilamb3.conf["figure_dpi"],
     )
+    # The first 2 panels...
     for i, vname in enumerate(["psens_obs", "tsens_obs"]):
         _errorbar(axs[i], ref[vname].sel(basin=basin).mean(dim=["foc", "ens"]), 1, "k")
-        _errorbar(axs[i], com[model][vname].sel(basin=basin), 2, "r")
+        _errorbar(
+            axs[i],
+            com[model][vname].sel(basin=basin),
+            2,
+            ilamb3.conf["label_colors"].get(model, "k"),
+        )
         for loc, group in enumerate(groups):
             grp = xr.concat(
                 [
@@ -316,7 +333,12 @@ def _basin_plots(
                 ],
                 dim="model",
             ).mean(dim="model")
-            _errorbar(axs[i], grp[vname].sel(basin=basin), 3 + loc, "b")
+            _errorbar(
+                axs[i],
+                grp[vname].sel(basin=basin),
+                3 + loc,
+                ilamb3.conf["label_colors"].get(group, "k"),
+            )
         axs[i].set_ylabel(f"{NAME_CLEANUP[vname]} [{ref[vname].attrs['units']}]")
         axs[i].set_xticks(
             range(1, (3 + len(groups))),
@@ -330,10 +352,22 @@ def _basin_plots(
         axs[i].spines["right"].set_visible(False)
         axs[i].tick_params(axis="x", labelrotation=45)
 
-    # Scatter plots for all models
-    _errorbarxy(axs[2], ref.sel(basin=basin).mean(dim=["foc", "ens"]), color="k")
-    for _, cm in com.items():
-        _errorbarxy(axs[2], cm.sel(basin=basin), color="r")
+    # ... and the far right panel
+    for model_name, cm in com.items():
+        if model_name == model:
+            continue
+        label_name = _get_group_membership(df, model_name)
+        if label_name is None:
+            label_name = model_name
+        _errorbarxy(
+            axs[2],
+            cm.sel(basin=basin),
+            ilamb3.conf["label_colors"].get(label_name, "k"),
+        )
+    _errorbarxy(axs[2], ref.sel(basin=basin).mean(dim=["foc", "ens"]), "k")
+    _errorbarxy(
+        axs[2], com[model].sel(basin=basin), ilamb3.conf["label_colors"].get(model, "k")
+    )
     axs[2].spines["top"].set_visible(False)
     axs[2].spines["right"].set_visible(False)
     axs[2].set_xlabel(
@@ -342,7 +376,12 @@ def _basin_plots(
     axs[2].set_ylabel(
         f"{NAME_CLEANUP['tsens_obs']} [{ref['tsens_obs'].attrs['units']}]"
     )
-    fig.suptitle(f"{str(basin.values)}")
+    fig.suptitle(
+        f"{str(basin.values)} ($S={float(score.sel(basin=basin)):.3f}$)",
+        x=0.01,
+        y=0.98,
+        horizontalalignment="left",
+    )
     if output_path is None:
         return fig
     else:
