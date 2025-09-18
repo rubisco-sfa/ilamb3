@@ -15,45 +15,16 @@ import pandas as pd
 import xarray as xr
 
 import ilamb3
+import ilamb3.plot as ilp
 from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.exceptions import MissingVariable
 from ilamb3.regions import Regions
 
-
-def _nc_obs_to_dataframe(ds: xr.Dataset) -> pd.DataFrame:
-    """
-    Convert Hanjun's dataset into a dataframe.
-    """
-    dfs = [
-        (
-            xr.DataArray(
-                ds[dsvar].values,
-                dims=("for", "ens", "basin", "sens_type"),
-                coords={
-                    "for": ds["foc_names"].values,
-                    "basin": ds["basin_names"].values,
-                    "sens_type": ds["sens_type_names"].values,
-                },
-                name="value",
-            )
-            .to_dataframe()
-            .reset_index()
-            .set_index(["for", "ens", "basin"])
-            .pivot_table(
-                columns="sens_type", values="value", index=["for", "ens", "basin"]
-            )
-            .rename(
-                columns={
-                    b"lower bound (95% confidence interval of reg. coeff.)": f"{var} Low",
-                    b"upper bound (95% confidence interval of reg. coeff.)": f"{var} High",
-                    b"sensitivity value": f"{var} Sensitivity",
-                }
-            )
-        )
-        for dsvar, var in [["psens_obs", "pr"], ["tsens_obs", "tas"]]
-    ]
-    df = pd.merge(*dfs, left_index=True, right_index=True)
-    return df
+# Map the variable names to something more aesthetic
+NAME_CLEANUP = {
+    "psens_obs": r"$\Delta Q / \Delta P$",
+    "tsens_obs": r"$\Delta Q / \Delta T$",
+}
 
 
 def _fix_ds_dims(ds: xr.Dataset) -> xr.Dataset:
@@ -228,6 +199,36 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
         Return figures of the reference and comparison data.
         """
         rows = []
+
+        # Create score maps
+        ilamb_regions = Regions()
+        for model, mod in com.items():
+            for var in ["score_psens_obs", "score_tsens_obs"]:
+                title = f"{model} {NAME_CLEANUP['_'.join(var.split('_')[1:])]} Score"
+                da = ilamb_regions.region_scalars_to_map(
+                    mod[var].mean(dim=["foc", "ens"]).to_pandas().to_dict()
+                )
+                da.attrs["units"] = 1
+                ax = ilp.plot_map(da, vmin=0, vmax=1, cmap="plasma")
+                rows.append(
+                    {
+                        "name": var.replace("_", ""),
+                        "title": title,
+                        "region": None,
+                        "source": model,
+                        "axis": False,
+                    }
+                )
+                ax.set_title(title)
+                fig = ax.get_figure()
+                if self.output_path is None:
+                    return fig
+                else:
+                    fig.savefig(
+                        self.output_path / f"{model}_None_{var.replace('_', '')}.png"
+                    )
+                    plt.close()
+
         for basin in sorted(ref["basin"]):
             for model in com:
                 _basin_plots(df, ref, com, basin, model, self.output_path)
@@ -290,12 +291,6 @@ def _basin_plots(
             markersize=2,
             capsize=2,
         )
-
-    # Map the variable names to something more aesthetic
-    NAME_CLEANUP = {
-        "psens_obs": r"$\Delta Q / \Delta P$",
-        "tsens_obs": r"$\Delta Q / \Delta T$",
-    }
 
     # Define the unique groups, if more than 1 models is available
     groups = (
@@ -377,7 +372,7 @@ def _basin_plots(
         f"{NAME_CLEANUP['tsens_obs']} [{ref['tsens_obs'].attrs['units']}]"
     )
     fig.suptitle(
-        f"{str(basin.values)} ($S={float(score.sel(basin=basin)):.3f}$)",
+        f"{model} {str(basin.values)} ($S={float(score.sel(basin=basin)):.3f}$)",
         x=0.01,
         y=0.98,
         horizontalalignment="left",
