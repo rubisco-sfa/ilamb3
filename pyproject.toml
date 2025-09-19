@@ -36,6 +36,8 @@ dependencies = [
   "loguru>=0.7.3",
   "dask>=2025.2.0",
   "nc-time-axis>=1.4.1",
+  "tqdm>=4.67.1",
+  "pyarrow>=21.0.0",
 ]
 
 [dependency-groups]

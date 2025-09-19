@@ -227,7 +227,7 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
     ref = dad.pop("Reference")
     ref.plot(ax=ax, color="k", label="Reference")
     for source, da in dad.items():
-        da.plot(ax=ax, color=get_model_color(source), label=source)
+        da.plot(ax=ax, color=ilamb3.conf["label_colors"].get(source, "k"), label=source)
 
     ax.legend()
     ax.set_title(title)
@@ -351,7 +351,7 @@ def plot_taylor_diagram(df: pd.DataFrame):
                 np.arccos(corr.clip(-1, 1)),
                 std,
                 "o",
-                color=get_model_color(source),
+                color=ilamb3.conf["label_colors"].get(source, "k"),
                 mew=0,
                 ms=8,
             )
@@ -415,46 +415,14 @@ def determine_plot_limits(
     return pd.DataFrame(out)
 
 
-def get_model_color(
-    model: str, base_cmap: str = "rainbow"
-) -> tuple[float, float, float, float]:
-    if model == "Reference":
-        return (0.0, 0.0, 0.0, 1.0)
-    MODEL_PREFIXES = np.array(
-        [
-            "ACC",
-            "AWI",
-            "BCC",
-            "CAM",
-            "CAS",
-            "CES",
-            "CIE",
-            "CMC",
-            "CNR",
-            "CAN",
-            "E3S",
-            "EC",
-            "FGO",
-            "FIO",
-            "GFD",
-            "GIS",
-            "HAD",
-            "ICO",
-            "IIT",
-            "INM",
-            "IPS",
-            "KAC",
-            "KIO",
-            "MCM",
-            "MIR",
-            "MPI",
-            "MRI",
-            "NES",
-            "Nor",
-            "SAM",
-            "TAI",
-            "UKE",
-        ]
-    )
-    cmap = plt.get_cmap(base_cmap, len(MODEL_PREFIXES))
-    return cmap(MODEL_PREFIXES.searchsorted(model.upper()))
+def set_label_colors(
+    labels: list[str], base_cmap: str = "rainbow"
+) -> dict[str, tuple[float, float, float, float]]:
+    """
+    Return a dictionary with a color per label.
+    """
+    cmap = plt.get_cmap(base_cmap)
+    return {
+        label: tuple(float(c) for c in cmap(x))
+        for label, x in zip(labels, np.linspace(0, 1, len(labels)))
+    }

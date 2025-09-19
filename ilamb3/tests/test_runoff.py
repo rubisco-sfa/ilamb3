@@ -1,9 +1,9 @@
 import numpy as np
 import xarray as xr
 
-from ilamb3.analysis.runoff_sensitivity import compute_runoff_sensitivity
 from ilamb3.regions import Regions
 from ilamb3.tests.test_compare import generate_test_dset
+from ilamb3.transform.runoff_sensitivity import compute_runoff_sensitivity
 
 
 def test_runoff_sensitivity():
@@ -22,6 +22,6 @@ def test_runoff_sensitivity():
         + 1e2 * (ds["pr"] - ds["pr"].mean())
         + 1e-3 * (ds["tas"] - ds["tas"].mean())
     )
-    df = compute_runoff_sensitivity(ds, ["test"])
+    df = compute_runoff_sensitivity(ds, ["test"], window_size=9)
     assert np.allclose(df.loc["test"]["tas Sensitivity"], 28006.878361)
     assert np.allclose(df.loc["test"]["pr Sensitivity"], 139.850275)

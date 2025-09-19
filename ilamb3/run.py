@@ -19,6 +19,7 @@ import ilamb3
 import ilamb3.analysis as anl
 import ilamb3.compare as cmp
 import ilamb3.dataset as dset
+import ilamb3.plot as ilp
 import ilamb3.regions as ilr
 from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
 from ilamb3.exceptions import AnalysisNotAppropriate, VarNotInModel
@@ -116,9 +117,11 @@ def setup_analyses(
                 setup
                 | {
                     "required_variable": main_variable,
-                    "output_path": None
-                    if ilamb3.conf["run_mode"] == "interactive"
-                    else output_path,
+                    "output_path": (
+                        None
+                        if ilamb3.conf["run_mode"] == "interactive"
+                        else output_path
+                    ),
                 }
             )
         )
@@ -478,6 +481,18 @@ def run_single_block(
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
             dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
 
+            # Set a group name optionally, if facets were specified
+            if ilamb3.conf["group_name_facets"] is not None:
+                if not set(ilamb3.conf["group_name_facets"]).issubset(grp.columns):
+                    raise ValueError(
+                        f"Could not set model group name. You gave these facets {ilamb3.conf['group_name_facets']} but I am not finding them in the comparison dataset dataframe {grp.columns}."
+                    )
+                group_name = grp[ilamb3.conf["group_name_facets"]].apply(
+                    lambda row: "-".join(row), axis=1
+                )
+                assert all(group_name == group_name.iloc[0])
+                dfs["group"] = str(group_name.iloc[0])
+
             # Write out artifacts
             dfs.to_csv(csv_file, index=False)
             if not ref_file.is_file():  # pragma: no cover
@@ -798,6 +813,22 @@ def run_study(
         reg = ilamb3.iomb_catalog()
     else:
         raise ValueError("Unsupported registry.")
+
+    # Set model colors, some hard coded
+    ilamb3.conf.set(
+        label_colors={
+            "Reference": (0.0, 0.0, 0.0, 1.0),
+            "CMIP5": (0.19215, 0.35294, 0.81176, 1.0),
+            "CMIP6": (0.81568, 0.21176, 0.21176, 1.0),
+        }
+    )
+    model_names = sorted(
+        df_datasets[ilamb3.conf["model_name_facets"]]
+        .apply(lambda row: "-".join(row), axis=1)
+        .unique(),
+        key=lambda m: m.lower(),
+    )
+    ilamb3.conf.set(label_colors=ilp.set_label_colors(model_names))
 
     # The yaml analysis setup can be as structured as the user needs. We are no longer
     # limited to the `h1` and `h2` headers from ILAMB 2.x. We will detect leaf nodes by
