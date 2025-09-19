@@ -116,9 +116,11 @@ def setup_analyses(
                 setup
                 | {
                     "required_variable": main_variable,
-                    "output_path": None
-                    if ilamb3.conf["run_mode"] == "interactive"
-                    else output_path,
+                    "output_path": (
+                        None
+                        if ilamb3.conf["run_mode"] == "interactive"
+                        else output_path
+                    ),
                 }
             )
         )
@@ -309,7 +311,9 @@ def _load_comparison_data(
     # First load all variables passed into the input dataframe. This will
     # include all relationship variables as well as alternates.
     com = {
-        var: xr.open_mfdataset(sorted((df[df["variable_id"] == var]["path"]).to_list()))
+        var: xr.open_mfdataset(
+            sorted((df[df["variable_id"] == var]["path"]).to_list()), data_vars="all"
+        )
         for var in df["variable_id"].unique()
     }
     # If the variable_id is not present, it may be called something else
@@ -552,8 +556,8 @@ def run_analyses(
         ds_coms.append(ds_com)
     dfs = pd.concat(dfs, ignore_index=True)
     dfs["name"] = dfs["name"] + " [" + dfs["units"] + "]"
-    ds_ref = xr.merge(ds_refs)
-    ds_com = xr.merge(ds_coms)
+    ds_ref = xr.merge(ds_refs, compat="override")
+    ds_com = xr.merge(ds_coms, compat="override")
     return dfs, ds_ref, ds_com
 
 
