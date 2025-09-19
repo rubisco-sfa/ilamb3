@@ -504,6 +504,8 @@ def run_single_block(
         raise ValueError(
             "Reference intermediate data was not generated."
         )  # pragma: no cover
+    if ilamb3.conf["skip_post"]:
+        return
 
     # Phase 2: get plots and combine scalars and save
     plt.rcParams.update({"figure.max_open_warning": 0})
