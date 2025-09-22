@@ -3,7 +3,9 @@ from functools import partial
 from pathlib import Path
 
 import pandas as pd
+import xarray as xr
 from loguru import logger
+from matplotlib import pyplot as plt
 from mpi4py import MPI
 from mpi4py.futures import MPIPoolExecutor, get_comm_workers
 from tqdm import tqdm
@@ -12,7 +14,7 @@ import ilamb3
 import ilamb3.run as run
 
 
-def _perform_work(work, reference_data, output_path):
+def _perform_work_phase1(work, reference_data, output_path):
     """ """
     # unpack work
     setup, grp = work
@@ -32,8 +34,6 @@ def _perform_work(work, reference_data, output_path):
     com_file = local_path / f"{source_name}.nc"
     log_file = local_path / f"{source_name}.log"
     log_id = logger.add(log_file, backtrace=True, diagnose=True)
-    # logger.info(
-    # )
     if ilamb3.conf["use_cached_results"] and csv_file.isfile():
         return
 
@@ -51,6 +51,7 @@ def _perform_work(work, reference_data, output_path):
             )
         )
     ]
+    # if we didn't find anything, just leave
     if len(grp) < 1:
         return
 
@@ -101,6 +102,41 @@ def _perform_work(work, reference_data, output_path):
     return
 
 
+def _perform_work_phase2(setup, output_path):
+    # unpack work
+    block_name = setup["path"].split("/")[-1]
+    local_path = output_path / setup["path"]
+    analyses = run.setup_analyses(setup, local_path)
+
+    # local scalars
+    df_all = [pd.read_csv(str(df)) for df in local_path.glob("*.csv")]
+    df = pd.concat(df_all).drop_duplicates(
+        subset=["source", "region", "analysis", "name"]
+    )
+    df["region"] = df["region"].astype(str).str.replace("nan", "None")
+    df = run.add_overall_score(df)
+
+    # cleanup local directory
+    for f in local_path.glob("Reference*.nc"):
+        f.rename(local_path / "Reference.nc")
+
+    # load nc files
+    ds_com = {f.stem: xr.load_dataset(str(f)) for f in local_path.glob("*.nc")}
+    ds_ref = ds_com.pop("Reference")
+
+    # plot
+    plt.rcParams.update({"figure.max_open_warning": 0})
+    df_plots = run.plot_analyses(df, ds_ref, ds_com, analyses, local_path)
+
+    # generate an output page
+    if ilamb3.conf["debug_mode"] and (local_path / "index.html").is_file():
+        return
+    ds_ref.attrs["header"] = block_name
+    html = run.generate_html_page(df, ds_ref, ds_com, df_plots)
+    with open(local_path / "index.html", mode="w") as out:
+        out.write(html)
+
+
 def run_study_parallel(
     study_setup: str,
     com_datasets: pd.DataFrame,
@@ -110,32 +146,47 @@ def run_study_parallel(
     """
     mpirun -n 4 python -m mpi4py.futures parallel.py
     """
+    if ref_datasets.index.name != "key":
+        ref_datasets = ref_datasets.set_index("key")
     ilamb3.conf["run_mode"] = "batch"
     output_path = Path(output_path)
     analyses = run.parse_benchmark_setup(study_setup)
     analyses = run._add_path(analyses)
     run._create_paths(analyses, output_path)
     analyses_list = run._to_leaf_list(analyses)
+
+    # Phase 1
     work_list = list(
         itertools.product(
             analyses_list,
             [grp for _, grp in com_datasets.groupby(ilamb3.conf["comparison_groupby"])],
         )
     )
-    if ref_datasets.index.name != "key":
-        ref_datasets = ref_datasets.set_index("key")
-    perform_work = partial(
-        _perform_work, output_path=output_path, reference_data=ref_datasets
+    results = []
+    perform_work_phase1 = partial(
+        _perform_work_phase1, output_path=output_path, reference_data=ref_datasets
     )
     with MPIPoolExecutor(max_workers=len(work_list)) as executor:
         results = tqdm(
-            executor.map(perform_work, work_list),
+            executor.map(perform_work_phase1, work_list),
             bar_format="{desc:>20}: {percentage:3.0f}%|{bar}|{n_fmt}/{total_fmt} [{rate_fmt}{postfix}]",
             desc="Running model-data pairs",
             unit="pair",
             total=len(work_list),
             ncols=100,
         )
+    list(results)  # trigger
 
-    # Do something with the results, here just print
-    print(list(results))
+    # Phase 2
+    results = []
+    perform_work_phase2 = partial(_perform_work_phase2, output_path=output_path)
+    with MPIPoolExecutor(max_workers=len(analyses_list)) as executor:
+        results = tqdm(
+            executor.map(perform_work_phase2, analyses_list),
+            bar_format="{desc:>20}: {percentage:3.0f}%|{bar}|{n_fmt}/{total_fmt} [{rate_fmt}{postfix}]",
+            desc="Post-process model-data pairs",
+            unit="pair",
+            total=len(analyses_list),
+            ncols=100,
+        )
+    list(results)  # trigger the generator

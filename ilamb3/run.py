@@ -339,7 +339,9 @@ def _load_comparison_data(
     # First load all variables passed into the input dataframe. This will
     # include all relationship variables as well as alternates.
     com = {
-        var: xr.open_mfdataset(sorted((df[df["variable_id"] == var]["path"]).to_list()))
+        var: xr.open_mfdataset(
+            sorted((df[df["variable_id"] == var]["path"]).to_list()), data_vars="all"
+        )
         for var in df["variable_id"].unique()
     }
     # If the variable_id is not present, it may be called something else
