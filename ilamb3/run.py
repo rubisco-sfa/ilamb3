@@ -596,8 +596,8 @@ def run_analyses(
         ds_coms.append(ds_com)
     dfs = pd.concat(dfs, ignore_index=True)
     dfs["name"] = dfs["name"] + " [" + dfs["units"] + "]"
-    ds_ref = xr.merge(ds_refs)
-    ds_com = xr.merge(ds_coms)
+    ds_ref = xr.merge(ds_refs, compat="override")
+    ds_com = xr.merge(ds_coms, compat="override")
     return dfs, ds_ref, ds_com
 
 
