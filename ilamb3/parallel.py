@@ -137,6 +137,10 @@ def _perform_work_phase2(setup, output_path):
         out.write(html)
 
 
+def _start_worker(cfg_path: Path):
+    ilamb3.conf.load(cfg_path)
+
+
 def run_study_parallel(
     study_setup: str,
     com_datasets: pd.DataFrame,
@@ -148,12 +152,17 @@ def run_study_parallel(
     """
     if ref_datasets.index.name != "key":
         ref_datasets = ref_datasets.set_index("key")
+    run.set_model_colors(com_datasets)
     ilamb3.conf["run_mode"] = "batch"
     output_path = Path(output_path)
     analyses = run.parse_benchmark_setup(study_setup)
     analyses = run._add_path(analyses)
     run._create_paths(analyses, output_path)
     analyses_list = run._to_leaf_list(analyses)
+
+    # Save configure so it can be passed to other workers
+    cfg_file = output_path / "cfg.yaml"
+    ilamb3.conf.save(cfg_file)
 
     # Phase 1
     work_list = list(
@@ -166,7 +175,11 @@ def run_study_parallel(
     perform_work_phase1 = partial(
         _perform_work_phase1, output_path=output_path, reference_data=ref_datasets
     )
-    with MPIPoolExecutor(max_workers=len(work_list)) as executor:
+    with MPIPoolExecutor(
+        max_workers=len(work_list),
+        initializer=_start_worker,
+        initargs=(cfg_file,),
+    ) as executor:
         results = tqdm(
             executor.map(perform_work_phase1, work_list),
             bar_format="{desc:>20}: {percentage:3.0f}%|{bar}|{n_fmt}/{total_fmt} [{rate_fmt}{postfix}]",
@@ -175,12 +188,14 @@ def run_study_parallel(
             total=len(work_list),
             ncols=100,
         )
-    list(results)  # trigger
+    list(results)  # trigger the generator
 
     # Phase 2
     results = []
     perform_work_phase2 = partial(_perform_work_phase2, output_path=output_path)
-    with MPIPoolExecutor(max_workers=len(analyses_list)) as executor:
+    with MPIPoolExecutor(
+        max_workers=len(analyses_list), initializer=_start_worker, initargs=(cfg_file,)
+    ) as executor:
         results = tqdm(
             executor.map(perform_work_phase2, analyses_list),
             bar_format="{desc:>20}: {percentage:3.0f}%|{bar}|{n_fmt}/{total_fmt} [{rate_fmt}{postfix}]",
