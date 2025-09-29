@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-import ilamb3.plot as ilplt
+import ilamb3
 from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.exceptions import MissingVariable, TemporalOverlapIssue
@@ -283,13 +283,13 @@ def plot_accumulated_nbp(
             ds["nbp"].plot(
                 ax=ax,
                 lw=2,
-                color=ilplt.get_model_color(key),
+                color=ilamb3.conf["label_colors"].get(key, "k"),
             )
             ax.text(
                 ds.year[-1] + 2,
                 y_text[key],
                 key,
-                color=ilplt.get_model_color(key),
+                color=ilamb3.conf["label_colors"].get(key, "k"),
                 va="center",
                 size=FONT_SIZE,
             )

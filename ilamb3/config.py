@@ -77,7 +77,7 @@ class Config(dict):
         use_cached_results: bool | None = None,
         figure_dpi: int | None = None,
         debug_mode: bool | None = None,
-        label_colors: dict[str, tuple[float, float, float, float]] | None = None,
+        label_colors: dict[str, list[float]] | None = None,
     ):
         """Change ilamb3 configuration options."""
         temp = copy.deepcopy(self)
