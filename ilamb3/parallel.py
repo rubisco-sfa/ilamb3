@@ -34,7 +34,7 @@ def _perform_work_phase1(work, reference_data, output_path):
     com_file = local_path / f"{source_name}.nc"
     log_file = local_path / f"{source_name}.log"
     log_id = logger.add(log_file, backtrace=True, diagnose=True)
-    if ilamb3.conf["use_cached_results"] and csv_file.isfile():
+    if ilamb3.conf["use_cached_results"] and csv_file.is_file() and com_file.is_file():
         return
 
     # setup the analysis
@@ -110,6 +110,8 @@ def _perform_work_phase2(setup, output_path):
 
     # local scalars
     df_all = [pd.read_csv(str(df)) for df in local_path.glob("*.csv")]
+    if not df_all:
+        return
     df = pd.concat(df_all).drop_duplicates(
         subset=["source", "region", "analysis", "name"]
     )
@@ -122,7 +124,7 @@ def _perform_work_phase2(setup, output_path):
 
     # load nc files
     ds_com = {f.stem: xr.load_dataset(str(f)) for f in local_path.glob("*.nc")}
-    ds_ref = ds_com.pop("Reference")
+    ds_ref = ds_com.pop("Reference") if "Reference" in ds_com else xr.Dataset()
 
     # plot
     plt.rcParams.update({"figure.max_open_warning": 0})
