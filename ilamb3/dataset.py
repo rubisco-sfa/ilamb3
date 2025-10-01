@@ -655,13 +655,14 @@ def integrate_space(
     if region is not None:
         regions = ilreg.Regions()
         dset = regions.restrict_to_region(dset, region)
-    space = [get_dim_name(dset, "lat"), get_dim_name(dset, "lon")]
     if not isinstance(dset, xr.Dataset):
         dset = dset.to_dataset()
     var = dset[varname]
+    space = [get_dim_name(var, "lat"), get_dim_name(var, "lon")]
     msr = (
         dset["cell_measures"]
         if "cell_measures" in dset
+        and set(dset["cell_measures"].dims).issubset(var.dims)
         else compute_cell_measures(dset)
     )
     if weight is not None:
