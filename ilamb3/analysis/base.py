@@ -2,6 +2,7 @@
 An abstract class for implementing analysis functions used in ILAMB.
 """
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -164,4 +165,10 @@ def scalarify(
     """
     da = integrate_or_mean(var, varname, region, mean, weight)
     da = da.pint.quantify()
-    return float(da.pint.dequantify()), f"{da.pint.units:~cf}"
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", "divide by zero encountered in divide", RuntimeWarning
+        )
+        val = float(da.pint.dequantify())
+        unit = f"{da.pint.units:~cf}"
+    return val, unit

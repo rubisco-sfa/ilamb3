@@ -6,7 +6,6 @@ See Also
 ILAMBAnalysis : The abstract base class from which this derives.
 """
 
-import warnings
 from typing import Any, Literal
 
 import numpy as np
@@ -14,10 +13,9 @@ import pandas as pd
 import xarray as xr
 
 import ilamb3.plot as plt
-import ilamb3.regions as ilr
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
-from ilamb3.analysis.base import ILAMBAnalysis
+from ilamb3.analysis.base import ILAMBAnalysis, scalarify
 from ilamb3.analysis.quantiles import check_quantile_database, create_quantile_map
 from ilamb3.exceptions import NoDatabaseEntry
 
@@ -224,35 +222,12 @@ class bias_analysis(ILAMBAnalysis):
             pass
         com_out["mean"] = com_mean
 
-        # Either integrate or average depending on the input var
-        def _scalar(
-            var, varname, region, mean=True, weight=False
-        ):  # numpydoc ignore=GL08
-            da = var
-            if isinstance(var, xr.Dataset):
-                da = var[varname]
-            if dset.is_spatial(da):
-                da = dset.integrate_space(
-                    da,
-                    varname,
-                    region=region,
-                    mean=mean,
-                    weight=ref_ if (self.mass_weighting and weight) else None,
-                )
-            elif dset.is_site(da):
-                da = ilr.Regions().restrict_to_region(da, region)
-                da = da.mean(dim=dset.get_dim_name(da, "site"))
-            else:
-                raise ValueError(f"Input is neither spatial nor site: {da}")
-            da = da.pint.quantify()
-            return da
-
         # Compute scalars over all regions
         dfs = []
         for region in self.regions:
             # Period mean
             for src, var in zip(["Reference", "Comparison"], [ref_mean, com_mean]):
-                var = _scalar(var, varname, region, not self.spatial_sum)
+                val, unit = scalarify(var, varname, region, not self.spatial_sum)
                 dfs.append(
                     [
                         src,
@@ -260,30 +235,23 @@ class bias_analysis(ILAMBAnalysis):
                         analysis_name,
                         "Period Mean",
                         "scalar",
-                        f"{var.pint.units:~cf}",
-                        float(var.pint.dequantify()),
+                        unit,
+                        val,
                     ]
                 )
             # Bias
-            bias_scalar = _scalar(com_out, "bias", region, True)
+            val, unit = scalarify(com_out, "bias", region, True)
             dfs.append(
-                [
-                    "Comparison",
-                    str(region),
-                    analysis_name,
-                    "Bias",
-                    "scalar",
-                    f"{bias_scalar.pint.units:~cf}",
-                    float(bias_scalar.pint.dequantify()),
-                ]
+                ["Comparison", str(region), analysis_name, "Bias", "scalar", unit, val]
             )
             # Bias Score
-            bias_scalar_score = _scalar(com_out, "biasscore", region, True, True)
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore", "divide by zero encountered in divide", RuntimeWarning
-                )
-                bias_scalar_score = float(bias_scalar_score.pint.dequantify())
+            val, unit = scalarify(
+                com_out,
+                "biasscore",
+                region,
+                True,
+                weight=ref_ if self.mass_weighting else None,
+            )
             dfs.append(
                 [
                     "Comparison",
@@ -291,8 +259,8 @@ class bias_analysis(ILAMBAnalysis):
                     analysis_name,
                     "Bias Score",
                     "score",
-                    "1",
-                    bias_scalar_score,
+                    unit,
+                    val,
                 ]
             )
 
