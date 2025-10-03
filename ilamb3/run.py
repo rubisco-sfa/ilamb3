@@ -461,6 +461,7 @@ def run_single_block(
             find_related_variables(
                 analyses, transforms, setup.get("alternate_vars", [])
             )
+            + ["areacella", "sftlf", "areacello", "sftof"]
         )
     ]
 

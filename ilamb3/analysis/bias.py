@@ -222,12 +222,21 @@ class bias_analysis(ILAMBAnalysis):
             pass
         com_out["mean"] = com_mean
 
+        # Pass measures into out for integrations if present
+        if "cell_measures" in ref:
+            ref_out["cell_measures"] = ref["cell_measures"]
+        if "cell_measures" in com and dset.is_spatial(com):
+            msr = com["cell_measures"]
+            lat_name = dset.get_dim_name(msr, "lat")
+            lon_name = dset.get_dim_name(msr, "lon")
+            com_out["cell_measures"] = msr.rename({lat_name: "lat_", lon_name: "lon_"})
+
         # Compute scalars over all regions
         dfs = []
         for region in self.regions:
             # Period mean
-            for src, var in zip(["Reference", "Comparison"], [ref_mean, com_mean]):
-                val, unit = scalarify(var, varname, region, not self.spatial_sum)
+            for src, var in zip(["Reference", "Comparison"], [ref_out, com_out]):
+                val, unit = scalarify(var, "mean", region, not self.spatial_sum)
                 dfs.append(
                     [
                         src,
@@ -278,6 +287,10 @@ class bias_analysis(ILAMBAnalysis):
             ],
         )
         dfs.attrs = self.__dict__.copy()
+
+        # We don't really want to plot cell measures
+        ref_out = ref_out.drop_vars("cell_measures", errors="ignore")
+        com_out = com_out.drop_vars("cell_measures", errors="ignore")
         return dfs, ref_out, com_out
 
     def plots(
