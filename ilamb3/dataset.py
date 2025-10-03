@@ -65,8 +65,10 @@ def get_dim_name(
     possible_names = dim_names[dim]
     dim_name = set(dset.dims).intersection(possible_names)
     if len(dim_name) != 1:
-        msg = f"{dim} dimension not found: {dset.dims} "
-        msg += f"not in [{','.join(possible_names)}]"
+        if len(dim_name) == 0:
+            msg = f"{dim} dimension not found: {dset.dims} not in [{','.join(possible_names)}]"
+        else:
+            msg = f"Ambiguity in determining {dim} dimension: multiple {dset.dims} in [{','.join(possible_names)}]"
         raise KeyError(msg)
     return str(dim_name.pop())
 
