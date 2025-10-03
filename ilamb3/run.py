@@ -310,6 +310,7 @@ def cmip_cell_measures(ds: xr.Dataset, varname: str) -> xr.Dataset:
         elif "where sea" in da.attrs["cell_methods"] and "sftof" in ds:
             msr *= ds["sftof"] * 0.01
             ds = ds.drop_vars("sftof")
+    msr = xr.where(msr > 0, msr, np.nan)
     ds["cell_measures"] = msr
     return ds
 

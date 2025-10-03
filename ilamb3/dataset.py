@@ -663,7 +663,7 @@ def integrate_space(
         dset["cell_measures"]
         if "cell_measures" in dset
         and set(dset["cell_measures"].dims).issubset(var.dims)
-        else compute_cell_measures(dset)
+        else compute_cell_measures(var)
     )
     if weight is not None:
         assert isinstance(weight, xr.DataArray)
