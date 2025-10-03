@@ -65,8 +65,10 @@ def get_dim_name(
     possible_names = dim_names[dim]
     dim_name = set(dset.dims).intersection(possible_names)
     if len(dim_name) != 1:
-        msg = f"{dim} dimension not found: {dset.dims} "
-        msg += f"not in [{','.join(possible_names)}]"
+        if len(dim_name) == 0:
+            msg = f"{dim} dimension not found: {dset.dims} not in [{','.join(possible_names)}]"
+        else:
+            msg = f"Ambiguity in determining {dim} dimension: multiple {dset.dims} in [{','.join(possible_names)}]"
         raise KeyError(msg)
     return str(dim_name.pop())
 
@@ -655,14 +657,15 @@ def integrate_space(
     if region is not None:
         regions = ilreg.Regions()
         dset = regions.restrict_to_region(dset, region)
-    space = [get_dim_name(dset, "lat"), get_dim_name(dset, "lon")]
     if not isinstance(dset, xr.Dataset):
         dset = dset.to_dataset()
     var = dset[varname]
+    space = [get_dim_name(var, "lat"), get_dim_name(var, "lon")]
     msr = (
         dset["cell_measures"]
         if "cell_measures" in dset
-        else compute_cell_measures(dset)
+        and set(dset["cell_measures"].dims).issubset(var.dims)
+        else compute_cell_measures(var)
     )
     if weight is not None:
         assert isinstance(weight, xr.DataArray)

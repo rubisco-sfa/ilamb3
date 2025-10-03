@@ -2,6 +2,7 @@
 An abstract class for implementing analysis functions used in ILAMB.
 """
 
+import warnings
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -130,21 +131,18 @@ def add_overall_score(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def integrate_or_mean(
-    var: xr.DataArray | xr.Dataset, varname: str, region: str | None, mean: bool
+    var: xr.DataArray | xr.Dataset,
+    varname: str,
+    region: str | None,
+    mean: bool,
+    weight: xr.DataArray | None = None,
 ) -> xr.DataArray:
     """
     Integration/average the input dataarray/dataset to reduce in space/site.
     """
-    da = var
-    if isinstance(var, xr.Dataset):
-        da = var[varname]
+    da = var[varname] if isinstance(var, xr.Dataset) else var
     if dset.is_spatial(da):
-        da = dset.integrate_space(
-            da,
-            varname,
-            region=region,
-            mean=mean,
-        )
+        da = dset.integrate_space(var, varname, region=region, mean=mean, weight=weight)
     elif dset.is_site(da):
         da = ilr.Regions().restrict_to_region(da, region)
         da = da.mean(dim=dset.get_dim_name(da, "site"))
@@ -154,11 +152,21 @@ def integrate_or_mean(
 
 
 def scalarify(
-    var: xr.DataArray | xr.Dataset, varname: str, region: str | None, mean: bool
+    var: xr.DataArray | xr.Dataset,
+    varname: str,
+    region: str | None,
+    mean: bool,
+    weight: xr.DataArray | None = None,
 ) -> tuple[float, str]:
     """
     Integration/average the input dataarray/dataset to generate a scalar.
     """
-    da = integrate_or_mean(var, varname, region, mean)
+    da = integrate_or_mean(var, varname, region, mean, weight)
     da = da.pint.quantify()
-    return float(da.pint.dequantify()), f"{da.pint.units:~cf}"
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", "divide by zero encountered in divide", RuntimeWarning
+        )
+        val = float(da.pint.dequantify())
+        unit = f"{da.pint.units:~cf}"
+    return val, unit

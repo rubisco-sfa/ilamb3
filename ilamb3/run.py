@@ -288,6 +288,33 @@ def _load_reference_data(
     return ds_ref
 
 
+def cmip_cell_measures(ds: xr.Dataset, varname: str) -> xr.Dataset:
+    """
+    Add a DataArray for the `cell_measures` built from CMIP variables if present.
+    """
+    da = ds[varname]
+    if "cell_measures" not in da.attrs:
+        return ds
+    m = re.search(r"area:\s(.*)", da.attrs["cell_measures"])
+    if m:
+        msr_name = m.group(1)
+        if msr_name in ds:
+            msr = ds[msr_name]
+            ds = ds.drop_vars(msr_name)
+        else:
+            msr = dset.compute_cell_measures(ds)
+    if "cell_methods" in da.attrs:
+        if "where land" in da.attrs["cell_methods"] and "sftlf" in ds:
+            msr *= ds["sftlf"] * 0.01
+            ds = ds.drop_vars("sftlf")
+        elif "where sea" in da.attrs["cell_methods"] and "sftof" in ds:
+            msr *= ds["sftof"] * 0.01
+            ds = ds.drop_vars("sftof")
+    msr = xr.where(msr > 0, msr, np.nan)
+    ds["cell_measures"] = msr
+    return ds
+
+
 def _load_comparison_data(
     df: pd.DataFrame,
     variable_id: str,
@@ -349,6 +376,7 @@ def _load_comparison_data(
         raise VarNotInModel(
             f"Could not find or create '{variable_id}' from model variables {list(df['variable_id'].unique())}"
         )
+    ds_com = cmip_cell_measures(ds_com, variable_id)
     return ds_com
 
 
@@ -433,6 +461,7 @@ def run_single_block(
             find_related_variables(
                 analyses, transforms, setup.get("alternate_vars", [])
             )
+            + ["areacella", "sftlf", "areacello", "sftof"]
         )
     ]
 
