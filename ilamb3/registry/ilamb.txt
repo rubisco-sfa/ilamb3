@@ -37,7 +37,7 @@ evspsbl/MOD16A2/et.nc sha1:50aa114cb720cf03a124874bbba57c7b56aad99c
 evspsbl/MODIS/et_0.5x0.5.nc sha1:54b5e5a9cbc16d1d9e5330e0c5a23ee689f5fb41
 evspsbl/GLEAMv3.3a/et.nc sha1:5aaf73949af8c6b509ef16f684aa8efeccd983e2
 evspsbl/DOLCE/DOLCE.nc sha1:1eea9627efde39e31a00774b5e164be20a2f4457
-rns/FLUXNET2015/rns.nc sha1:cd08fa025133ce213b6b81c8a727180d1247c368
+rns/FLUXNET2015/rns.nc sha1:98471fbe25dcabee54126ae4be2a37818ef5ac2f
 rns/CERESed4.2/rns.nc sha1:0d4d38f23c98460fc17c36221e2d4ed6120865db
 rns/GEWEX.SRB/rns_0.5x0.5.nc sha1:ff990905204c1ec5ba21269597fecc96f0f20480
 rns/WRMC.BSRN/rns.nc sha1:e3e41c6595b21349c0c7637c9b9471bb6d9536ed
