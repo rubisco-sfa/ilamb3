@@ -140,7 +140,7 @@ class rmse_analysis(ILAMBAnalysis):
         # Conversions
         if self.use_uncertainty:
             ref, com, uncert = cmp.rename_dims(
-                cmp.nest_spatial_grids(ref[varname], com[varname], uncert)
+                *cmp.nest_spatial_grids(ref[varname], com[varname], uncert)
             )
         else:
             ref, com = cmp.rename_dims(
@@ -171,7 +171,7 @@ class rmse_analysis(ILAMBAnalysis):
         ds_com["rmsescore"] = score
         df = []
         for region in self.regions:
-            val, unit = scalarify(rmse, varname, region, mean=True)
+            val, unit = scalarify(rmse, "rmse", region, mean=True)
             df += [
                 {
                     "source": "Comparison",
@@ -183,7 +183,7 @@ class rmse_analysis(ILAMBAnalysis):
                     "value": val,
                 },
             ]
-            val, _ = scalarify(score, varname, region, mean=True)
+            val, _ = scalarify(score, "rmsescore", region, mean=True)
             df += [
                 {
                     "source": "Comparison",
@@ -197,8 +197,8 @@ class rmse_analysis(ILAMBAnalysis):
             ]
 
         df = pd.DataFrame(df)
-        ds_ref = xr.merge([ds_ref])
-        ds_com = xr.merge([ds_com])
+        ds_ref = xr.merge([ds_ref], compat="override")
+        ds_com = xr.merge([ds_com], compat="override")
         return df, ds_ref, ds_com
 
     def plots(

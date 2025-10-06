@@ -658,7 +658,7 @@ def integrate_space(
         regions = ilreg.Regions()
         dset = regions.restrict_to_region(dset, region)
     if not isinstance(dset, xr.Dataset):
-        dset = dset.to_dataset()
+        dset = dset.to_dataset(name=varname)
     var = dset[varname]
     space = [get_dim_name(var, "lat"), get_dim_name(var, "lon")]
     msr = (
