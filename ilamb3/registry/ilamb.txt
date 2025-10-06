@@ -42,7 +42,7 @@ rns/CERESed4.2/rns.nc sha1:0d4d38f23c98460fc17c36221e2d4ed6120865db
 rns/GEWEX.SRB/rns_0.5x0.5.nc sha1:ff990905204c1ec5ba21269597fecc96f0f20480
 rns/WRMC.BSRN/rns.nc sha1:e3e41c6595b21349c0c7637c9b9471bb6d9536ed
 rns/CLASS/rns.nc sha1:30a482549336a93c238823d801f782afd37de9ad
-tas/FLUXNET2015/tas.nc sha1:000e9b9070fc3ab830426c8922c4622cf6adb2b0
+tas/FLUXNET2015/tas.nc sha1:4b65d89407f417747366e7a8e3a2f115571210cc
 tas/CRU4.02/tas.nc sha1:2674da18a1a93483b50b1626e7a7ab741bf53d09
 ch4/FluxnetANN/FCH4_F_ANN_monthly_wetland_tier1.nc sha1:65446c36d2c9e7dacd5d2dc770b8ed0e8ab7492d
 tasmax/CRU4.02/tasmax.nc sha1:7ad4945bdcc93c633580b52f9e0531cd4b91f827
@@ -70,7 +70,7 @@ pr/GPCCv2018/pr.nc sha1:c1db21fc07bcab7470676aa34954ce1fbac469f7
 pr/CLASS/pr.nc sha1:7fc3b1146684e63c1b82b0033c32b9b8ead9646e
 albedo/CERESed4.2/albedo.nc sha1:1b8e48a24564fe7b7a20ded384fbdfa4b245eea2
 albedo/GEWEX.SRB/albedo_0.5x0.5.nc sha1:7e5ff41328e788fbc4095a94b4458e22e3da4b2b
-rlds/FLUXNET2015/rlds.nc sha1:f41721d967368aec45be94d6ab7069abdd1516d0
+rlds/FLUXNET2015/rlds.nc sha1:bd1dbc19ac0cb29b7e2cb483ca09ae784bf80f55
 rlds/CERESed4.2/rlds.nc sha1:f1d860802de398e17153e24f302d670545b0374e
 rlds/GEWEX.SRB/rlds_0.5x0.5.nc sha1:c7f627159dc73f06f5a4af097d4a84bed834cf2e
 rlds/WRMC.BSRN/rlds.nc sha1:98ce3aa113ceeee782f9bbc1d0348bc861dd1c30
@@ -101,7 +101,7 @@ co2/PulseEmulation/Pulse07.nc sha1:304c17c7c62171361e16a956a683eabb0e66bf72
 co2/PulseEmulation/GEOSChemOcnFfCo2_32yr_360daytime.nc sha1:86ff8718aee41fd1251d731199524609721bac95
 co2/HIPPOATom/HIPPO_ATom.nc sha1:c841ad3f84c118499067fb9c5f934620b495f05e
 active_layer_thickness/CALM/CALM.nc sha1:fe084ab58a81911e3739c8bb3fad210b3863af27
-rsds/FLUXNET2015/rsds.nc sha1:812e5c2893eae629d2a440fa2b673296ad9a48ab
+rsds/FLUXNET2015/rsds.nc sha1:1de23e0f516e303d1aba1b558a0557f3a737c5aa
 rsds/CERESed4.2/rsds.nc sha1:66c328847234e7d1586eb810f2a184f7c31cf5d3
 rsds/GEWEX.SRB/rsds_0.5x0.5.nc sha1:fcde36ae3371aa784bd0e587be320524d19bd701
 rsds/WRMC.BSRN/rsds.nc sha1:8355c203eabefa248a6edb9bcf2562e32d60aa77
