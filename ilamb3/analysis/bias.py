@@ -17,7 +17,7 @@ from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis, scalarify
 from ilamb3.analysis.quantiles import check_quantile_database, create_quantile_map
-from ilamb3.exceptions import NoDatabaseEntry
+from ilamb3.exceptions import NoDatabaseEntry, NoUncertainty
 
 
 class bias_analysis(ILAMBAnalysis):
@@ -122,8 +122,6 @@ class bias_analysis(ILAMBAnalysis):
         # Initialize
         analysis_name = "Bias"
         varname = self.req_variable
-        if self.use_uncertainty and "bounds" not in ref[varname].attrs:
-            self.use_uncertainty = False
 
         # Checks on the quantile database if used
         if self.method == "RegionalQuantiles":
@@ -157,16 +155,17 @@ class bias_analysis(ILAMBAnalysis):
         )
 
         # Get the reference data uncertainty
-        uncert = xr.zeros_like(ref_mean)
-        uncert.attrs["units"] = ref[varname].attrs["units"]
         if self.use_uncertainty:
-            uncert = ref[ref[varname].attrs["bounds"]]
-            uncert.attrs["units"] = ref[varname].attrs["units"]
-            uncert = (
-                dset.integrate_time(uncert, mean=True)
-                if dset.is_temporal(uncert)
-                else uncert
-            )
+            try:
+                uncert = dset.get_scalar_uncertainty(ref, varname)
+                uncert = (
+                    dset.integrate_time(uncert, mean=True)
+                    if dset.is_temporal(uncert)
+                    else uncert
+                )
+            except NoUncertainty:
+                self.use_uncertainty = False
+                uncert = xr.zeros_like(ref_mean)
 
         # If temporal information is available, we normalize the error by the
         # standard deviation of the reference. If not, we revert to the traditional
@@ -308,6 +307,8 @@ class bias_analysis(ILAMBAnalysis):
         df.loc["mean", ["cmap", "title"]] = [self.cmap, "Period Mean"]
         df.loc["bias", ["cmap", "title"]] = ["seismic", "Bias"]
         df.loc["biasscore", ["cmap", "title"]] = ["plasma", "Bias Score"]
+        if "uncert" in df.index:
+            df.loc["uncert", ["cmap", "title"]] = ["Reds", "Uncertainty"]
 
         # Build up a dataframe of matplotlib axes
         axs = [
@@ -315,7 +316,7 @@ class bias_analysis(ILAMBAnalysis):
                 "name": plot,
                 "title": df.loc[plot, "title"],
                 "region": region,
-                "source": source,
+                "source": None if plot == "uncert" else source,
                 "axis": (
                     plt.plot_map(
                         ds[plot],
@@ -325,12 +326,11 @@ class bias_analysis(ILAMBAnalysis):
                         cmap=df.loc[plot, "cmap"],
                         title=source + " " + df.loc[plot, "title"],
                     )
-                    if plot in ds
-                    else pd.NA
                 ),
             }
-            for plot in ["mean", "bias", "biasscore"]
+            for plot in ["mean", "bias", "biasscore", "uncert"]
             for source, ds in com.items()
+            if plot in ds
             for region in regions
         ]
         axs = pd.DataFrame(axs).dropna(subset=["axis"])
