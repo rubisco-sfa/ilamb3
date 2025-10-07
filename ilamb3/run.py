@@ -283,7 +283,7 @@ def _load_reference_data(
         ds_ref = transform(ds_ref)
     if variable_id not in ds_ref:
         raise VarNotInModel(
-            f"Could not find or create '{variable_id}' from reference data {list(reference_data['variable_id'].unique())}"
+            f"Could not find or create '{variable_id}' from reference data:\n{ds_ref}"
         )
     return ds_ref
 
