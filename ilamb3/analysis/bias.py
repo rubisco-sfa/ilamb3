@@ -159,6 +159,7 @@ class bias_analysis(ILAMBAnalysis):
         )
 
         # Get the reference data uncertainty
+        uncert = xr.zeros_like(ref_mean)
         if self.use_uncertainty:
             try:
                 ref["uncert"] = dset.get_scalar_uncertainty(ref, varname)
@@ -169,7 +170,6 @@ class bias_analysis(ILAMBAnalysis):
                 )
             except NoUncertainty:
                 self.use_uncertainty = False
-                uncert = xr.zeros_like(ref_mean)
 
         # If temporal information is available, we normalize the error by the
         # standard deviation of the reference. If not, we revert to the traditional

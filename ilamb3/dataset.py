@@ -952,10 +952,11 @@ def get_scalar_uncertainty(ds: xr.Dataset, varname: str) -> xr.DataArray:
             raise ValueError(
                 f"Ambiguity in determinging the `bounds` dimension, found: {bnd_dim}"
             )
-        bnd_dim = list(bnd_dim)[0]
-        da = np.sqrt(
-            (var - da.isel({bnd_dim: 0})) ** 2 + (da.isel({bnd_dim: 1}) - var) ** 2
-        )
+        if bnd_dim:
+            bnd_dim = list(bnd_dim)[0]
+            da = np.sqrt(
+                (var - da.isel({bnd_dim: 0})) ** 2 + (da.isel({bnd_dim: 1}) - var) ** 2
+            )
     if da is None:
         raise NoUncertainty()
     da.attrs["units"] = var.attrs["units"]
