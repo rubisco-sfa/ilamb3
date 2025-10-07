@@ -71,6 +71,8 @@ class bias_analysis(ILAMBAnalysis):
         mass_weighting: bool = False,
         quantile_database: pd.DataFrame | None = None,
         quantile_threshold: int = 70,
+        table_unit: str | None = None,
+        plot_unit: str | None = None,
         **kwargs: Any,  # this is so we can pass extra arguments without failure
     ):
         self.req_variable = required_variable
@@ -82,6 +84,8 @@ class bias_analysis(ILAMBAnalysis):
         self.mass_weighting = mass_weighting
         self.quantile_database = quantile_database
         self.quantile_threshold = quantile_threshold
+        self.table_unit = table_unit
+        self.plot_unit = plot_unit
         self.kwargs = kwargs
 
     def required_variables(self) -> list[str]:
@@ -235,7 +239,9 @@ class bias_analysis(ILAMBAnalysis):
         for region in self.regions:
             # Period mean
             for src, var in zip(["Reference", "Comparison"], [ref_out, com_out]):
-                val, unit = scalarify(var, "mean", region, not self.spatial_sum)
+                val, unit = scalarify(
+                    var, "mean", region, not self.spatial_sum, unit=self.table_unit
+                )
                 dfs.append(
                     [
                         src,
@@ -248,7 +254,7 @@ class bias_analysis(ILAMBAnalysis):
                     ]
                 )
             # Bias
-            val, unit = scalarify(com_out, "bias", region, True)
+            val, unit = scalarify(com_out, "bias", region, True, unit=self.plot_unit)
             dfs.append(
                 ["Comparison", str(region), analysis_name, "Bias", "scalar", unit, val]
             )
@@ -285,7 +291,6 @@ class bias_analysis(ILAMBAnalysis):
                 "value",
             ],
         )
-        dfs.attrs = self.__dict__.copy()
 
         # We don't really want to plot cell measures
         ref_out = ref_out.drop_vars("cell_measures", errors="ignore")
@@ -301,6 +306,15 @@ class bias_analysis(ILAMBAnalysis):
         # Some initialization
         regions = [None if r == "None" else r for r in df["region"].unique()]
         com["Reference"] = ref
+
+        # Handle units
+        plot_unit = (
+            ref["mean"].attrs["units"] if self.plot_unit is None else self.plot_unit
+        )
+        for source, ds in com.items():
+            for plot in ["mean", "bias", "uncert"]:
+                if plot in ds:
+                    com[source][plot] = dset.convert(ds[plot], plot_unit)
 
         # Setup plot data
         df = plt.determine_plot_limits(com).set_index("name")
