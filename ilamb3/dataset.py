@@ -959,6 +959,7 @@ def get_scalar_uncertainty(ds: xr.Dataset, varname: str) -> xr.DataArray:
     if da is None:
         raise NoUncertainty()
     da.attrs["units"] = var.attrs["units"]
+    da.name = "uncert"
     return da
 
 

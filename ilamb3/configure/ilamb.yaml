@@ -273,6 +273,15 @@ Hydrology Cycle:
       - select_depth:
           value: 1.
 
+Cryosphere:
+
+  Snow Cover:
+
+    CCI-CryoClim-FSC-1:
+      sources:
+        snc: CCI-CryoClim-FSC-1/snc_mon_Snow-cci_BE_gn_198201-201906.nc
+      variable_cmap: BuPu
+
 Radiation and Energy Cycle:
 
   Surface Upward SW Radiation:
