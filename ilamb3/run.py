@@ -882,7 +882,7 @@ def run_study(
         path = analysis.pop("path")
         try:
             run_single_block(
-                path.split("/")[-1],
+                path.replace("/", " | "),
                 (
                     ref_datasets
                     if ref_datasets is not None

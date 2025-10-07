@@ -104,7 +104,7 @@ def _perform_work_phase1(work, reference_data, output_path):
 
 def _perform_work_phase2(setup, output_path):
     # unpack work
-    block_name = setup["path"].split("/")[-1]
+    block_name = setup["path"].replace("/", " | ")
     local_path = output_path / setup["path"]
     analyses = run.setup_analyses(setup, local_path)
 

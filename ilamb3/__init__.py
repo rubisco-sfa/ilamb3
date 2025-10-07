@@ -16,6 +16,7 @@ from ilamb3.config import conf  # noqa
 # additional units that pint/cf-xarray does not handle
 units.define("kg = 1e3 * g")
 units.define("Mg = 1e6 * g")
+units.define("Tg = 1e12 * g")
 units.define("Pg = 1e15 * g")
 units.define("Sv = 1e6 m**3 / s")
 units.define("@alias W = Watt")
