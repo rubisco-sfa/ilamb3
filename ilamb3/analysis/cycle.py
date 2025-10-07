@@ -42,10 +42,12 @@ class cycle_analysis(ILAMBAnalysis):
         self,
         required_variable: str,
         regions: list[str | None] = [None],
+        plot_unit: str | None = None,
         **kwargs: Any,  # this is so we can pass extra arguments without failure
     ):
         self.req_variable = required_variable
         self.regions = regions
+        self.plot_unit = plot_unit
         self.kwargs = kwargs
 
     def required_variables(self) -> list[str]:
@@ -183,6 +185,15 @@ class cycle_analysis(ILAMBAnalysis):
         # Some initialization
         regions = [None if r == "None" else r for r in df["region"].unique()]
         com["Reference"] = ref
+
+        # Handle units
+        plot_unit = (
+            ref["mean"].attrs["units"] if self.plot_unit is None else self.plot_unit
+        )
+        for source, ds in com.items():
+            for plot in [f"cycle_{region}" for region in regions]:
+                if plot in ds:
+                    com[source][plot] = dset.convert(ds[plot], plot_unit)
 
         # Setup plot data
         dfp = plt.determine_plot_limits(com).set_index("name")

@@ -157,12 +157,15 @@ def scalarify(
     region: str | None,
     mean: bool,
     weight: xr.DataArray | None = None,
+    unit: str | None = None,
 ) -> tuple[float, str]:
     """
     Integration/average the input dataarray/dataset to generate a scalar.
     """
     da = integrate_or_mean(var, varname, region, mean, weight)
     da = da.pint.quantify()
+    if unit is not None:
+        da = da.pint.to(unit)
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore", "divide by zero encountered in divide", RuntimeWarning

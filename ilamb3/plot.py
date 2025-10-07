@@ -417,12 +417,12 @@ def determine_plot_limits(
 
 def set_label_colors(
     labels: list[str], base_cmap: str = "rainbow"
-) -> dict[str, tuple[float, float, float, float]]:
+) -> dict[str, list[float]]:
     """
     Return a dictionary with a color per label.
     """
     cmap = plt.get_cmap(base_cmap)
     return {
-        label: tuple(float(c) for c in cmap(x))
+        label: [float(c) for c in cmap(x)]
         for label, x in zip(labels, np.linspace(0, 1, len(labels)))
     }

@@ -52,6 +52,9 @@ doc = [
   "sphinx-copybutton>=0.5.2",
 ]
 gcb = ["gsw>=3.6.19"]
+parallel = [
+    "mpi4py>=4.1.0",
+]
 
 [build-system]
 build-backend = "setuptools.build_meta"

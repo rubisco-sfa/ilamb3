@@ -283,7 +283,7 @@ def _load_reference_data(
         ds_ref = transform(ds_ref)
     if variable_id not in ds_ref:
         raise VarNotInModel(
-            f"Could not find or create '{variable_id}' from reference data {list(reference_data['variable_id'].unique())}"
+            f"Could not find or create '{variable_id}' from reference data:\n{ds_ref}"
         )
     return ds_ref
 
@@ -339,7 +339,9 @@ def _load_comparison_data(
     # First load all variables passed into the input dataframe. This will
     # include all relationship variables as well as alternates.
     com = {
-        var: xr.open_mfdataset(sorted((df[df["variable_id"] == var]["path"]).to_list()))
+        var: xr.open_mfdataset(
+            sorted((df[df["variable_id"] == var]["path"]).to_list()), data_vars="all"
+        )
         for var in df["variable_id"].unique()
     }
     # If the variable_id is not present, it may be called something else
@@ -596,8 +598,8 @@ def run_analyses(
         ds_coms.append(ds_com)
     dfs = pd.concat(dfs, ignore_index=True)
     dfs["name"] = dfs["name"] + " [" + dfs["units"] + "]"
-    ds_ref = xr.merge(ds_refs)
-    ds_com = xr.merge(ds_coms)
+    ds_ref = xr.merge(ds_refs, compat="override")
+    ds_com = xr.merge(ds_coms, compat="override")
     return dfs, ds_ref, ds_com
 
 
@@ -825,6 +827,26 @@ def parse_benchmark_setup(yaml_file: str | Path) -> dict:
     return analyses
 
 
+def set_model_colors(df_datasets: pd.DataFrame):
+    """
+    Set model colors, some hard coded.
+    """
+    ilamb3.conf.set(
+        label_colors={
+            "Reference": [0.0, 0.0, 0.0, 1.0],
+            "CMIP5": [0.19215, 0.35294, 0.81176, 1.0],
+            "CMIP6": [0.81568, 0.21176, 0.21176, 1.0],
+        }
+    )
+    model_names = sorted(
+        df_datasets[ilamb3.conf["model_name_facets"]]
+        .apply(lambda row: "-".join(row), axis=1)
+        .unique(),
+        key=lambda m: m.lower(),
+    )
+    ilamb3.conf.set(label_colors=ilp.set_label_colors(model_names))
+
+
 def run_study(
     study_setup: str,
     df_datasets: pd.DataFrame,
@@ -842,22 +864,7 @@ def run_study(
         reg = ilamb3.iomb_catalog()
     else:
         raise ValueError("Unsupported registry.")
-
-    # Set model colors, some hard coded
-    ilamb3.conf.set(
-        label_colors={
-            "Reference": (0.0, 0.0, 0.0, 1.0),
-            "CMIP5": (0.19215, 0.35294, 0.81176, 1.0),
-            "CMIP6": (0.81568, 0.21176, 0.21176, 1.0),
-        }
-    )
-    model_names = sorted(
-        df_datasets[ilamb3.conf["model_name_facets"]]
-        .apply(lambda row: "-".join(row), axis=1)
-        .unique(),
-        key=lambda m: m.lower(),
-    )
-    ilamb3.conf.set(label_colors=ilp.set_label_colors(model_names))
+    set_model_colors(df_datasets)
 
     # The yaml analysis setup can be as structured as the user needs. We are no longer
     # limited to the `h1` and `h2` headers from ILAMB 2.x. We will detect leaf nodes by
@@ -875,7 +882,7 @@ def run_study(
         path = analysis.pop("path")
         try:
             run_single_block(
-                path.split("/")[-1],
+                path.replace("/", " | "),
                 (
                     ref_datasets
                     if ref_datasets is not None
