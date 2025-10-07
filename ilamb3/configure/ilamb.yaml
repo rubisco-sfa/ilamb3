@@ -51,6 +51,15 @@ Ecosystem and Carbon Cycle:
       - cVeg
       variable_cmap: Greens
 
+  Burnt Area:
+
+    GFED4.1S:
+      sources:
+        burntArea: GFED4.1S/burntArea.nc
+      variable_cmap: YlOrBr
+      alternate_vars:
+      - burntFractionAll
+
   Gross Primary Productivity:
 
     FLUXNET2015:
@@ -147,6 +156,13 @@ Ecosystem and Carbon Cycle:
       alternate_vars:
       - cSoil
 
+  Nitrogen Fixation:
+
+    Davies-Barnard:
+      sources:
+        fBNF: DaviesBarnard/fBNF_0.5x0.5.nc
+      variable_cmap: Greens
+
 Hydrology Cycle:
 
   Evapotranspiration:
@@ -189,6 +205,11 @@ Hydrology Cycle:
         hfls: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfls_gn_v20250902.nc
       variable_cmap: Blues
 
+    DOLCE:
+      sources:
+        hfls: DOLCE/DOLCE.nc
+      variable_cmap: Blues
+
     CLASS:
       sources:
         hfls: CLASS/hfls.nc
@@ -227,6 +248,30 @@ Hydrology Cycle:
       sources:
         hfss: CLASS/hfss.nc
       variable_cmap: Blues
+
+  Surface Soil Moisture:
+
+    WangMao:
+      sources:
+        mrsol: WangMao/mrsol_olc.nc
+      variable_cmap: Blues
+      transforms:
+      - soil_moisture_to_vol_fraction
+      - select_depth:
+          value: 0
+      alternate_vars:
+      - mrsos
+
+  Soil Moisture 1m:
+
+    WangMao:
+      sources:
+        mrsol: WangMao/mrsol_olc.nc
+      variable_cmap: Blues
+      transforms:
+      - soil_moisture_to_vol_fraction
+      - select_depth:
+          value: 1.
 
 Radiation and Energy Cycle:
 
