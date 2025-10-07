@@ -157,11 +157,11 @@ class bias_analysis(ILAMBAnalysis):
         # Get the reference data uncertainty
         if self.use_uncertainty:
             try:
-                uncert = dset.get_scalar_uncertainty(ref, varname)
+                ref["uncert"] = dset.get_scalar_uncertainty(ref, varname)
                 uncert = (
-                    dset.integrate_time(uncert, mean=True)
-                    if dset.is_temporal(uncert)
-                    else uncert
+                    dset.integrate_time(ref, "uncert", mean=True)
+                    if dset.is_temporal(ref["uncert"])
+                    else ref["uncert"]
                 )
             except NoUncertainty:
                 self.use_uncertainty = False
