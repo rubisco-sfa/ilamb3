@@ -194,7 +194,9 @@ class bias_analysis(ILAMBAnalysis):
             raise ValueError("Reference and comparison not uniformly site/spatial.")
 
         # Compute score by different methods
-        ref_, com_, norm_, uncert_ = cmp.rename_dims(ref_, com_, norm_, uncert_)
+        ref_, com_, norm_, uncert_ = cmp.rename_dims(
+            ref_, com_, norm_, uncert_.fillna(0)
+        )
         bias = com_ - ref_
         if self.method == "Collier2018":
             score = np.exp(-(np.abs(bias) - uncert_).clip(0) / norm_)
