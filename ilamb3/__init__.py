@@ -9,6 +9,7 @@ import pint_xarray  # noqa
 import pooch
 import xarray as xr
 from cf_xarray.units import units
+from numpy.exceptions import RankWarning
 
 from ilamb3._version import __version__  # noqa
 from ilamb3.config import conf  # noqa
@@ -26,6 +27,7 @@ ILAMB_DATA_VERSION = "0.1"
 
 # remove nuissance warnings from multiple fill values
 warnings.simplefilter("ignore", category=xr.SerializationWarning)
+warnings.simplefilter("ignore", category=RankWarning)
 
 
 def ilamb_catalog() -> pooch.Pooch:
