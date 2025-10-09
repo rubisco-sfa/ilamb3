@@ -184,10 +184,15 @@ Physical Drivers:
       sources:
         thetao: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_thetao_gn_v20250902.nc
       transforms:
+      - select_time:
+          vmin: 1955-01
+          vmax: 2023-01
       - select_depth:
           vmin: 200.
           vmax: 1000.
       - depth_gradient
+      plot_unit: delta_degC km-1
+      table_unit: delta_degC km-1
 
   Salinity Surface:
 
