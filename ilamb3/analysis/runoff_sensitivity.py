@@ -56,14 +56,14 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
 
     def __init__(
         self,
-        basin_source: str | Path | None = None,
         output_path: str | Path | None = None,
         **kwargs: Any,
     ):
         # Register basins in the ILAMB region system
-        assert basin_source is not None
-        ilamb_regions = Regions()
-        self.basins = ilamb_regions.add_netcdf(basin_source)
+        cat = ilamb3.ilamb_catalog()
+        self.basins = list(
+            set(Regions().add_netcdf(xr.open_dataset(cat.fetch("G-RUN/mrb_basins.nc"))))
+        )
         self.output_path = Path(output_path) if output_path is not None else None
 
     def required_variables(self) -> list[str]:

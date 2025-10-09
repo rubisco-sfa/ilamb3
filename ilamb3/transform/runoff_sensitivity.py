@@ -5,6 +5,7 @@ import statsmodels.formula.api as smf
 import xarray as xr
 from tqdm import tqdm
 
+import ilamb3
 import ilamb3.dataset as dset
 from ilamb3.cache import dataframe_cache
 from ilamb3.exceptions import MissingRegion, MissingVariable
@@ -14,7 +15,10 @@ from ilamb3.transform.base import ILAMBTransform
 
 class runoff_sensitivity(ILAMBTransform):
     def __init__(self):
-        pass
+        cat = ilamb3.ilamb_catalog()
+        self.basins = list(
+            set(Regions().add_netcdf(xr.open_dataset(cat.fetch("G-RUN/mrb_basins.nc"))))
+        )
 
     def required_variables(self) -> list[str]:
         """
@@ -25,14 +29,7 @@ class runoff_sensitivity(ILAMBTransform):
     def __call__(self, ds: xr.Dataset) -> xr.Dataset:
         if "psens_obs" in ds and "tsens_obs" in ds:
             return ds
-        ilamb_regions = Regions()
-        basins = [
-            r
-            for r in ilamb_regions.regions
-            if ilamb_regions.get_source(r) == "mrb_basins.nc"
-        ]
-        assert len(basins) == 129
-        df = compute_runoff_sensitivity(ds, basins)
+        df = compute_runoff_sensitivity(ds, self.basins)
         out = _df_to_ds(df)
         return out
 
