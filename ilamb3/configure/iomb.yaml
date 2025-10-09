@@ -1,11 +1,45 @@
 
 Ecosystems:
 
+  Chlorophyll:
+
+    GLODAP2.2022:
+      sources:
+        chla: GLODAP2.2022/chla.nc
+      transforms:
+      - select_depth:
+          value: 0.
+      alternate_vars:
+      - chl
+
+    SeaWIFS:
+      sources:
+        chla: SeaWIFS/SeaWIFS.nc
+      transforms:
+      - select_depth:
+          value: 0.
+      alternate_vars:
+      - chl
+
+    MODISAqua:
+      sources:
+        chl: MODISAqua/MODISAqua.nc
+      transforms:
+      - select_depth:
+          value: 0.
+
   Oxygen Surface:
 
     WOA-23:
       sources:
         o2: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_o2_gn_v20250902.nc
+      transforms:
+      - select_depth:
+          value: 0.
+
+    GLODAP2.2022:
+      sources:
+        o2: GLODAP2.2022/o2.nc
       transforms:
       - select_depth:
           value: 0.
@@ -21,11 +55,25 @@ Nutrients:
       - select_depth:
           value: 0.
 
+    GLODAP2.2022:
+      sources:
+        no3: GLODAP2.2022/no3.nc
+      transforms:
+      - select_depth:
+          value: 0.
+
   Phosphate Surface:
 
     WOA-23:
       sources:
         po4: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_po4_gn_v20250902.nc
+      transforms:
+      - select_depth:
+          value: 0.
+
+    GLODAP2.2022:
+      sources:
+        po4: GLODAP2.2022/po4.nc
       transforms:
       - select_depth:
           value: 0.
@@ -39,7 +87,44 @@ Nutrients:
       - select_depth:
           value: 0.
 
+    GLODAP2.2022:
+      sources:
+        sio3: GLODAP2.2022/sio3.nc
+      transforms:
+      - select_depth:
+          value: 0.
+      alternate_vars:
+      - si
+
+Carbon:
+
+  Alkalinity:
+
+    GLODAP2.2022:
+      sources:
+        talk: GLODAP2.2022/talk.nc
+      transforms:
+      - select_depth:
+          value: 0.
+
+  Dissolved Inorganic Carbon:
+
+    GLODAP2.2022:
+      sources:
+        dissic: GLODAP2.2022/dissic.nc
+      transforms:
+      - select_depth:
+          value: 0.
+
 Physical Drivers:
+
+  Mixed Layer Depth:
+
+    Boyer:
+      sources:
+        mlotstmax: Boyer/mlotstmax.nc
+      alternate_vars:
+      - omlmax
 
   Temperature Surface:
 
@@ -52,11 +137,27 @@ Physical Drivers:
       alternate_vars:
       - tos
 
+    GLODAP2.2022:
+      sources:
+        thetao: GLODAP2.2022/thetao.nc
+      transforms:
+      - select_depth:
+          value: 0.
+      alternate_vars:
+      - tos
+
   Temperature 200m:
 
     WOA-23:
       sources:
         thetao: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_thetao_gn_v20250902.nc
+      transforms:
+      - select_depth:
+          value: 200.
+
+    GLODAP2.2022:
+      sources:
+        thetao: GLODAP2.2022/thetao.nc
       transforms:
       - select_depth:
           value: 200.
@@ -97,7 +198,16 @@ Physical Drivers:
       - select_depth:
           value: 0.
       alternate_vars:
-      - tos
+      - sos
+
+    GLODAP2.2022:
+      sources:
+        so: GLODAP2.2022/so.nc
+      transforms:
+      - select_depth:
+          value: 0.
+      alternate_vars:
+      - sos
 
   Salinity 200m:
 
@@ -108,11 +218,25 @@ Physical Drivers:
       - select_depth:
           value: 200.
 
+    GLODAP2.2022:
+      sources:
+        so: GLODAP2.2022/so.nc
+      transforms:
+      - select_depth:
+          value: 200.
+
   Salinity 700m:
 
     WOA-23:
       sources:
         so: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_so_gn_v20250902.nc
+      transforms:
+      - select_depth:
+          value: 700.
+
+    GLODAP2.2022:
+      sources:
+        so: GLODAP2.2022/so.nc
       transforms:
       - select_depth:
           value: 700.
