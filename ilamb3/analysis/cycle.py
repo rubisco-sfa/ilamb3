@@ -93,9 +93,15 @@ class cycle_analysis(ILAMBAnalysis):
         ref, com = cmp.rename_dims(*cmp.make_comparable(ref, com, varname))
 
         # Is the time series long enough for this to be meaningful?
-        if len(ref[dset.get_dim_name(ref, "time")]) < 12:
+        if (
+            not dset.is_temporal(ref[varname])
+            or len(ref[dset.get_dim_name(ref[varname], "time")]) < 12
+        ):
             raise AnalysisNotAppropriate()
-        if len(com[dset.get_dim_name(com, "time")]) < 12:
+        if (
+            not dset.is_temporal(com[varname])
+            or len(com[dset.get_dim_name(com[varname], "time")]) < 12
+        ):
             raise AnalysisNotAppropriate()
 
         # Compute the mean annual cycles

@@ -14,7 +14,7 @@ defaults = {
     "prefer_regional_quantiles": False,
     "quantile_database": "quantiles/quantiles_Whittaker_cmip5v6.parquet",
     "quantile_threshold": 70,
-    "use_uncertainty": False,
+    "use_uncertainty": True,
     "model_name_facets": ["source_id", "member_id", "grid_label"],
     "group_name_facets": None,
     "plot_central_longitude": 0,

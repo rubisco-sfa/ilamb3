@@ -144,7 +144,7 @@ class rmse_analysis(ILAMBAnalysis):
         # Conversions
         if self.use_uncertainty:
             ref, com, uncert = cmp.rename_dims(
-                *cmp.nest_spatial_grids(ref[varname], com[varname], uncert)
+                *cmp.nest_spatial_grids(ref[varname], com[varname], uncert.fillna(0))
             )
         else:
             ref, com = cmp.rename_dims(

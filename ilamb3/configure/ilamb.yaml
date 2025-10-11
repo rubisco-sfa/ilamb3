@@ -564,3 +564,18 @@ Forcings:
       sources:
         rlds: WRMC.BSRN/rlds.nc
       variable_cmap: RdPu
+
+Sensitivities:
+
+  Runoff:
+
+    G-RUN:
+      sources:
+        psens_obs: G-RUN/runoff_sensitivity_obs.nc
+      transforms:
+      - select_time:
+          vmin: 1940-01
+          vmax: 2015-01
+      - runoff_sensitivity
+      analyses:
+      - Runoff Sensitivity

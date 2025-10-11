@@ -296,13 +296,13 @@ def cmip_cell_measures(ds: xr.Dataset, varname: str) -> xr.Dataset:
     if "cell_measures" not in da.attrs:
         return ds
     m = re.search(r"area:\s(.*)", da.attrs["cell_measures"])
-    if m:
-        msr_name = m.group(1)
-        if msr_name in ds:
-            msr = ds[msr_name]
-            ds = ds.drop_vars(msr_name)
-        else:
-            msr = dset.compute_cell_measures(ds)
+    if not m:
+        return ds
+    msr_name = m.group(1)
+    if msr_name not in ds:
+        return ds
+    msr = ds[msr_name]
+    ds = ds.drop_vars(msr_name)
     if "cell_methods" in da.attrs:
         if "where land" in da.attrs["cell_methods"] and "sftlf" in ds:
             msr *= ds["sftlf"] * 0.01

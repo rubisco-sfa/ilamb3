@@ -79,7 +79,7 @@ def pick_projection(
     return proj, aspect_ratio
 
 
-def finalize_plot(ax: plt.Axes, extents: list[float]) -> plt.Axes:
+def finalize_plot(ax: plt.Axes) -> plt.Axes:
     """Add some final features to our plots."""
     ax.add_feature(
         cfeature.NaturalEarthFeature(
@@ -93,21 +93,6 @@ def finalize_plot(ax: plt.Axes, extents: list[float]) -> plt.Axes:
         ),
         zorder=-1,
     )
-    # cleanup plotting extents
-    percent_pad = 0.1
-    if (extents[1] - extents[0]) > 300:
-        extents[:2] = [-180, 180]  # set_extent doesn't like (0,360)
-        extents[2:] = [-90, 90]
-    else:
-        dx = percent_pad * (extents[1] - extents[0])
-        dy = percent_pad * (extents[3] - extents[2])
-        extents = [
-            max(extents[0] - dx, -180),
-            min(extents[1] + dx, 180),
-            max(extents[2] - dy, -90),
-            min(extents[3] + dy, 90),
-        ]
-    ax.set_extent(extents, ccrs.PlateCarree())
     return ax
 
 
@@ -170,7 +155,7 @@ def plot_map(da: xr.DataArray, **kwargs):
     else:
         raise ValueError("plotting error")
     ax.set_title(title)
-    ax = finalize_plot(ax, extents)
+    ax = finalize_plot(ax)
     return ax
 
 

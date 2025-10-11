@@ -74,7 +74,7 @@ DATA = {
         ("ocean_heat_content", {"reference_year": 2000}, "ohc", -0.0046867534613105055),
         ("select_depth", {"value": 0}, "thetao", 9.43861150676275),
         ("select_depth", {"vmin": 1, "vmax": 40}, "thetao", 9.983843647875275),
-        ("depth_gradient", {}, "thetao_depth_gradient", -0.005550578833866464),
+        ("depth_gradient", {}, "thetao", -0.005550578833866464),
     ],
 )
 def test_transform(name, kwargs, out, value):
