@@ -2,6 +2,8 @@
 
 import importlib
 import json
+from collections import defaultdict
+from math import isnan
 from pathlib import Path
 from typing import Any
 
@@ -75,29 +77,17 @@ def dataframe_to_cmec(df: pd.DataFrame) -> dict[str, Any]:
         "indices": [s.replace(" [1]", "") for s in df["name"].unique()],
         "short_names": [s.replace(" [1]", "") for s in df["name"].unique()],
     }
-    cmec_results = {}
-    for region in df["region"].unique():
-        cmec_results[region] = {}
-        for model in df["source"].unique():
-            cmec_results[region][model] = {}
 
-            for sec in ["section", "h2", "h3"]:
-                for name in df[sec].unique():
-                    q = df[
-                        (df["region"] == region)
-                        & (df["source"] == model)
-                        & (df[sec] == name)
-                    ]
-                    if not len(q):
-                        continue
-                    q.groupby("name").mean(numeric_only=True)
-                    q = (
-                        q[["name", "dataset", "value"]]
-                        .pivot(columns="name", index="dataset")
-                        .mean()
-                    )
-                    q.index = [i.replace(" [1]", "") for i in q.index.levels[1]]
-                    cmec_results[region][model][name] = q.to_dict()
+    tree = lambda: defaultdict(tree)
+    cmec_results = tree()
+    for sec in ["section", "h2", "h3"]:
+        for (region, model, section, name), grp in df.groupby(
+            ["region", "source", sec, "name"]
+        ):
+            value = grp["value"].mean()
+            cmec_results[region][model][section][name.replace(" [1]", "")] = (
+                None if isnan(value) else value
+            )
 
     bundle = {
         "SCHEMA": {"name": "CMEC", "version": "v1", "package": "ILAMB"},
@@ -163,7 +153,7 @@ def _load_local_csvs(csv_files: list[Path]) -> pd.DataFrame:
     return df
 
 
-def build_global_dataframe(root: Path):
+def build_global_dataframe(root: Path) -> pd.DataFrame:
     dfs = []
     for parent, _, files in root.walk():
         # the dashboard needs html files to be {DATASET}.html
