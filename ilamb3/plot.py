@@ -60,23 +60,60 @@ def compute_overlap_fracs(
 
 
 def pick_projection(
-    extents: list[float], fraction_threshold: float = 0.85
+    extents: list[float], fraction_threshold: float = 0.75
 ) -> tuple[ccrs.Projection, float]:
-    """Given plot extents choose projection and aspect ratio."""
-    lon = ilamb3.conf["plot_central_longitude"]
-    if compute_overlap_fracs([-180, 180, 60, 90], extents)[1] > fraction_threshold:
-        return ccrs.Orthographic(central_latitude=+90, central_longitude=lon), 1.0
-    if compute_overlap_fracs([-180, 180, -90, -60], extents)[1] > fraction_threshold:
-        return ccrs.Orthographic(central_latitude=-90, central_longitude=lon), 1.0
-    if compute_overlap_fracs([-125, -66.5, 20, 50], extents)[1] > fraction_threshold:
-        return ccrs.LambertConformal(), 2.05  # USA
-    if compute_extent_area(extents) / compute_extent_area([-180, 180, -90, 90]) > 0.5:
-        return ccrs.Robinson(central_longitude=lon), 2.0  # Global
-    # If none of above, use cyclindrical
-    aspect_ratio = max(extents[1], extents[0]) - min(extents[1], extents[0])
-    aspect_ratio /= max(extents[3], extents[2]) - min(extents[3], extents[2])
-    proj = ccrs.PlateCarree(central_longitude=np.array(extents)[:2].mean())
-    return proj, aspect_ratio
+    df = pd.DataFrame(
+        [
+            {
+                "key": "north-pole",
+                "extents": [-180, 180, 30, 90],
+                "proj": ccrs.Orthographic(
+                    central_latitude=+90,
+                    central_longitude=ilamb3.conf["plot_central_longitude"],
+                ),
+                "ratio": 1.0,
+            },
+            {
+                "key": "south-pole",
+                "extents": [-180, 180, -90, -30],
+                "proj": ccrs.Orthographic(
+                    central_latitude=-90,
+                    central_longitude=ilamb3.conf["plot_central_longitude"],
+                ),
+                "ratio": 1.0,
+            },
+            {
+                "key": "conus",
+                "extents": [-125, -66.5, 20, 50],
+                "proj": ccrs.LambertConformal(),
+                "ratio": 2.05,
+            },
+            {
+                "key": "globe",
+                "extents": [-180, 180, -90, 90],
+                "proj": ccrs.Robinson(
+                    central_longitude=ilamb3.conf["plot_central_longitude"],
+                ),
+                "ratio": 2.0,
+            },
+        ]
+    )
+    # compute and sort by how much area is shared
+    df[["f_wrt_proj", "f_wrt_input"]] = df.apply(
+        lambda row: compute_overlap_fracs(row["extents"], extents),
+        axis=1,
+        result_type="expand",
+    )
+    df = df.sort_values(["f_wrt_input", "f_wrt_proj"], ascending=False)
+    select = df.iloc[0]
+    # if the best projection is not a good fit, then lets go cylindrical
+    if min(select["f_wrt_proj"], select["f_wrt_input"]) < fraction_threshold:
+        aspect_ratio = max(extents[1], extents[0]) - min(extents[1], extents[0])
+        aspect_ratio /= max(extents[3], extents[2]) - min(extents[3], extents[2])
+        aspect_ratio = 1.0 if np.isclose(aspect_ratio, 0) else aspect_ratio
+        proj = ccrs.PlateCarree(central_longitude=np.array(extents)[:2].mean())
+        return proj, aspect_ratio
+    return select["proj"], select["ratio"]
 
 
 def finalize_plot(ax: plt.Axes) -> plt.Axes:
