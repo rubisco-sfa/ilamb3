@@ -2,6 +2,7 @@
 
 import importlib
 import json
+import re
 from collections import defaultdict
 from math import isnan
 from pathlib import Path
@@ -179,3 +180,27 @@ def build_global_dataframe(root: Path) -> pd.DataFrame:
         dfs.append(df)
     dfs = pd.concat(dfs)
     return dfs
+
+
+def generate_directory_of_dashboards(output_path: Path) -> None:
+    """
+    Generate a html page with links to UD dashboard pages in child directories.
+    """
+    links = {}
+    for item in output_path.iterdir():
+        if not item.is_dir():
+            continue
+        index_file = item / "index.html"
+        if not index_file.is_file():
+            continue
+        with open(index_file) as fin:
+            html = fin.read()
+        match = re.search(r'<h1 class="title">(.*?)</h1>', html)
+        if match:
+            links[match.group(1)] = str(index_file.relative_to(output_path))
+    template = importlib.resources.open_text(
+        "ilamb3.templates", "directory.html"
+    ).read()
+    html = Template(template).render({"links": links})
+    with open(output_path / "index.html", "w") as out:
+        out.write(html)
