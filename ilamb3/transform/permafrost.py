@@ -75,6 +75,5 @@ class permafrost_extent(ILAMBTransform):
         if not set(self.required_variables()).issubset(ds):
             return ds
         ds = EXTENT_METHODS[self.method](ds)
-        ds["permafrost_extent"] = ds["permafrost_extent"].any(dim="year").squeeze()
-        ds = ds.drop_vars("tsl")
+        ds = ds["permafrost_extent"].any(dim="year").squeeze().to_dataset()
         return ds
