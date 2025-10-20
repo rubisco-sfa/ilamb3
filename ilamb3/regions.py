@@ -63,6 +63,7 @@ def restrict_to_region(da: xr.DataArray, dar: xr.DataArray):
             dar.interp(
                 {lat_name: da[lat_name], lon_name: da[lon_name]},
                 method="nearest",
+                kwargs={"fill_value": "extrapolate"},
             ),
             da,
             np.nan,
