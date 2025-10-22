@@ -308,6 +308,21 @@ Cryosphere:
       analyses:
       - Area Comparison
 
+    Obu2018:
+      sources:
+        permafrost_extent: Obu2018/Obu2018.nc
+      transforms:
+      - select_time:
+          vmin: 2000-01
+          vmax: 2016-01
+      - select_lat:
+          vmin: -10.
+          vmax: 90.
+      - permafrost_extent:
+          method: slater2013
+      analyses:
+      - Area Comparison
+
 Radiation and Energy Cycle:
 
   Surface Upward SW Radiation:
