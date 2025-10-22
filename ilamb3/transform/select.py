@@ -69,6 +69,7 @@ class select_dim(ILAMBTransform):
             dim_name = dset.get_dim_name(ds, self.dim)
         except KeyError:
             return ds
+        ds = ds.sortby(dim_name)
         if self.value is not None:
             return ds.sel({dim_name: self.value}, method="nearest", drop=True)
         else:
