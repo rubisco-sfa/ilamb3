@@ -20,7 +20,7 @@ DEFAULT_ANALYSES = {
     "Spatial Distribution": spatial_distribution_analysis,
 }
 ALL_ANALYSES = {
-    "area": area_analysis,
+    "Area Comparison": area_analysis,
     "nbp": nbp_analysis,
     "Runoff Sensitivity": runoff_sensitivity_analysis,
     "Hydro": hydro_analysis,
