@@ -291,6 +291,23 @@ Cryosphere:
         snc: CCI-CryoClim-FSC-1/snc_mon_Snow-cci_BE_gn_198201-201906.nc
       variable_cmap: BuPu
 
+  Permafrost Extent:
+
+    Brown2002:
+      sources:
+        permafrost_extent: Brown2002/Brown2002.nc
+      transforms:
+      - select_time:
+          vmin: 1960-01
+          vmax: 1993-01
+      - select_lat:
+          vmin: 30.
+          vmax: 90.
+      - permafrost_extent:
+          method: slater2013
+      analyses:
+      - Area Comparison
+
 Radiation and Energy Cycle:
 
   Surface Upward SW Radiation:
