@@ -190,6 +190,7 @@ def finalize_plot(ax: plt.Axes) -> plt.Axes:
 def plot_map(da: xr.DataArray, **kwargs):
     # Process some options
     ncolors = kwargs.pop("ncolors") if "ncolors" in kwargs else 9
+    ticks = kwargs.pop("ticks") if "ticks" in kwargs else None
     ticklabels = kwargs.pop("ticklabels") if "ticklabels" in kwargs else None
     kwargs["cmap"] = plt.get_cmap(
         kwargs["cmap"] if "cmap" in kwargs else "viridis", ncolors
@@ -214,7 +215,7 @@ def plot_map(da: xr.DataArray, **kwargs):
     )
 
     # Setup colorbar arguments
-    cba = {"label": da.attrs["units"]}
+    cba = {"label": da.attrs["units"] if "units" in da.attrs else ""}
     if "cbar_kwargs" in kwargs:
         cba.update(kwargs.pop("cbar_kwargs"))
 
@@ -227,6 +228,8 @@ def plot_map(da: xr.DataArray, **kwargs):
         out_plot = da.plot(
             ax=ax, transform=ccrs.PlateCarree(), cbar_kwargs=cba, **kwargs
         )
+        if ticks is not None:
+            out_plot.colorbar.set_ticks(ticks)
         if ticklabels is not None:
             out_plot.colorbar.set_ticklabels(ticklabels)
     elif dset.is_site(da):
@@ -241,6 +244,8 @@ def plot_map(da: xr.DataArray, **kwargs):
             transform=ccrs.PlateCarree(),
             **kwargs,
         )
+        if ticks is not None:
+            out_plot.colorbar.set_ticks(ticks)
         if ticklabels is not None:
             out_plot.colorbar.set_ticklabels(ticklabels)
     else:
