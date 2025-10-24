@@ -11,7 +11,7 @@ def test_ilamb():
 
 
 def test_iomb():
-    reg = ilamb3.iomb_catalog()
+    reg = ilamb3.ilamb3_catalog()
     fname = reg.fetch(
         "RAPID-2023-1a/obs4MIPs_NOC_RAPID-2023-1a_mon_msftmz_gm_v20250902.nc"
     )
