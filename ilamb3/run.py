@@ -355,7 +355,9 @@ def _load_comparison_data(
     # include all relationship variables as well as alternates.
     com = {
         var: xr.open_mfdataset(
-            sorted((df[df["variable_id"] == var]["path"]).to_list()), data_vars="all"
+            sorted((df[df["variable_id"] == var]["path"]).to_list()),
+            preprocess=fix_lndgrid_coords,
+            data_vars="all",
         )
         for var in df["variable_id"].unique()
     }
@@ -373,8 +375,6 @@ def _load_comparison_data(
     # Fix bounds attributes (there is a bounds variable but it isn't in the
     # attributes)
     com = {var: dset.fix_missing_bounds_attrs(ds) for var, ds in com.items()}
-    # Fix lndgrid cooridates if raw E3SM/CESM2 data is given
-    com = {var: fix_lndgrid_coords(ds) for var, ds in com.items()}
     # Merge all the data together
     if len(com) > 1:
         # The grids should be the same, but sometimes models generate output
