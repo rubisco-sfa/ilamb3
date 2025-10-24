@@ -38,6 +38,7 @@ dependencies = [
   "nc-time-axis>=1.4.1",
   "tqdm>=4.67.1",
   "pyarrow>=21.0.0",
+  "typer>=0.20.0",
 ]
 
 [dependency-groups]
@@ -52,9 +53,10 @@ doc = [
   "sphinx-copybutton>=0.5.2",
 ]
 gcb = ["gsw>=3.6.19"]
-parallel = [
-    "mpi4py>=4.1.0",
-]
+parallel = ["mpi4py>=4.1.0"]
+
+[project.scripts]
+ilamb = "ilamb3.cli:app"
 
 [build-system]
 build-backend = "setuptools.build_meta"
