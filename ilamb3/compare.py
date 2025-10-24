@@ -295,8 +295,11 @@ def handle_timescale_mismatch(
             }
         )
         return ref, com
+    if np.allclose(dt_ref, 30, atol=3) and dt_com < 28:
+        com = dset.compute_monthly_mean(com)
+        return ref, com
     raise NotImplementedError(
-        f"We encountered a time scale mismatch that we have no logic to handle. {ref} {com}"
+        f"We encountered a time scale mismatch ({dt_ref=:.1f} vs. {dt_com=:.1f}) that we have no logic to handle. {ref} {com}"
     )
 
 
@@ -327,8 +330,10 @@ def make_comparable(
         com = com.sortby([dset.get_dim_name(com, "lat"), dset.get_dim_name(com, "lon")])
 
     # pick just the sites
-    if dset.is_site(ref[varname]):
+    if dset.is_site(ref[varname]) and dset.is_spatial(com[varname]):
         com = extract_sites(ref, com, varname)
+    if dset.is_site(com[varname]) and dset.is_spatial(ref[varname]):
+        ref = extract_sites(com, ref, varname)
 
     # convert units
     com = dset.convert(com, ref[varname].attrs["units"], varname=varname)

@@ -49,6 +49,21 @@ def fix_pint_units(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
+def fix_lndgrid_coords(ds: xr.Dataset) -> xr.Dataset:
+    """
+    Return a dataset with coordinates properly assigned.
+
+    Note
+    ----
+    E3SM/CESM2 raw land model output comes as if it were run over sites in the
+    `lndgrid` dimension. Some of the variables that are listed in these files
+    are only of this dimension and really belong in the coordinates. These tend
+    to be things like `lat`, `lon`, etc. and ilamb3 needs them to be associated
+    with the dataset coordinates to work.
+    """
+    return ds.assign_coords({v: ds[v] for v in ds if ds[v].dims == ("lndgrid",)})
+
+
 def select_analysis_variable(setup: dict[str, Any]) -> str:
     """
     Return the main variable to be used in this analysis.
@@ -358,6 +373,8 @@ def _load_comparison_data(
     # Fix bounds attributes (there is a bounds variable but it isn't in the
     # attributes)
     com = {var: dset.fix_missing_bounds_attrs(ds) for var, ds in com.items()}
+    # Fix lndgrid cooridates if raw E3SM/CESM2 data is given
+    com = {var: fix_lndgrid_coords(ds) for var, ds in com.items()}
     # Merge all the data together
     if len(com) > 1:
         # The grids should be the same, but sometimes models generate output
@@ -547,21 +564,34 @@ def run_single_block(
             "Reference intermediate data was not generated."
         )  # pragma: no cover
 
+    log_file = output_path / "post.log"
+    log_id = logger.add(log_file, backtrace=True, diagnose=True)
+
     # Phase 2: get plots and combine scalars and save
-    plt.rcParams.update({"figure.max_open_warning": 0})
-    df = pd.concat(df_all).drop_duplicates(
-        subset=["source", "region", "analysis", "name"]
-    )
-    df = add_overall_score(df)
-    df_plots = plot_analyses(df, ds_ref, ds_com, analyses, output_path)
+    try:
+        plt.rcParams.update({"figure.max_open_warning": 0})
+        df = pd.concat(df_all).drop_duplicates(
+            subset=["source", "region", "analysis", "name"]
+        )
+        df = add_overall_score(df)
+        df_plots = plot_analyses(df, ds_ref, ds_com, analyses, output_path)
+    except Exception:
+        logger.exception(f"ILAMB analysis '{block_name}' failed in plotting.")
+        return
 
     # Generate an output page
-    if ilamb3.conf["debug_mode"] and (output_path / "index.html").is_file():
+    try:
+        if ilamb3.conf["debug_mode"] and (output_path / "index.html").is_file():
+            logger.remove(log_id)
+            return
+        ds_ref.attrs["header"] = block_name
+        html = generate_html_page(df, ds_ref, ds_com, df_plots)
+        with open(output_path / "index.html", mode="w") as out:
+            out.write(html)
+    except Exception:
+        logger.exception(f"ILAMB analysis '{block_name}' failed in generating html.")
         return
-    ds_ref.attrs["header"] = block_name
-    html = generate_html_page(df, ds_ref, ds_com, df_plots)
-    with open(output_path / "index.html", mode="w") as out:
-        out.write(html)
+    logger.remove(log_id)
 
 
 def run_analyses(

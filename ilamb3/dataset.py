@@ -864,18 +864,17 @@ def convert(
     xr.Dataset or xr.DataArray
         The converted dataset.
     """
-    dset = dset.pint.quantify()
     if isinstance(dset, xr.DataArray):
         da = dset
     else:
         assert varname is not None
         da = dset[varname]
+    da = da.pint.quantify()
     da = scale_by_water_density(da, unit)
     da = da.pint.to(unit)
     if isinstance(dset, xr.DataArray):
         return da.pint.dequantify()
-    dset[varname] = da
-    dset = dset.pint.dequantify()
+    dset[varname] = da.pint.dequantify()
     return dset
 
 
@@ -1006,4 +1005,19 @@ def compute_monthly_mean(ds: xr.Dataset) -> xr.Dataset:
     if dt > 31:
         raise ValueError(f"Input dataset is already coarser than monthly {dt=}.")
     ds = ds.resample(time=xr.groupers.TimeResampler("MS")).mean()
+    return ds
+
+
+def shift_time_by_years(ds: xr.Dataset, years: int) -> xr.Dataset:
+    """
+    Return the dataset shifted by the given number of years.
+    """
+    time_dim = get_dim_name(ds, "time")
+    cls = ds[time_dim].values[0].__class__
+    ds[time_dim] = [
+        cls(
+            t.dt.year + years, t.dt.month, t.dt.day, t.dt.hour, t.dt.minute, t.dt.second
+        )
+        for t in ds[time_dim]
+    ]
     return ds
