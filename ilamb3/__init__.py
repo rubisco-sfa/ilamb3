@@ -51,7 +51,7 @@ def ilamb_catalog() -> pooch.Pooch:
     return registry
 
 
-def iomb_catalog() -> pooch.Pooch:
+def ilamb3_catalog() -> pooch.Pooch:
     """
     Return the pooch iomb reference data catalog.
 
@@ -63,6 +63,27 @@ def iomb_catalog() -> pooch.Pooch:
     registry = pooch.create(
         path=pooch.os_cache("ilamb3"),
         base_url="https://www.ilamb.org/ilamb3-data",
+        version=ILAMB_DATA_VERSION,
+        env="ILAMB_ROOT",
+    )
+    registry.load_registry(
+        importlib.resources.open_binary("ilamb3.registry", "ilamb3.txt")
+    )
+    return registry
+
+
+def iomb_catalog() -> pooch.Pooch:
+    """
+    Return the pooch iomb reference data catalog.
+
+    Returns
+    -------
+    pooch.Pooch
+        The intake ilamb reference data catalog.
+    """
+    registry = pooch.create(
+        path=pooch.os_cache("ilamb3"),
+        base_url="https://www.ilamb.org/IOMB-Data/DATA",
         version=ILAMB_DATA_VERSION,
         env="ILAMB_ROOT",
     )
