@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Directory of Benchmarking Results</title>
+  </head>
+  <body>
+    <ul>
+{% for name,link in links.items() %}
+<li><a href="{{link}}">{{name}}</a></li>
+{% endfor %}
+    </ul>
+  </body>
+</html>
