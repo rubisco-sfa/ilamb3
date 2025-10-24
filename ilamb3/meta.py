@@ -2,6 +2,9 @@
 
 import importlib
 import json
+import re
+from collections import defaultdict
+from math import isnan
 from pathlib import Path
 from typing import Any
 
@@ -75,29 +78,17 @@ def dataframe_to_cmec(df: pd.DataFrame) -> dict[str, Any]:
         "indices": [s.replace(" [1]", "") for s in df["name"].unique()],
         "short_names": [s.replace(" [1]", "") for s in df["name"].unique()],
     }
-    cmec_results = {}
-    for region in df["region"].unique():
-        cmec_results[region] = {}
-        for model in df["source"].unique():
-            cmec_results[region][model] = {}
 
-            for sec in ["section", "h2", "h3"]:
-                for name in df[sec].unique():
-                    q = df[
-                        (df["region"] == region)
-                        & (df["source"] == model)
-                        & (df[sec] == name)
-                    ]
-                    if not len(q):
-                        continue
-                    q.groupby("name").mean(numeric_only=True)
-                    q = (
-                        q[["name", "dataset", "value"]]
-                        .pivot(columns="name", index="dataset")
-                        .mean()
-                    )
-                    q.index = [i.replace(" [1]", "") for i in q.index.levels[1]]
-                    cmec_results[region][model][name] = q.to_dict()
+    tree = lambda: defaultdict(tree)
+    cmec_results = tree()
+    for sec in ["section", "h2", "h3"]:
+        for (region, model, section, name), grp in df.groupby(
+            ["region", "source", sec, "name"]
+        ):
+            value = grp["value"].mean()
+            cmec_results[region][model][section][name.replace(" [1]", "")] = (
+                None if isnan(value) else value
+            )
 
     bundle = {
         "SCHEMA": {"name": "CMEC", "version": "v1", "package": "ILAMB"},
@@ -163,7 +154,7 @@ def _load_local_csvs(csv_files: list[Path]) -> pd.DataFrame:
     return df
 
 
-def build_global_dataframe(root: Path):
+def build_global_dataframe(root: Path) -> pd.DataFrame:
     dfs = []
     for parent, _, files in root.walk():
         # the dashboard needs html files to be {DATASET}.html
@@ -189,3 +180,27 @@ def build_global_dataframe(root: Path):
         dfs.append(df)
     dfs = pd.concat(dfs)
     return dfs
+
+
+def generate_directory_of_dashboards(output_path: Path) -> None:
+    """
+    Generate a html page with links to UD dashboard pages in child directories.
+    """
+    links = {}
+    for item in output_path.iterdir():
+        if not item.is_dir():
+            continue
+        index_file = item / "index.html"
+        if not index_file.is_file():
+            continue
+        with open(index_file) as fin:
+            html = fin.read()
+        match = re.search(r'<h1 class="title">(.*?)</h1>', html)
+        if match:
+            links[match.group(1)] = str(index_file.relative_to(output_path))
+    template = importlib.resources.open_text(
+        "ilamb3.templates", "directory.html"
+    ).read()
+    html = Template(template).render({"links": links})
+    with open(output_path / "index.html", "w") as out:
+        out.write(html)

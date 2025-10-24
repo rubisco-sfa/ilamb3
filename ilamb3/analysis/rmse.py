@@ -56,12 +56,16 @@ class rmse_analysis(ILAMBAnalysis):
         score_basis: Literal["series", "cycle"] = "series",
         regions: list[str | None] = [None],
         use_uncertainty: bool = True,
+        table_unit: str | None = None,
+        plot_unit: str | None = None,
         **kwargs: Any,  # this is so we can pass extra arguments without failure
     ):
         self.req_variable = required_variable
         self.score_basis = score_basis
         self.regions = regions
         self.use_uncertainty = use_uncertainty
+        self.table_unit = table_unit
+        self.plot_unit = plot_unit
         self.kwargs = kwargs
 
     def required_variables(self) -> list[str]:
@@ -140,7 +144,7 @@ class rmse_analysis(ILAMBAnalysis):
         # Conversions
         if self.use_uncertainty:
             ref, com, uncert = cmp.rename_dims(
-                cmp.nest_spatial_grids(ref[varname], com[varname], uncert)
+                *cmp.nest_spatial_grids(ref[varname], com[varname], uncert.fillna(0))
             )
         else:
             ref, com = cmp.rename_dims(
@@ -164,13 +168,14 @@ class rmse_analysis(ILAMBAnalysis):
         )
         crms = np.sqrt(dset.integrate_time((ref - ref_mean) ** 2, varname, mean=True))
         score = np.exp(-crmse / crms)
+        score.attrs["units"] = "1"
 
         # Load outputs and scalars
         ds_com["rmse"] = rmse
         ds_com["rmsescore"] = score
         df = []
         for region in self.regions:
-            val, unit = scalarify(rmse, varname, region, mean=True)
+            val, unit = scalarify(rmse, "rmse", region, mean=True, unit=self.plot_unit)
             df += [
                 {
                     "source": "Comparison",
@@ -182,7 +187,7 @@ class rmse_analysis(ILAMBAnalysis):
                     "value": val,
                 },
             ]
-            val, _ = scalarify(score, varname, region, mean=True)
+            val, _ = scalarify(score, "rmsescore", region, mean=True)
             df += [
                 {
                     "source": "Comparison",
@@ -196,8 +201,8 @@ class rmse_analysis(ILAMBAnalysis):
             ]
 
         df = pd.DataFrame(df)
-        ds_ref = xr.merge([ds_ref])
-        ds_com = xr.merge([ds_com])
+        ds_ref = xr.merge([ds_ref], compat="override")
+        ds_com = xr.merge([ds_com], compat="override")
         return df, ds_ref, ds_com
 
     def plots(
@@ -213,6 +218,17 @@ class rmse_analysis(ILAMBAnalysis):
         # Some initialization
         regions = [None if r == "None" else r for r in df["region"].unique()]
         com["Reference"] = ref
+
+        # Handle units
+        plot_unit = (
+            ref["mean"].attrs["units"] if self.plot_unit is None else self.plot_unit
+        )
+        for source, ds in com.items():
+            for plot in [
+                "rmse",
+            ] + [f"trace_{region}" for region in regions]:
+                if plot in ds:
+                    com[source][plot] = dset.convert(ds[plot], plot_unit)
 
         # Setup plot data
         df = plt.determine_plot_limits(com).set_index("name")

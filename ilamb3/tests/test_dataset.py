@@ -96,8 +96,19 @@ def test_compute_time_measures():
 
 def test_coarsen_dataset():
     ds = generate_test_dset()
-    ds = dset.coarsen_dataset(ds, res=90.0)
-    assert np.allclose(ds["da"].values[0, 0, 0], 2.51093204e-09)
+    dsc = dset.coarsen_dataset(ds, "da", res=180.0)
+    assert np.allclose(
+        dset.integrate_space(ds["da"], "da", mean=True),
+        dset.integrate_space(dsc["da"], "da", mean=True),
+    )
+    # check nan handles
+    ds["da"][:, 0, 0] = np.nan
+    print(ds)
+    dsc = dset.coarsen_dataset(ds, "da", res=180.0)
+    assert np.allclose(
+        dset.integrate_space(ds["da"], "da", mean=True),
+        dset.integrate_space(dsc["da"], "da", mean=True),
+    )
 
 
 def test_integrate_time_and_space():

@@ -6,7 +6,6 @@ See Also
 ILAMBAnalysis : The abstract base class from which this derives.
 """
 
-import warnings
 from typing import Any, Literal
 
 import numpy as np
@@ -14,12 +13,11 @@ import pandas as pd
 import xarray as xr
 
 import ilamb3.plot as plt
-import ilamb3.regions as ilr
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
-from ilamb3.analysis.base import ILAMBAnalysis
+from ilamb3.analysis.base import ILAMBAnalysis, scalarify
 from ilamb3.analysis.quantiles import check_quantile_database, create_quantile_map
-from ilamb3.exceptions import NoDatabaseEntry
+from ilamb3.exceptions import NoDatabaseEntry, NoUncertainty
 
 
 class bias_analysis(ILAMBAnalysis):
@@ -73,6 +71,8 @@ class bias_analysis(ILAMBAnalysis):
         mass_weighting: bool = False,
         quantile_database: pd.DataFrame | None = None,
         quantile_threshold: int = 70,
+        table_unit: str | None = None,
+        plot_unit: str | None = None,
         **kwargs: Any,  # this is so we can pass extra arguments without failure
     ):
         self.req_variable = required_variable
@@ -84,6 +84,8 @@ class bias_analysis(ILAMBAnalysis):
         self.mass_weighting = mass_weighting
         self.quantile_database = quantile_database
         self.quantile_threshold = quantile_threshold
+        self.table_unit = table_unit
+        self.plot_unit = plot_unit
         self.kwargs = kwargs
 
     def required_variables(self) -> list[str]:
@@ -124,8 +126,6 @@ class bias_analysis(ILAMBAnalysis):
         # Initialize
         analysis_name = "Bias"
         varname = self.req_variable
-        if self.use_uncertainty and "bounds" not in ref[varname].attrs:
-            self.use_uncertainty = False
 
         # Checks on the quantile database if used
         if self.method == "RegionalQuantiles":
@@ -160,15 +160,16 @@ class bias_analysis(ILAMBAnalysis):
 
         # Get the reference data uncertainty
         uncert = xr.zeros_like(ref_mean)
-        uncert.attrs["units"] = ref[varname].attrs["units"]
         if self.use_uncertainty:
-            uncert = ref[ref[varname].attrs["bounds"]]
-            uncert.attrs["units"] = ref[varname].attrs["units"]
-            uncert = (
-                dset.integrate_time(uncert, mean=True)
-                if dset.is_temporal(uncert)
-                else uncert
-            )
+            try:
+                ref["uncert"] = dset.get_scalar_uncertainty(ref, varname)
+                uncert = (
+                    dset.integrate_time(ref, "uncert", mean=True)
+                    if dset.is_temporal(ref["uncert"])
+                    else ref["uncert"]
+                )
+            except NoUncertainty:
+                self.use_uncertainty = False
 
         # If temporal information is available, we normalize the error by the
         # standard deviation of the reference. If not, we revert to the traditional
@@ -193,7 +194,9 @@ class bias_analysis(ILAMBAnalysis):
             raise ValueError("Reference and comparison not uniformly site/spatial.")
 
         # Compute score by different methods
-        ref_, com_, norm_, uncert_ = cmp.rename_dims(ref_, com_, norm_, uncert_)
+        ref_, com_, norm_, uncert_ = cmp.rename_dims(
+            ref_, com_, norm_, uncert_.fillna(0)
+        )
         bias = com_ - ref_
         if self.method == "Collier2018":
             score = np.exp(-(np.abs(bias) - uncert_).clip(0) / norm_)
@@ -208,6 +211,7 @@ class bias_analysis(ILAMBAnalysis):
                 f"'RegionalQuantiles' but found {self.method=}"
             )
             raise ValueError(msg)
+        score.attrs["units"] = 1
 
         # Build output datasets
         ref_out = ref_mean.to_dataset(name="mean")
@@ -223,35 +227,23 @@ class bias_analysis(ILAMBAnalysis):
             pass
         com_out["mean"] = com_mean
 
-        # Either integrate or average depending on the input var
-        def _scalar(
-            var, varname, region, mean=True, weight=False
-        ):  # numpydoc ignore=GL08
-            da = var
-            if isinstance(var, xr.Dataset):
-                da = var[varname]
-            if dset.is_spatial(da):
-                da = dset.integrate_space(
-                    da,
-                    varname,
-                    region=region,
-                    mean=mean,
-                    weight=ref_ if (self.mass_weighting and weight) else None,
-                )
-            elif dset.is_site(da):
-                da = ilr.Regions().restrict_to_region(da, region)
-                da = da.mean(dim=dset.get_dim_name(da, "site"))
-            else:
-                raise ValueError(f"Input is neither spatial nor site: {da}")
-            da = da.pint.quantify()
-            return da
+        # Pass measures into out for integrations if present
+        if "cell_measures" in ref:
+            ref_out["cell_measures"] = ref["cell_measures"]
+        if "cell_measures" in com and dset.is_spatial(com):
+            msr = com["cell_measures"]
+            lat_name = dset.get_dim_name(msr, "lat")
+            lon_name = dset.get_dim_name(msr, "lon")
+            com_out["cell_measures"] = msr.rename({lat_name: "lat_", lon_name: "lon_"})
 
         # Compute scalars over all regions
         dfs = []
         for region in self.regions:
             # Period mean
-            for src, var in zip(["Reference", "Comparison"], [ref_mean, com_mean]):
-                var = _scalar(var, varname, region, not self.spatial_sum)
+            for src, var in zip(["Reference", "Comparison"], [ref_out, com_out]):
+                val, unit = scalarify(
+                    var, "mean", region, not self.spatial_sum, unit=self.table_unit
+                )
                 dfs.append(
                     [
                         src,
@@ -259,30 +251,23 @@ class bias_analysis(ILAMBAnalysis):
                         analysis_name,
                         "Period Mean",
                         "scalar",
-                        f"{var.pint.units:~cf}",
-                        float(var.pint.dequantify()),
+                        unit,
+                        val,
                     ]
                 )
             # Bias
-            bias_scalar = _scalar(com_out, "bias", region, True)
+            val, unit = scalarify(com_out, "bias", region, True, unit=self.plot_unit)
             dfs.append(
-                [
-                    "Comparison",
-                    str(region),
-                    analysis_name,
-                    "Bias",
-                    "scalar",
-                    f"{bias_scalar.pint.units:~cf}",
-                    float(bias_scalar.pint.dequantify()),
-                ]
+                ["Comparison", str(region), analysis_name, "Bias", "scalar", unit, val]
             )
             # Bias Score
-            bias_scalar_score = _scalar(com_out, "biasscore", region, True, True)
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore", "divide by zero encountered in divide", RuntimeWarning
-                )
-                bias_scalar_score = float(bias_scalar_score.pint.dequantify())
+            val, unit = scalarify(
+                com_out,
+                "biasscore",
+                region,
+                True,
+                weight=ref_ if self.mass_weighting else None,
+            )
             dfs.append(
                 [
                     "Comparison",
@@ -290,8 +275,8 @@ class bias_analysis(ILAMBAnalysis):
                     analysis_name,
                     "Bias Score",
                     "score",
-                    "1",
-                    bias_scalar_score,
+                    unit,
+                    val,
                 ]
             )
 
@@ -308,7 +293,10 @@ class bias_analysis(ILAMBAnalysis):
                 "value",
             ],
         )
-        dfs.attrs = self.__dict__.copy()
+
+        # We don't really want to plot cell measures
+        ref_out = ref_out.drop_vars("cell_measures", errors="ignore")
+        com_out = com_out.drop_vars("cell_measures", errors="ignore")
         return dfs, ref_out, com_out
 
     def plots(
@@ -321,11 +309,22 @@ class bias_analysis(ILAMBAnalysis):
         regions = [None if r == "None" else r for r in df["region"].unique()]
         com["Reference"] = ref
 
+        # Handle units
+        plot_unit = (
+            ref["mean"].attrs["units"] if self.plot_unit is None else self.plot_unit
+        )
+        for source, ds in com.items():
+            for plot in ["mean", "bias", "uncert"]:
+                if plot in ds:
+                    com[source][plot] = dset.convert(ds[plot], plot_unit)
+
         # Setup plot data
         df = plt.determine_plot_limits(com).set_index("name")
         df.loc["mean", ["cmap", "title"]] = [self.cmap, "Period Mean"]
         df.loc["bias", ["cmap", "title"]] = ["seismic", "Bias"]
         df.loc["biasscore", ["cmap", "title"]] = ["plasma", "Bias Score"]
+        if "uncert" in df.index:
+            df.loc["uncert", ["cmap", "title"]] = ["Reds", "Uncertainty"]
 
         # Build up a dataframe of matplotlib axes
         axs = [
@@ -333,7 +332,7 @@ class bias_analysis(ILAMBAnalysis):
                 "name": plot,
                 "title": df.loc[plot, "title"],
                 "region": region,
-                "source": source,
+                "source": None if plot == "uncert" else source,
                 "axis": (
                     plt.plot_map(
                         ds[plot],
@@ -343,12 +342,11 @@ class bias_analysis(ILAMBAnalysis):
                         cmap=df.loc[plot, "cmap"],
                         title=source + " " + df.loc[plot, "title"],
                     )
-                    if plot in ds
-                    else pd.NA
                 ),
             }
-            for plot in ["mean", "bias", "biasscore"]
+            for plot in ["mean", "bias", "biasscore", "uncert"]
             for source, ds in com.items()
+            if plot in ds
             for region in regions
         ]
         axs = pd.DataFrame(axs).dropna(subset=["axis"])

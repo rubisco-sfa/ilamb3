@@ -19,10 +19,10 @@ import ilamb3
 import ilamb3.analysis as anl
 import ilamb3.compare as cmp
 import ilamb3.dataset as dset
+import ilamb3.plot as ilp
 import ilamb3.regions as ilr
 from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
 from ilamb3.exceptions import AnalysisNotAppropriate, VarNotInModel
-from ilamb3.plot import set_model_colors
 from ilamb3.transform import ALL_TRANSFORMS
 from ilamb3.transform.base import ILAMBTransform
 
@@ -132,9 +132,11 @@ def setup_analyses(
                 setup
                 | {
                     "required_variable": main_variable,
-                    "output_path": None
-                    if ilamb3.conf["run_mode"] == "interactive"
-                    else output_path,
+                    "output_path": (
+                        None
+                        if ilamb3.conf["run_mode"] == "interactive"
+                        else output_path
+                    ),
                 }
             )
         )
@@ -296,9 +298,36 @@ def _load_reference_data(
         ds_ref = transform(ds_ref)
     if variable_id not in ds_ref:
         raise VarNotInModel(
-            f"Could not find or create '{variable_id}' from reference data {list(reference_data['variable_id'].unique())}"
+            f"Could not find or create '{variable_id}' from reference data:\n{ds_ref}"
         )
     return ds_ref
+
+
+def cmip_cell_measures(ds: xr.Dataset, varname: str) -> xr.Dataset:
+    """
+    Add a DataArray for the `cell_measures` built from CMIP variables if present.
+    """
+    da = ds[varname]
+    if "cell_measures" not in da.attrs:
+        return ds
+    m = re.search(r"area:\s(.*)", da.attrs["cell_measures"])
+    if not m:
+        return ds
+    msr_name = m.group(1)
+    if msr_name not in ds:
+        return ds
+    msr = ds[msr_name]
+    ds = ds.drop_vars(msr_name)
+    if "cell_methods" in da.attrs:
+        if "where land" in da.attrs["cell_methods"] and "sftlf" in ds:
+            msr *= ds["sftlf"] * 0.01
+            ds = ds.drop_vars("sftlf")
+        elif "where sea" in da.attrs["cell_methods"] and "sftof" in ds:
+            msr *= ds["sftof"] * 0.01
+            ds = ds.drop_vars("sftof")
+    msr = xr.where(msr > 0, msr, np.nan)
+    ds["cell_measures"] = msr
+    return ds
 
 
 def _load_comparison_data(
@@ -325,7 +354,9 @@ def _load_comparison_data(
     # First load all variables passed into the input dataframe. This will
     # include all relationship variables as well as alternates.
     com = {
-        var: xr.open_mfdataset(sorted((df[df["variable_id"] == var]["path"]).to_list()))
+        var: xr.open_mfdataset(
+            sorted((df[df["variable_id"] == var]["path"]).to_list()), data_vars="all"
+        )
         for var in df["variable_id"].unique()
     }
     # If the variable_id is not present, it may be called something else
@@ -364,6 +395,7 @@ def _load_comparison_data(
         raise VarNotInModel(
             f"Could not find or create '{variable_id}' from model variables {list(df['variable_id'].unique())}"
         )
+    ds_com = cmip_cell_measures(ds_com, variable_id)
     return ds_com
 
 
@@ -441,15 +473,6 @@ def run_single_block(
     variable = select_analysis_variable(setup)
     analyses = setup_analyses(setup, output_path)
     transforms = setup_transforms(setup)
-    if not ilamb3.conf["model_colors"]:
-        ilamb3.conf["model_colors"] = set_model_colors(
-            list(
-                comparison_data[ilamb3.conf["model_name_facets"]]
-                .astype(str)
-                .apply(lambda row: "-".join(row), axis=1)
-                .unique()
-            )
-        )
 
     # Thin out the dataframe to only contain variables we need for this block.
     comparison_data = comparison_data[
@@ -457,6 +480,7 @@ def run_single_block(
             find_related_variables(
                 analyses, transforms, setup.get("alternate_vars", [])
             )
+            + ["areacella", "sftlf", "areacello", "sftof"]
         )
     ]
 
@@ -504,6 +528,18 @@ def run_single_block(
             )
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
             dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
+
+            # Set a group name optionally, if facets were specified
+            if ilamb3.conf["group_name_facets"] is not None:
+                if not set(ilamb3.conf["group_name_facets"]).issubset(grp.columns):
+                    raise ValueError(
+                        f"Could not set model group name. You gave these facets {ilamb3.conf['group_name_facets']} but I am not finding them in the comparison dataset dataframe {grp.columns}."
+                    )
+                group_name = grp[ilamb3.conf["group_name_facets"]].apply(
+                    lambda row: "-".join(row), axis=1
+                )
+                assert all(group_name == group_name.iloc[0])
+                dfs["group"] = str(group_name.iloc[0])
 
             # Write out artifacts
             dfs.to_csv(csv_file, index=False)
@@ -592,8 +628,8 @@ def run_analyses(
         ds_coms.append(ds_com)
     dfs = pd.concat(dfs, ignore_index=True)
     dfs["name"] = dfs["name"] + " [" + dfs["units"] + "]"
-    ds_ref = xr.merge(ds_refs)
-    ds_com = xr.merge(ds_coms)
+    ds_ref = xr.merge(ds_refs, compat="override")
+    ds_com = xr.merge(ds_coms, compat="override")
     return dfs, ds_ref, ds_com
 
 
@@ -821,6 +857,26 @@ def parse_benchmark_setup(yaml_file: str | Path) -> dict:
     return analyses
 
 
+def set_model_colors(df_datasets: pd.DataFrame):
+    """
+    Set model colors, some hard coded.
+    """
+    ilamb3.conf.set(
+        label_colors={
+            "Reference": [0.0, 0.0, 0.0, 1.0],
+            "CMIP5": [0.19215, 0.35294, 0.81176, 1.0],
+            "CMIP6": [0.81568, 0.21176, 0.21176, 1.0],
+        }
+    )
+    model_names = sorted(
+        df_datasets[ilamb3.conf["model_name_facets"]]
+        .apply(lambda row: "-".join(row), axis=1)
+        .unique(),
+        key=lambda m: m.lower(),
+    )
+    ilamb3.conf.set(label_colors=ilp.set_label_colors(model_names))
+
+
 def run_study(
     study_setup: str,
     df_datasets: pd.DataFrame,
@@ -838,6 +894,7 @@ def run_study(
         reg = ilamb3.iomb_catalog()
     else:
         raise ValueError("Unsupported registry.")
+    set_model_colors(df_datasets)
 
     # The yaml analysis setup can be as structured as the user needs. We are no longer
     # limited to the `h1` and `h2` headers from ILAMB 2.x. We will detect leaf nodes by
@@ -855,7 +912,7 @@ def run_study(
         path = analysis.pop("path")
         try:
             run_single_block(
-                path.split("/")[-1],
+                path.replace("/", " | "),
                 (
                     ref_datasets
                     if ref_datasets is not None

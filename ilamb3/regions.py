@@ -5,6 +5,7 @@ import os
 import numpy as np
 import xarray as xr
 
+import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 
 
@@ -51,6 +52,7 @@ def restrict_to_bbox(
 def restrict_to_region(da: xr.DataArray, dar: xr.DataArray):
     """."""
     assert isinstance(da, xr.DataArray)
+    da, dar = cmp.adjust_lon(da, dar)
     lat_name = dset.get_coord_name(da, "lat")
     lon_name = dset.get_coord_name(da, "lon")
     rlat_name = dset.get_dim_name(dar, "lat")
@@ -61,6 +63,7 @@ def restrict_to_region(da: xr.DataArray, dar: xr.DataArray):
             dar.interp(
                 {lat_name: da[lat_name], lon_name: da[lon_name]},
                 method="nearest",
+                kwargs={"fill_value": "extrapolate"},
             ),
             da,
             np.nan,

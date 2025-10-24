@@ -2,6 +2,7 @@
 
 import contextlib
 import copy
+import os
 from pathlib import Path
 
 import yaml
@@ -13,15 +14,16 @@ defaults = {
     "prefer_regional_quantiles": False,
     "quantile_database": "quantiles/quantiles_Whittaker_cmip5v6.parquet",
     "quantile_threshold": 70,
-    "use_uncertainty": False,
+    "use_uncertainty": True,
     "model_name_facets": ["source_id", "member_id", "grid_label"],
+    "group_name_facets": None,
     "plot_central_longitude": 0,
     "comparison_groupby": ["source_id", "member_id", "grid_label"],
     "use_cached_results": False,
     "figure_dpi": 100,
     "debug_mode": False,
     "run_mode": "interactive",  # for internal use
-    "model_colors": {},  # for internal use
+    "label_colors": {},
 }
 
 
@@ -29,11 +31,12 @@ class Config(dict):
     """A global configuration object used in the package."""
 
     def __init__(self, filename: Path | None = None, **kwargs):
-        self.filename = (
-            Path(filename)
-            if filename is not None
-            else Path.home() / ".config/ilamb3/conf.yaml"
-        )
+        if filename is not None:
+            self.filename = Path(filename)
+        elif "ILAMB3_CONFIGURATION" in os.environ:
+            self.filename = Path(os.environ["ILAMB3_CONFIGURATION"])
+        else:
+            self.filename = Path.home() / ".config/ilamb3/conf.yaml"
         self.filename.parent.mkdir(parents=True, exist_ok=True)
         self.reload_all()
         self.temp = None
@@ -68,11 +71,13 @@ class Config(dict):
         prefer_regional_quantiles: bool | None = None,
         use_uncertainty: bool | None = None,
         model_name_facets: list[str] | None = None,
+        group_name_facets: list[str] | None = None,
         plot_central_longitude: float | None = None,
         comparison_groupby: list[str] | None = None,
         use_cached_results: bool | None = None,
         figure_dpi: int | None = None,
         debug_mode: bool | None = None,
+        label_colors: dict[str, list[float]] | None = None,
     ):
         """Change ilamb3 configuration options."""
         temp = copy.deepcopy(self)
@@ -92,6 +97,8 @@ class Config(dict):
             self["use_uncertainty"] = bool(use_uncertainty)
         if model_name_facets is not None:
             self["model_name_facets"] = model_name_facets
+        if group_name_facets is not None:
+            self["group_name_facets"] = group_name_facets
         if plot_central_longitude is not None:
             self["plot_central_longitude"] = float(plot_central_longitude)
         if comparison_groupby is not None:
@@ -102,6 +109,9 @@ class Config(dict):
             self["figure_dpi"] = int(figure_dpi)
         if debug_mode is not None:
             self["debug_mode"] = bool(debug_mode)
+        if label_colors is not None:
+            assert isinstance(label_colors, dict)
+            self["label_colors"].update(label_colors)
         return self._unset(temp)
 
     def __getitem__(self, item):

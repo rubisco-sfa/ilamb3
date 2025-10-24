@@ -1,5 +1,3 @@
-from collections.abc import Iterable
-
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import matplotlib as mpl
@@ -14,6 +12,15 @@ import ilamb3.dataset as dset
 from ilamb3.regions import Regions
 
 
+def coerce_to_cf_compliance(da: xr.DataArray) -> xr.DataArray:
+    """Try to make the units CF-compliant using the pint/cf-xarray formatter."""
+    try:
+        da.attrs["units"] = f"{da.pint.quantify().pint.units:~cf}"
+    except Exception:
+        pass
+    return da
+
+
 def get_extents(da: xr.DataArray) -> list[float]:
     """Find the extent of the non-null data."""
     lat = xr.where(da.notnull(), da[dset.get_coord_name(da, "lat")], np.nan)
@@ -22,6 +29,60 @@ def get_extents(da: xr.DataArray) -> list[float]:
     # if a da is all nan, then the extents cause trouble downstream in plotting.
     if np.isnan(extents).any():
         return [-180.0, 180.0, -90.0, 90.0]
+    return extents
+
+
+def add_extents_pad(extents: list[float], pad: float = 0.05) -> list[float]:
+    delta = pad * (max(extents[1], extents[0]) - min(extents[1], extents[0]))
+    extents[0] -= delta
+    extents[1] += delta
+    delta = pad * (max(extents[3], extents[2]) - min(extents[3], extents[2]))
+    extents[2] -= delta
+    extents[3] += delta
+    # make sure we didn't go too far
+    extents = [
+        max(extents[0], -180),
+        min(extents[1], 180),
+        max(extents[2], -90),
+        min(extents[3], 90),
+    ]
+    return extents
+
+
+def compute_aspect_ratio(extents: list[float]) -> float:
+    """
+    Compute the aspect `ratio = Δlon / Δlat`.
+    """
+    num = max(extents[1], extents[0]) - min(extents[1], extents[0])
+    den = max(extents[3], extents[2]) - min(extents[3], extents[2])
+    if np.isclose(den, 0):
+        return 1.0  # Not really true but for plotting we want it equal in this case
+    aspect_ratio = num / den
+    return aspect_ratio
+
+
+def adjust_extents_for_plotting(
+    extents: list[float], max_ar: float = 3.0
+) -> list[float]:
+    """
+    Adjust extents such that the aspect ratio is `1/max_ar < ar < max_ar`.
+    """
+    min_ar = 1.0 / max_ar
+    ar = compute_aspect_ratio(extents)
+    if ar < max_ar and ar > min_ar:
+        return extents
+    if ar < 1:  # too tall
+        give = (min_ar - ar) * (
+            max(extents[3], extents[2]) - min(extents[3], extents[2])
+        )
+        extents[0] -= 0.5 * give
+        extents[1] += 0.5 * give
+    else:  # too wide
+        give = ((ar - max_ar) / max_ar) * (
+            max(extents[3], extents[2]) - min(extents[3], extents[2])
+        )
+        extents[2] -= 0.5 * give
+        extents[3] += 0.5 * give
     return extents
 
 
@@ -53,27 +114,63 @@ def compute_overlap_fracs(
 
 
 def pick_projection(
-    extents: list[float], fraction_threshold: float = 0.85
+    extents: list[float], fraction_threshold: float = 0.75
 ) -> tuple[ccrs.Projection, float]:
-    """Given plot extents choose projection and aspect ratio."""
-    lon = ilamb3.conf["plot_central_longitude"]
-    if compute_overlap_fracs([-180, 180, 60, 90], extents)[1] > fraction_threshold:
-        return ccrs.Orthographic(central_latitude=+90, central_longitude=lon), 1.0
-    if compute_overlap_fracs([-180, 180, -90, -60], extents)[1] > fraction_threshold:
-        return ccrs.Orthographic(central_latitude=-90, central_longitude=lon), 1.0
-    if compute_overlap_fracs([-125, -66.5, 20, 50], extents)[1] > fraction_threshold:
-        return ccrs.LambertConformal(), 2.05  # USA
-    if compute_extent_area(extents) / compute_extent_area([-180, 180, -90, 90]) > 0.5:
-        return ccrs.Robinson(central_longitude=lon), 2.0  # Global
-    # If none of above, use cyclindrical
-    aspect_ratio = max(extents[1], extents[0]) - min(extents[1], extents[0])
-    denom = max(extents[3], extents[2]) - min(extents[3], extents[2])
-    aspect_ratio = 1.0 if denom < 1e-14 else aspect_ratio / denom
-    proj = ccrs.PlateCarree(central_longitude=np.array(extents)[:2].mean())
-    return proj, aspect_ratio
+    df = pd.DataFrame(
+        [
+            {
+                "key": "north-pole",
+                "extents": [-180, 180, 30, 90],
+                "proj": ccrs.Orthographic(
+                    central_latitude=+90,
+                    central_longitude=ilamb3.conf["plot_central_longitude"],
+                ),
+                "ratio": 1.0,
+            },
+            {
+                "key": "south-pole",
+                "extents": [-180, 180, -90, -30],
+                "proj": ccrs.Orthographic(
+                    central_latitude=-90,
+                    central_longitude=ilamb3.conf["plot_central_longitude"],
+                ),
+                "ratio": 1.0,
+            },
+            {
+                "key": "conus",
+                "extents": [-125, -66.5, 20, 50],
+                "proj": ccrs.LambertConformal(),
+                "ratio": 2.05,
+            },
+            {
+                "key": "globe",
+                "extents": [-180, 180, -90, 90],
+                "proj": ccrs.Robinson(
+                    central_longitude=ilamb3.conf["plot_central_longitude"],
+                ),
+                "ratio": 2.0,
+            },
+        ]
+    )
+    # compute and sort by how much area is shared
+    df[["f_wrt_proj", "f_wrt_input"]] = df.apply(
+        lambda row: compute_overlap_fracs(row["extents"], extents),
+        axis=1,
+        result_type="expand",
+    )
+    df = df.sort_values(["f_wrt_input", "f_wrt_proj"], ascending=False)
+    select = df.iloc[0]
+    # if the best projection is not a good fit, then lets go cylindrical
+    if min(select["f_wrt_proj"], select["f_wrt_input"]) < fraction_threshold:
+        extents = add_extents_pad(extents)
+        extents = adjust_extents_for_plotting(extents)
+        aspect_ratio = compute_aspect_ratio(extents)
+        proj = ccrs.PlateCarree(central_longitude=np.array(extents)[:2].mean())
+        return proj, aspect_ratio
+    return select["proj"], select["ratio"]
 
 
-def finalize_plot(ax: plt.Axes, extents: list[float]) -> plt.Axes:
+def finalize_plot(ax: plt.Axes) -> plt.Axes:
     """Add some final features to our plots."""
     ax.add_feature(
         cfeature.NaturalEarthFeature(
@@ -87,32 +184,19 @@ def finalize_plot(ax: plt.Axes, extents: list[float]) -> plt.Axes:
         ),
         zorder=-1,
     )
-    # cleanup plotting extents
-    percent_pad = 0.1
-    if (extents[1] - extents[0]) > 300:
-        extents[:2] = [-180, 180]  # set_extent doesn't like (0,360)
-        extents[2:] = [-90, 90]
-    else:
-        dx = percent_pad * (extents[1] - extents[0])
-        dy = percent_pad * (extents[3] - extents[2])
-        extents = [
-            max(extents[0] - dx, -180),
-            min(extents[1] + dx, 180),
-            max(extents[2] - dy, -90),
-            min(extents[3] + dy, 90),
-        ]
-    ax.set_extent(extents, ccrs.PlateCarree())
     return ax
 
 
 def plot_map(da: xr.DataArray, **kwargs):
     # Process some options
     ncolors = kwargs.pop("ncolors") if "ncolors" in kwargs else 9
+    ticks = kwargs.pop("ticks") if "ticks" in kwargs else None
     ticklabels = kwargs.pop("ticklabels") if "ticklabels" in kwargs else None
     kwargs["cmap"] = plt.get_cmap(
         kwargs["cmap"] if "cmap" in kwargs else "viridis", ncolors
     )
     title = kwargs.pop("title") if "title" in kwargs else ""
+    da = coerce_to_cf_compliance(da)
 
     # Process region if given
     ilamb_regions = Regions()
@@ -131,7 +215,7 @@ def plot_map(da: xr.DataArray, **kwargs):
     )
 
     # Setup colorbar arguments
-    cba = {"label": da.attrs["units"]}
+    cba = {"label": da.attrs["units"] if "units" in da.attrs else ""}
     if "cbar_kwargs" in kwargs:
         cba.update(kwargs.pop("cbar_kwargs"))
 
@@ -144,6 +228,8 @@ def plot_map(da: xr.DataArray, **kwargs):
         out_plot = da.plot(
             ax=ax, transform=ccrs.PlateCarree(), cbar_kwargs=cba, **kwargs
         )
+        if ticks is not None:
+            out_plot.colorbar.set_ticks(ticks)
         if ticklabels is not None:
             out_plot.colorbar.set_ticklabels(ticklabels)
     elif dset.is_site(da):
@@ -158,13 +244,33 @@ def plot_map(da: xr.DataArray, **kwargs):
             transform=ccrs.PlateCarree(),
             **kwargs,
         )
+        if ticks is not None:
+            out_plot.colorbar.set_ticks(ticks)
         if ticklabels is not None:
             out_plot.colorbar.set_ticklabels(ticklabels)
     else:
         raise ValueError("plotting error")
+    if isinstance(proj, ccrs.PlateCarree):
+        ax.set_extent(extents, crs=ccrs.PlateCarree())
     ax.set_title(title)
-    ax = finalize_plot(ax, extents)
+    ax = finalize_plot(ax)
     return ax
+
+
+def _pick_convert_calendar_align_on_option(da: xr.DataArray) -> None | str:
+    """
+    Resturn the best option based on guidance in the xarray documentation.
+    """
+    t = da[dset.get_dim_name(da, "time")]
+    if (hasattr(t, "dt") and t.dt.calendar == "360_day") or (
+        "calendar" in t.attrs and t.attrs["calendar"] == "360_day"
+    ):
+        dt = dset.get_mean_time_frequency(da)
+        if dt < 1:
+            return "year"
+        else:
+            return "date"
+    return None
 
 
 def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
@@ -174,6 +280,7 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
     xticks = kwargs.pop("xticks") if "xticks" in kwargs else None
     xticklabels = kwargs.pop("xticklabels") if "xticklabels" in kwargs else None
     title = kwargs.pop("title") if "title" in kwargs else ""
+    ylabel = kwargs.pop("ylabel") if "ylabel" in kwargs else None
 
     # Setup figure
     ASPECT = 1.618
@@ -187,24 +294,23 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
     # Convert to single calendar for plotting
     dad = {
         source: (
-            ds[varname].convert_calendar("noleap")
-            if "time" in ds[varname]
+            ds[varname].convert_calendar(
+                "noleap", align_on=_pick_convert_calendar_align_on_option(ds[varname])
+            )
+            if "time" in ds[varname].dims
             else ds[varname]
         )
         for source, ds in dsd.items()
     }
-    ref = dad.pop("Reference")
+
+    # Coerce units
+    dad = {source: coerce_to_cf_compliance(da) for source, da in dad.items()}
 
     # Plot curves
+    ref = dad.pop("Reference")
     ref.plot(ax=ax, color="k", label="Reference")
     for source, da in dad.items():
-        da.plot(
-            ax=ax,
-            color=ilamb3.conf["model_colors"][source]
-            if source in ilamb3.conf["model_colors"]
-            else "k",
-            label=source,
-        )
+        da.plot(ax=ax, color=ilamb3.conf["label_colors"].get(source, "k"), label=source)
 
     ax.legend()
     ax.set_title(title)
@@ -214,10 +320,13 @@ def plot_curve(dsd: dict[str, xr.Dataset], varname: str, **kwargs):
         ax.set_xticklabels(xticklabels)
     if vmin is not None and vmax is not None:
         ax.set_ylim(vmin, vmax)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
     return ax
 
 
 def plot_distribution(da: xr.DataArray, **kwargs):
+    da = coerce_to_cf_compliance(da)
     _, ax = plt.subplots(
         dpi=ilamb3.conf["figure_dpi"], tight_layout=True, figsize=(6, 5.25)
     )
@@ -325,9 +434,7 @@ def plot_taylor_diagram(df: pd.DataFrame):
                 np.arccos(corr.clip(-1, 1)),
                 std,
                 "o",
-                color=ilamb3.conf["model_colors"][source]
-                if source in ilamb3.conf["model_colors"]
-                else "k",
+                color=ilamb3.conf["label_colors"].get(source, "k"),
                 mew=0,
                 ms=8,
             )
@@ -391,13 +498,14 @@ def determine_plot_limits(
     return pd.DataFrame(out)
 
 
-def set_model_colors(
-    models: Iterable[str], base_cmap: str = "rainbow"
-) -> dict[str, tuple[float, float, float, float]]:
-    cmap = plt.get_cmap(base_cmap, len(models))
-    colors = {
-        model: cmap(i)
-        for i, model in enumerate(sorted(models, key=lambda m: m.lower()))
+def set_label_colors(
+    labels: list[str], base_cmap: str = "rainbow"
+) -> dict[str, list[float]]:
+    """
+    Return a dictionary with a color per label.
+    """
+    cmap = plt.get_cmap(base_cmap)
+    return {
+        label: [float(c) for c in cmap(x)]
+        for label, x in zip(labels, np.linspace(0, 1, len(labels)))
     }
-    colors["Reference"] = (0.0, 0.0, 0.0, 1.0)
-    return colors

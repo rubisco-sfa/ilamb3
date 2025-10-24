@@ -34,19 +34,16 @@ class depth_gradient(ILAMBTransform):
         if not dset.is_layered(ds):
             return ds
         for var, da in ds.items():
-            if dset.is_temporal(da):
+            if dset.is_temporal(da) and dset.is_layered(da):
                 ds[var] = dset.integrate_time(ds, var, mean=True)
         grad = ds.polyfit(dset.get_dim_name(ds, "depth"), deg=1).sel(
             degree=1, drop=True
         )
-        grad = grad.rename_vars(
-            {
-                var: var.replace("_polyfit_coefficients", "_depth_gradient")
-                for var in grad
-            }
-        )
         for var, da in grad.items():
-            if "_depth_gradient" in var:
-                orig = var.replace("_depth_gradient", "")
-                grad[var].attrs["units"] = f"{ds[orig].attrs['units']} m-1"
-        return grad
+            orig = var.replace("_polyfit_coefficients", "")
+            attrs = ds[orig].attrs
+            attrs["units"] = f"{attrs['units']} m-1" if "units" in attrs else "m-1"
+            ds[orig] = da
+            ds[orig].attrs = attrs
+
+        return ds

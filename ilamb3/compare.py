@@ -243,12 +243,20 @@ def same_spatial_grid(
 def adjust_lon(dsa: xr.Dataset, dsb: xr.Dataset) -> tuple[xr.Dataset, xr.Dataset]:
     """When comparing dsb to dsa, we need their longitudes uniformly in
     [-180,180) or [0,360)."""
+
+    def is_0_to_360(lon0, lonf) -> bool:
+        err180 = np.abs(lon0 + 180) + np.abs(lonf - 180)
+        err360 = np.abs(lon0) + np.abs(lonf - 360)
+        if err360 < err180:
+            return True
+        return False
+
     alon_name = dset.get_coord_name(dsa, "lon")
     blon_name = dset.get_coord_name(dsb, "lon")
     if alon_name is None or blon_name is None:
         return dsa, dsb
-    a360 = (dsa[alon_name].min() >= 0) * (dsa[alon_name].max() <= 360)
-    b360 = (dsb[blon_name].min() >= 0) * (dsb[blon_name].max() <= 360)
+    a360 = is_0_to_360(dsa[alon_name].min(), dsa[alon_name].max())
+    b360 = is_0_to_360(dsb[blon_name].min(), dsb[blon_name].max())
     if a360 and not b360:
         dsb[blon_name] = dsb[blon_name] % 360
         if "bounds" in dsb[blon_name].attrs and dsb[blon_name].attrs["bounds"] in dsb:

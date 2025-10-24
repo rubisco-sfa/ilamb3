@@ -10,12 +10,14 @@ import ilamb3.dataset as dset
 from ilamb3.transform.base import ILAMBTransform
 
 
-class select_depth(ILAMBTransform):
+class select_dim(ILAMBTransform):
     """
     Select a depth if the dimension exists.
 
     Parameters
     ----------
+    dim : str
+        The dimension.
     value : float
         The value at which to select the nearest depth.
     vmin : float
@@ -30,11 +32,13 @@ class select_depth(ILAMBTransform):
 
     def __init__(
         self,
+        dim: str,
         value: float | None = None,
         vmin: float | None = None,
         vmax: float | None = None,
         **kwargs: Any,
     ):
+        self.dim = dim
         self.value = value
         self.vmin = vmin
         self.vmax = vmax
@@ -47,7 +51,7 @@ class select_depth(ILAMBTransform):
             ok = vmin is None and value is not None
         if not ok:
             raise ValueError(
-                "This transform allows for a single depth selection with `value` or a range with "
+                f"This transform allows for a single {dim} selection with `value` or a range with "
                 f"both `vmin` and `vmax`, but I found {value=} {vmin=} {vmax=} and these other keywords {kwargs}"
             )
 
@@ -59,13 +63,58 @@ class select_depth(ILAMBTransform):
 
     def __call__(self, ds: xr.Dataset) -> xr.Dataset:
         """
-        Select a depth or depth range of the input dataset, if a depth dimension is found.
+        Select a dim or dim range of the input dataset, if the dimension is found.
         """
-        if not dset.is_layered(ds):
+        try:
+            dim_name = dset.get_dim_name(ds, self.dim)
+        except KeyError:
             return ds
-        depth_name = dset.get_dim_name(ds, "depth")
+        ds = ds.sortby(dim_name)
         if self.value is not None:
-            return ds.sel({depth_name: self.value}, method="nearest", drop=True)
+            return ds.sel({dim_name: self.value}, method="nearest", drop=True)
         else:
-            return ds.sel({depth_name: slice(self.vmin, self.vmax)})
-        return ds
+            return ds.sel({dim_name: slice(self.vmin, self.vmax)})
+
+
+class select_time(select_dim):
+    def __init__(
+        self,
+        value: float | None = None,
+        vmin: float | None = None,
+        vmax: float | None = None,
+        **kwargs: Any,
+    ):
+        super().__init__("time", value, vmin, vmax, **kwargs)
+
+
+class select_depth(select_dim):
+    def __init__(
+        self,
+        value: float | None = None,
+        vmin: float | None = None,
+        vmax: float | None = None,
+        **kwargs: Any,
+    ):
+        super().__init__("depth", value, vmin, vmax, **kwargs)
+
+
+class select_lat(select_dim):
+    def __init__(
+        self,
+        value: float | None = None,
+        vmin: float | None = None,
+        vmax: float | None = None,
+        **kwargs: Any,
+    ):
+        super().__init__("lat", value, vmin, vmax, **kwargs)
+
+
+class select_lon(select_dim):
+    def __init__(
+        self,
+        value: float | None = None,
+        vmin: float | None = None,
+        vmax: float | None = None,
+        **kwargs: Any,
+    ):
+        super().__init__("lon", value, vmin, vmax, **kwargs)
