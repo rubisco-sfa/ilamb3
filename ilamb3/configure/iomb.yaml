@@ -14,12 +14,10 @@ Ecosystems:
 
     SeaWIFS:
       sources:
-        chla: SeaWIFS/SeaWIFS.nc
+        chl: SeaWIFS/SeaWIFS.nc
       transforms:
       - select_depth:
           value: 0.
-      alternate_vars:
-      - chl
 
     MODISAqua:
       sources:
