@@ -27,7 +27,7 @@ def get_extents(da: xr.DataArray) -> list[float]:
     lon = xr.where(da.notnull(), da[dset.get_coord_name(da, "lon")], np.nan)
     extents = [float(lon.min()), float(lon.max()), float(lat.min()), float(lat.max())]
     # if a da is all nan, then the extents cause trouble downstream in plotting.
-    if np.isnan(extents).any():
+    if np.isnan(extents).any() or np.isinf(extents).any():
         return [-180.0, 180.0, -90.0, 90.0]
     return extents
 
@@ -251,7 +251,10 @@ def plot_map(da: xr.DataArray, **kwargs):
     else:
         raise ValueError("plotting error")
     if isinstance(proj, ccrs.PlateCarree):
-        ax.set_extent(extents, crs=ccrs.PlateCarree())
+        try:
+            ax.set_extent(extents, crs=ccrs.PlateCarree())
+        except Exception:
+            pass
     ax.set_title(title)
     ax = finalize_plot(ax)
     return ax
