@@ -172,9 +172,13 @@ def fetch(config: Path):
         ilamb3.ilamb3_catalog(),
     ]
     for source in sources:
+        found = False
         for reg in registries:
             if source in reg.registry_files:
                 reg.fetch(source)
+                found = True
+        if not found:
+            raise ValueError(f"Could not find '{source}' in the data registries.")
 
 
 if __name__ == "__main__":

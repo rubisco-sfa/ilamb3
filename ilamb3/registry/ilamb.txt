@@ -40,7 +40,7 @@ mrro/CLASS/mrro.nc sha1:5283142fcb2eea1e9c5dbc9d324c62496b0d6fa7
 mrro/Dai/basins_0.5x0.5.nc sha1:172ff6f92a4036c186a6e2ecb66a678c578d0672
 mrro/Dai/runoff.nc sha1:08a23c5ea69fa439f296a6e6119598851453b3dd
 mrro/LORA/LORA.nc sha1:72bb16787877591d0c54a36d74697d0d208f985a
-mrsos/WangMao/mrsos_olc.nc sha1:23082e5776ffd3a7d6d00e160dc9d91d06321c13
+mrsol/WangMao/mrsol_olc.nc sha1:24cbc9df69569bed3a39c20e499cfe4f911bd30e
 nbp/GCP/nbp_1959-2016.nc sha1:1f0ba5517e67c3820ac216893ea22b152fba9636
 nbp/HOFFMAN/nbp_1850-2010.nc sha1:8350af00614d6afc6b70ad314aa499a9ece80ec2
 nee/FLUXNET2015/nee.nc sha1:1dc03453cb7f58e45c3f93a2a48dd8c133c63eda
