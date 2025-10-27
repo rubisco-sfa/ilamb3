@@ -11,6 +11,7 @@ from mpi4py.futures import MPIPoolExecutor, get_comm_workers
 from tqdm import tqdm
 
 import ilamb3
+import ilamb3.regions as ilr
 import ilamb3.run as run
 
 
@@ -141,6 +142,10 @@ def _perform_work_phase2(setup, output_path):
 
 def _start_worker(cfg_path: Path):
     ilamb3.conf.load(cfg_path)
+    ilamb_regions = ilr.Regions()
+    for source in ilamb3.conf["region_sources"]:
+        cat = ilamb3.ilamb_catalog()
+        ilamb_regions.add_netcdf(cat.fetch(source))
 
 
 def run_study_parallel(
