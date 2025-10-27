@@ -24,6 +24,7 @@ defaults = {
     "debug_mode": False,
     "run_mode": "interactive",  # for internal use
     "label_colors": {},
+    "region_sources": [],
 }
 
 
