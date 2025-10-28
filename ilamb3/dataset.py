@@ -356,6 +356,27 @@ def compute_time_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     return measure
 
 
+def has_bounds(dset: xr.Dataset | xr.DataArray, dim: str, bounds: str | None) -> bool:
+    """
+    Do the bounds for the input dataset and dimension exist?
+    """
+    if bounds is None:
+        return False
+    if isinstance(dset, xr.DataArray):
+        return False
+    if dim not in dset.dims:
+        return False
+    if "bounds" not in dset[dim].attrs:
+        return False
+    if bounds != dset[dim].attrs["bounds"]:
+        raise ValueError(
+            f"Given {bounds=} is not the same as the dimension attribute {dset[dim].attrs['bounds']}"
+        )
+    if bounds in dset:
+        return True
+    return False
+
+
 def compute_cell_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     """
     Return the area of each spatial cell.
@@ -384,12 +405,7 @@ def compute_cell_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     lonb_name = lon.attrs["bounds"] if "bounds" in lon.attrs else None
     # we prefer to compute your cell areas from the lat/lon bounds if they are
     # part of the dataset...
-    if (
-        latb_name is not None
-        and latb_name in dset
-        and lonb_name is not None
-        and lonb_name in dset
-    ):
+    if has_bounds(dset, lat_name, latb_name) & has_bounds(dset, lon_name, lonb_name):
         delx = dset[lonb_name] * np.pi / 180
         dely = np.sin(dset[latb_name] * np.pi / 180)
         other_dims = delx.dims[-1]
