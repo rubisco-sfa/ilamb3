@@ -1,5 +1,6 @@
 from multiprocessing.pool import ThreadPool
 
+import numpy as np
 import pandas as pd
 import statsmodels.formula.api as smf
 import xarray as xr
@@ -141,9 +142,24 @@ def compute_runoff_sensitivity(
         anomaly = mean - mean.mean()
         anomaly["mrro"] = anomaly["mrro"] / mean["mrro"].mean() * 100.0
         anomaly["pr"] = anomaly["pr"] / mean["pr"].mean() * 100.0
+        anomaly.load()
 
         # Fit a linear model and compute stats
-        model = smf.ols("mrro ~ tas * pr", data=anomaly.to_dataframe()).fit()
+        try:
+            model = smf.ols("mrro ~ tas * pr", data=anomaly.to_dataframe()).fit()
+        except Exception:
+            return {
+                "basin": basin,
+                "tas Sensitivity": np.nan,
+                "tas Low": np.nan,
+                "tas High": np.nan,
+                "pr Sensitivity": np.nan,
+                "pr Low": np.nan,
+                "pr High": np.nan,
+                "R2": np.nan,
+                "Cond": np.nan,
+            }
+
         return {
             "basin": basin,
             "tas Sensitivity": model.params.to_dict()["tas"],
