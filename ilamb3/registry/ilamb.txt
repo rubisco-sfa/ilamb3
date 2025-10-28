@@ -1,10 +1,10 @@
 active_layer_thickness/CALM/CALM.nc sha1:fe084ab58a81911e3739c8bb3fad210b3863af27
 biomass/ESACCI/biomass.nc sha1:2eeac984738fc17e8b6cdf0564fff192a4a08718
 biomass/GEOCARBON/biomass.nc sha1:369235319774f273e376a9e7e3ffd665e5d1c83d
-biomass/NBCD2000/biomass_0.5x0.5.nc sha1:7f4681448e156de8155e7708b35e4cd4dee5f738
-biomass/Saatchi2011/biomass_0.5x0.5.nc sha1:735ef34768cadd3a47b74139ec130b4433740c03
+biomass/NBCD2000/biomass_0.5x0.5.nc sha1:6354c20dfb61f97454ba0fa70023ee3e959c0c77
+biomass/Saatchi2011/biomass_0.5x0.5.nc sha1:af0dad922bc2d174293a22ab374b8662220f0ea0
 biomass/Thurner/biomass_0.5x0.5.nc sha1:d76bb837865b8bb4ed42ddd04a20454ed68db9bb
-biomass/USForest/biomass_0.5x0.5.nc sha1:36526e2b0411c8cabe94bc6e7a59f241c5c43edd
+biomass/USForest/biomass_0.5x0.5.nc sha1:cde74c443271f3e98d7d59e2c827e686a5abe95f
 biomass/XuSaatchi2021/XuSaatchi.nc sha1:244543e731dfd46f9842d6e40f4a2eeead122ee3
 burntArea/GFED4.1S/burntArea.nc sha1:cf9d73c6a8bfc594737c9ba6ca4df613df4a28ab
 cSoil/HWSD/soilc_0.5x0.5.nc sha1:5dd084a66a7e0d0b4ca6125db47af0eb0c119377
