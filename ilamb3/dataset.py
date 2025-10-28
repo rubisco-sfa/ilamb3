@@ -1008,6 +1008,19 @@ def compute_monthly_mean(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
+def compute_annual_mean(ds: xr.Dataset) -> xr.Dataset:
+    """
+    Return the annual mean of the input dataset.
+    """
+    if not is_temporal(ds):
+        raise ValueError("Input dataset has no temporal dimension.")
+    dt = get_mean_time_frequency(ds)
+    if dt > 366:
+        raise ValueError(f"Input dataset is already coarser than annual {dt=}.")
+    ds = ds.resample(time=xr.groupers.TimeResampler("YS")).mean()
+    return ds
+
+
 def shift_time_by_years(ds: xr.Dataset, years: int) -> xr.Dataset:
     """
     Return the dataset shifted by the given number of years.
