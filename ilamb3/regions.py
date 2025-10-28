@@ -58,21 +58,30 @@ def restrict_to_region(da: xr.DataArray, dar: xr.DataArray):
     rlat_name = dset.get_dim_name(dar, "lat")
     rlon_name = dset.get_dim_name(dar, "lon")
     dar = dar.rename({rlat_name: lat_name, rlon_name: lon_name})
-    return restrict_to_bbox(
-        xr.where(
-            dar.interp(
-                {lat_name: da[lat_name], lon_name: da[lon_name]},
-                method="nearest",
-                kwargs={"fill_value": "extrapolate"},
+    args = {lat_name: da[lat_name], lon_name: da[lon_name]}
+    if dset.is_site(da):
+        out = xr.where(
+            dar.astype(bool).sel(
+                lat=da.lat, lon=da.lon, method="nearest", tolerance=1.0
             ),
             da,
             np.nan,
-        ),
+        )
+        out = out.assign_coords({c: da[c] for c in da.coords if c not in da.dims})
+    else:
+        out = xr.where(
+            dar.interp(args, method="nearest", kwargs={"fill_value": "extrapolate"}),
+            da,
+            np.nan,
+        )
+    out = restrict_to_bbox(
+        out,
         dar[lat_name].min(),
         dar[lat_name].max(),
         dar[lon_name].min(),
         dar[lon_name].max(),
     )
+    return out
 
 
 class Regions:
@@ -283,9 +292,7 @@ if len(Regions().regions) == 0:
     seas, Southeast Asia                   ,  5, 30,  65, 120
     eqas, Equatorial Asia                  ,-10, 10, 100, 150
     aust, Australia                        ,-41,-11, 112, 154
-    """.strip().split(
-        "\n"
-    )
+    """.strip().split("\n")
     for line in regions:
         lbl, name, lat0, latf, lon0, lonf = line.split(",")
         r.add_latlon_bounds(
