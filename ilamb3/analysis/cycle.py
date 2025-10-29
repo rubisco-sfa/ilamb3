@@ -19,6 +19,18 @@ from ilamb3.analysis.base import ILAMBAnalysis, integrate_or_mean, scalarify
 from ilamb3.exceptions import AnalysisNotAppropriate
 
 
+def _has_annual_cycle(ds: xr.Dataset, varname: str) -> bool:
+    da = ds[varname]
+    if not dset.is_temporal(da):
+        return False
+    if (
+        np.isclose(dset.get_mean_time_frequency(ds), 30.0, atol=3)
+        and len(ds[dset.get_dim_name(da, "time")]) >= 12
+    ):
+        return True
+    return False
+
+
 class cycle_analysis(ILAMBAnalysis):
     """
     The ILAMB annual cycle methodology.
@@ -93,15 +105,7 @@ class cycle_analysis(ILAMBAnalysis):
         ref, com = cmp.rename_dims(*cmp.make_comparable(ref, com, varname))
 
         # Is the time series long enough for this to be meaningful?
-        if (
-            not dset.is_temporal(ref[varname])
-            or len(ref[dset.get_dim_name(ref[varname], "time")]) < 12
-        ):
-            raise AnalysisNotAppropriate()
-        if (
-            not dset.is_temporal(com[varname])
-            or len(com[dset.get_dim_name(com[varname], "time")]) < 12
-        ):
+        if not (_has_annual_cycle(ref, varname) & _has_annual_cycle(com, varname)):
             raise AnalysisNotAppropriate()
 
         # Compute the mean annual cycles
