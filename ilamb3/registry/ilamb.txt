@@ -34,7 +34,7 @@ hfss/FLUXNET2015/hfss.nc sha1:6aab8670d8eb25429f11e784671c3f81d20ccd3e
 hfss/WECANN/hfss.nc sha1:66aef4700703b28a5a18e8454757e0e2dbe67a17
 lai/AVH15C1/lai.nc sha1:ccace4f84912d63acbb9ee09ee7b743412207a0d
 lai/AVHRR/lai_0.5x0.5.nc sha1:8b2bdece87b97c3cef8533bbcf34d9d1d7a28fbd
-lai/GIMMS_LAI4g/cao2023_lai.nc sha1:63f54dde4158afb176175eaf054923bdbfb6240b
+lai/GIMMS_LAI4g/cao2023_lai.nc sha1:aa1886c5b4f52b531b49b84120aa7274eb7865f5
 lai/MODIS/lai_0.5x0.5.nc sha1:77c198e1b6fc768deb374a90611726ff87f398b1
 mrro/CLASS/mrro.nc sha1:5283142fcb2eea1e9c5dbc9d324c62496b0d6fa7
 mrro/Dai/basins_0.5x0.5.nc sha1:172ff6f92a4036c186a6e2ecb66a678c578d0672
