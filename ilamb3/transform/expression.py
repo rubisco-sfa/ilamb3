@@ -17,8 +17,7 @@ class expression(ILAMBTransform):
     Parameters
     ----------
     expression : str
-        The year from which to compute the ocean heat content. Defaults to the
-        first year of the input dataset.
+        An expression of the form `a = b + c`.
     """
 
     def __init__(self, expr: str, **kwargs: Any):
@@ -46,6 +45,6 @@ class expression(ILAMBTransform):
         if not set(self.required_variables()).issubset(ds):
             return ds
         ds[self.lhs_vars[0]] = eval(
-            self.expression, locals={key: ds[key] for key in self.rhs_vars}
+            self.expression, {}, {key: ds[key] for key in self.rhs_vars}
         )
         return ds

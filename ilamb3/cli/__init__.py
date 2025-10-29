@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -12,29 +13,32 @@ except ImportError:
 
 import ilamb3
 import ilamb3.meta as meta
+import ilamb3.regions as ilr
 from ilamb3.run import parse_benchmark_setup, run_study
 
 app = typer.Typer(name="ilamb", no_args_is_help=True)
 
 
 def _dataframe_reference(
-    root: Path = Path("/home/nate/.cache/ilamb3/"),
+    root: Path = Path().home() / ".cache/ilamb3/",
     cache_file: Path = Path("df_reference.csv"),
 ) -> pd.DataFrame:
     if cache_file.exists():
         df = pd.read_csv(cache_file)
         df = df.set_index("key")
         return df
+    if "ILAMB_ROOT" in os.environ:
+        root = Path(os.environ["ILAMB_ROOT"])
     df = []
     for dirpath, _, files in root.walk():
         for fname in files:
             if not fname.endswith(".nc"):
                 continue
-            path = (dirpath / fname).absolute()
+            path = dirpath / fname
             df.append(
                 {
-                    "key": str(path.parent).split("/")[-1] + f"/{path.name}",
-                    "path": str(path),
+                    "key": str(Path(*path.relative_to(root).parts[1:])),
+                    "path": str(path.absolute()),
                 }
             )
     df = pd.DataFrame(df)
@@ -44,12 +48,17 @@ def _dataframe_reference(
 
 
 def _dataframe_cmip(
-    root: Path = Path("/home/nate/esgf-data/CMIP6/CMIP/"),
+    root: Path | None = None,
     cache_file: Path = Path("df_cmip.csv"),
 ) -> pd.DataFrame:
     if cache_file.exists():
         df = pd.read_csv(cache_file)
         return df
+    if root is None:
+        if "ESGF_ROOT" in os.environ:
+            root = Path(os.environ["ESGF_ROOT"])
+        else:
+            root = Path.home() / ".esgf"
     df = []
     for dirpath, _, files in root.walk():
         for fname in files:
@@ -79,6 +88,8 @@ def _dataframe_cmip(
 def run(
     config: Path,
     regions: str | None = None,
+    region_sources: list[str] | None = None,
+    df_comparison: Path | None = None,
     output_path: Path = Path("_build"),
     cache: bool = True,
     central_longitude: float = 0.0,
@@ -89,6 +100,11 @@ def run(
         regions = [None]
     else:
         regions = [None if r.lower() == "none" else r for r in regions.split(",")]
+    if region_sources is not None:
+        cat = ilamb3.ilamb_catalog()
+        for source in region_sources:
+            ilr.Regions().add_netcdf(cat.fetch(source))
+        ilamb3.conf["region_sources"] = region_sources
 
     # set options
     ilamb3.conf.set(
@@ -96,26 +112,16 @@ def run(
         use_cached_results=cache,
         use_uncertainty=True,
         plot_central_longitude=central_longitude,
+        comparison_groupby=["source_id", "grid_label"],
+        model_name_facets=["source_id"],
     )
 
     # load local databases, need a better way
     df_ref = _dataframe_reference()
-    df_com = _dataframe_cmip()
-    df_com = df_com[df_com["source_id"] == "CanESM5"]
-    df_com = df_com[df_com["member_id"] == "r1i1p1f1"]
-    df_com = df_com[
-        df_com["variable_id"].apply(lambda v: v not in ["areacello", "sftof"])
-    ]
-
-    # add a few CESM2 variables that CanESM5 does not have
-    df = _dataframe_cmip()
-    df = df[df["source_id"] == "CESM2"]
-    df = df[
-        df["variable_id"].apply(
-            lambda v: v in ["areacella", "sftlf", "fBNF", "burntFractionAll"]
-        )
-    ]
-    df_com = pd.concat([df_com, df])
+    if df_comparison is None:
+        df_com = _dataframe_cmip()
+    else:
+        df_com = pd.read_csv(df_comparison)
 
     # execute
     if HAS_MPI4PY:
@@ -166,9 +172,13 @@ def fetch(config: Path):
         ilamb3.ilamb3_catalog(),
     ]
     for source in sources:
+        found = False
         for reg in registries:
             if source in reg.registry_files:
                 reg.fetch(source)
+                found = True
+        if not found:
+            raise ValueError(f"Could not find '{source}' in the data registries.")
 
 
 if __name__ == "__main__":

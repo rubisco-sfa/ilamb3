@@ -4,49 +4,49 @@ Ecosystem and Carbon Cycle:
 
     Thurner:
       sources:
-        biomass: Thurner/biomass_0.5x0.5.nc
+        biomass: biomass/Thurner/biomass_0.5x0.5.nc
       alternate_vars:
       - cVeg
       variable_cmap: Greens
 
     XuSaatchi2021:
       sources:
-        biomass: XuSaatchi2021/XuSaatchi.nc
+        biomass: biomass/XuSaatchi2021/XuSaatchi.nc
       alternate_vars:
       - cVeg
       variable_cmap: Greens
 
     USForest:
       sources:
-        biomass: USForest/biomass_0.5x0.5.nc
+        biomass: biomass/USForest/biomass_0.5x0.5.nc
       alternate_vars:
       - cVeg
       variable_cmap: Greens
 
     ESACCI:
       sources:
-        biomass: ESACCI/biomass.nc
+        biomass: biomass/ESACCI/biomass.nc
       alternate_vars:
       - cVeg
       variable_cmap: Greens
 
     Saatchi2011:
       sources:
-        biomass: Saatchi2011/biomass_0.5x0.5.nc
+        biomass: biomass/Saatchi2011/biomass_0.5x0.5.nc
       alternate_vars:
       - cVeg
       variable_cmap: Greens
 
     NBCD2000:
       sources:
-        biomass: NBCD2000/biomass_0.5x0.5.nc
+        biomass: biomass/NBCD2000/biomass_0.5x0.5.nc
       alternate_vars:
       - cVeg
       variable_cmap: Greens
 
     GEOCARBON:
       sources:
-        biomass: GEOCARBON/biomass.nc
+        biomass: biomass/GEOCARBON/biomass.nc
       alternate_vars:
       - cVeg
       variable_cmap: Greens
@@ -55,7 +55,7 @@ Ecosystem and Carbon Cycle:
 
     GFED4.1S:
       sources:
-        burntArea: GFED4.1S/burntArea.nc
+        burntArea: burntArea/GFED4.1S/burntArea.nc
       variable_cmap: YlOrBr
       alternate_vars:
       - burntFractionAll
@@ -64,12 +64,12 @@ Ecosystem and Carbon Cycle:
 
     FLUXNET2015:
       sources:
-        gpp: FLUXNET2015/gpp.nc
+        gpp: gpp/FLUXNET2015/gpp.nc
       variable_cmap: Greens
 
     FLUXCOM:
       sources:
-        gpp: FLUXCOM/gpp.nc
+        gpp: gpp/FLUXCOM/gpp.nc
       variable_cmap: Greens
       spatial_sum: True
       table_unit: Pg yr-1
@@ -87,22 +87,22 @@ Ecosystem and Carbon Cycle:
 
     GIMMS_LAI4g:
       sources:
-        lai: GIMMS_LAI4g/cao2023_lai.nc
+        lai: lai/GIMMS_LAI4g/cao2023_lai.nc
       variable_cmap: Greens
 
     AVH15C1:
       sources:
-        lai: AVH15C1/lai.nc
+        lai: lai/AVH15C1/lai.nc
       variable_cmap: Greens
 
     MODIS:
       sources:
-        lai: MODIS/lai_0.5x0.5.nc
+        lai: lai/MODIS/lai_0.5x0.5.nc
       variable_cmap: Greens
 
     AVHRR:
       sources:
-        lai: AVHRR/lai_0.5x0.5.nc
+        lai: lai/AVHRR/lai_0.5x0.5.nc
       variable_cmap: Greens
 
   Global Net Ecosystem Carbon Balance:
@@ -115,7 +115,7 @@ Ecosystem and Carbon Cycle:
 
     GCP:
       sources:
-        nbp: GCP/nbp_1959-2016.nc
+        nbp: nbp/GCP/nbp_1959-2016.nc
       analyses:
       - nbp
       evaluation_year: 2014
@@ -124,7 +124,7 @@ Ecosystem and Carbon Cycle:
 
     FLUXNET2015:
       sources:
-        nee: FLUXNET2015/nee.nc
+        nee: nee/FLUXNET2015/nee.nc
       transforms:
       - expression:
           expr: "nee = ra + rh - gpp"
@@ -134,14 +134,14 @@ Ecosystem and Carbon Cycle:
 
     FLUXNET2015:
       sources:
-        reco: FLUXNET2015/reco.nc
+        reco: reco/FLUXNET2015/reco.nc
       transforms:
       - expression:
           expr: "reco = ra + rh"
 
     FLUXCOM:
       sources:
-        reco: FLUXCOM/reco.nc
+        reco: reco/FLUXCOM/reco.nc
       transforms:
       - expression:
           expr: "reco = ra + rh"
@@ -150,7 +150,7 @@ Ecosystem and Carbon Cycle:
 
     Wang2024:
       sources:
-        cSoil: Wang2024/wang2024_cSoil.nc
+        cSoil: cSoil/Wang2024/wang2024_cSoil.nc
 
     HWSD-2-0:
       sources:
@@ -158,7 +158,7 @@ Ecosystem and Carbon Cycle:
 
     NCSCDV22:
       sources:
-        cSoilAbove1m: NCSCDV22/soilc_0.5x0.5.nc
+        cSoilAbove1m: cSoil/NCSCDV22/soilc_0.5x0.5.nc
       alternate_vars:
       - cSoil
 
@@ -166,7 +166,7 @@ Ecosystem and Carbon Cycle:
 
     Davies-Barnard:
       sources:
-        fBNF: DaviesBarnard/fBNF_0.5x0.5.nc
+        fBNF: fBNF/DaviesBarnard/fBNF_0.5x0.5.nc
       variable_cmap: Greens
       spatial_sum: True
       table_unit: Tg yr-1
@@ -178,21 +178,21 @@ Hydrology Cycle:
 
     MOD16A2:
       sources:
-        et: MOD16A2/et.nc
+        et: evspsbl/MOD16A2/et.nc
       variable_cmap: Blues
       alternate_vars:
       - evspsbl
 
     MODIS:
       sources:
-        et: MODIS/et_0.5x0.5.nc
+        et: evspsbl/MODIS/et_0.5x0.5.nc
       variable_cmap: Blues
       alternate_vars:
       - evspsbl
 
     GLEAMv3.3a:
       sources:
-        et: GLEAMv3.3a/et.nc
+        et: evspsbl/GLEAMv3.3a/et.nc
       variable_cmap: Blues
       alternate_vars:
       - evspsbl
@@ -201,12 +201,12 @@ Hydrology Cycle:
 
     FLUXNET2015:
       sources:
-        hfls: FLUXNET2015/hfls.nc
+        hfls: hfls/FLUXNET2015/hfls.nc
       variable_cmap: Blues
 
     FLUXCOM:
       sources:
-        hfls: FLUXCOM/hfls.nc
+        hfls: hfls/FLUXCOM/hfls.nc
       variable_cmap: Blues
 
     WECANN-1-0:
@@ -216,12 +216,12 @@ Hydrology Cycle:
 
     DOLCE:
       sources:
-        hfls: DOLCE/DOLCE.nc
+        hfls: evspsbl/DOLCE/DOLCE.nc
       variable_cmap: Blues
 
     CLASS:
       sources:
-        hfls: CLASS/hfls.nc
+        hfls: hfls/CLASS/hfls.nc
       variable_cmap: Blues
 
   Runoff:
@@ -233,36 +233,36 @@ Hydrology Cycle:
 
     CLASS:
       sources:
-        mrro: CLASS/mrro.nc
+        mrro: mrro/CLASS/mrro.nc
       variable_cmap: Blues
 
   Sensible Heat:
 
     FLUXNET2015:
       sources:
-        hfss: FLUXNET2015/hfss.nc
+        hfss: hfss/FLUXNET2015/hfss.nc
       variable_cmap: Blues
 
     FLUXCOM:
       sources:
-        hfss: FLUXCOM/hfss.nc
+        hfss: hfss/FLUXCOM/hfss.nc
       variable_cmap: Blues
 
     WECANN:
       sources:
-        hfss: WECANN/hfss.nc
+        hfss: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfss_gn_v20250902.nc
       variable_cmap: Blues
 
     CLASS:
       sources:
-        hfss: CLASS/hfss.nc
+        hfss: hfss/CLASS/hfss.nc
       variable_cmap: Blues
 
   Surface Soil Moisture:
 
     WangMao:
       sources:
-        mrsol: WangMao/mrsol_olc.nc
+        mrsol: mrsol/WangMao/mrsol_olc.nc
       variable_cmap: Blues
       transforms:
       - soil_moisture_to_vol_fraction
@@ -275,7 +275,7 @@ Hydrology Cycle:
 
     WangMao:
       sources:
-        mrsol: WangMao/mrsol_olc.nc
+        mrsol: mrsol/WangMao/mrsol_olc.nc
       variable_cmap: Blues
       transforms:
       - soil_moisture_to_vol_fraction
@@ -295,7 +295,7 @@ Cryosphere:
 
     Brown2002:
       sources:
-        permafrost_extent: Brown2002/Brown2002.nc
+        permafrost_extent: permafrost/Brown2002/Brown2002.nc
       transforms:
       - select_time:
           vmin: 1960-01
@@ -310,7 +310,7 @@ Cryosphere:
 
     Obu2018:
       sources:
-        permafrost_extent: Obu2018/Obu2018.nc
+        permafrost_extent: permafrost/Obu2018/Obu2018.nc
       transforms:
       - select_time:
           vmin: 2000-01
@@ -329,51 +329,51 @@ Radiation and Energy Cycle:
 
     FLUXNET2015:
       sources:
-        rsus: FLUXNET2015/rsus.nc
+        rsus: rsus/FLUXNET2015/rsus.nc
       variable_cmap: RdPu
 
     CERESed4.2:
       sources:
-        rsus: CERESed4.2/rsus.nc
+        rsus: rsus/CERESed4.2/rsus.nc
       variable_cmap: RdPu
 
     GEWEX.SRB:
       sources:
-        rsus: GEWEX.SRB/rsus_0.5x0.5.nc
+        rsus: rsus/GEWEX.SRB/rsus_0.5x0.5.nc
       variable_cmap: RdPu
 
     WRMC.BSRN:
       sources:
-        rsus: WRMC.BSRN/rsus.nc
+        rsus: rsus/WRMC.BSRN/rsus.nc
       variable_cmap: RdPu
 
   Surface Upward LW Radiation:
 
     FLUXNET2015:
       sources:
-        rlus: FLUXNET2015/rlus.nc
+        rlus: rlus/FLUXNET2015/rlus.nc
       variable_cmap: RdPu
 
     CERESed4.2:
       sources:
-        rlus: CERESed4.2/rlus.nc
+        rlus: rlus/CERESed4.2/rlus.nc
       variable_cmap: RdPu
 
     GEWEX.SRB:
       sources:
-        rlus: GEWEX.SRB/rlus_0.5x0.5.nc
+        rlus: rlus/GEWEX.SRB/rlus_0.5x0.5.nc
       variable_cmap: RdPu
 
     WRMC.BSRN:
       sources:
-        rlus: WRMC.BSRN/rlus.nc
+        rlus: rlus/WRMC.BSRN/rlus.nc
       variable_cmap: RdPu
 
   Surface Net SW Radiation:
 
     FLUXNET2015:
       sources:
-        rsns: FLUXNET2015/rsns.nc
+        rsns: rsns/FLUXNET2015/rsns.nc
       transforms:
       - expression:
           expr: "rsns = rsds - rsus"
@@ -381,7 +381,7 @@ Radiation and Energy Cycle:
 
     CERESed4.2:
       sources:
-        rsns: CERESed4.2/rsns.nc
+        rsns: rsns/CERESed4.2/rsns.nc
       transforms:
       - expression:
           expr: "rsns = rsds - rsus"
@@ -389,7 +389,7 @@ Radiation and Energy Cycle:
 
     GEWEX.SRB:
       sources:
-        rsns: GEWEX.SRB/rsns_0.5x0.5.nc
+        rsns: rsns/GEWEX.SRB/rsns_0.5x0.5.nc
       transforms:
       - expression:
           expr: "rsns = rsds - rsus"
@@ -397,7 +397,7 @@ Radiation and Energy Cycle:
 
     WRMC.BSRN:
       sources:
-        rsns: WRMC.BSRN/rsns.nc
+        rsns: rsns/WRMC.BSRN/rsns.nc
       transforms:
       - expression:
           expr: "rsns = rsds - rsus"
@@ -407,7 +407,7 @@ Radiation and Energy Cycle:
 
     FLUXNET2015:
       sources:
-        rlns: FLUXNET2015/rlns.nc
+        rlns: rlns/FLUXNET2015/rlns.nc
       transforms:
       - expression:
           expr: "rlns = rlds - rlus"
@@ -415,7 +415,7 @@ Radiation and Energy Cycle:
 
     CERESed4.2:
       sources:
-        rlns: CERESed4.2/rlns.nc
+        rlns: rlns/CERESed4.2/rlns.nc
       transforms:
       - expression:
           expr: "rlns = rlds - rlus"
@@ -423,7 +423,7 @@ Radiation and Energy Cycle:
 
     GEWEX.SRB:
       sources:
-        rlns: GEWEX.SRB/rlns_0.5x0.5.nc
+        rlns: rlns/GEWEX.SRB/rlns_0.5x0.5.nc
       transforms:
       - expression:
           expr: "rlns = rlds - rlus"
@@ -431,7 +431,7 @@ Radiation and Energy Cycle:
 
     WRMC.BSRN:
       sources:
-        rlns: WRMC.BSRN/rlns.nc
+        rlns: rlns/WRMC.BSRN/rlns.nc
       transforms:
       - expression:
           expr: "rlns = rlds - rlus"
@@ -441,7 +441,7 @@ Radiation and Energy Cycle:
 
     FLUXNET2015:
       sources:
-        rns: FLUXNET2015/rns.nc
+        rns: rns/FLUXNET2015/rns.nc
       transforms:
       - expression:
           expr: "rns = rlds - rlus + rsds - rsus"
@@ -449,7 +449,7 @@ Radiation and Energy Cycle:
 
     CERESed4.2:
       sources:
-        rns: CERESed4.2/rns.nc
+        rns: rns/CERESed4.2/rns.nc
       transforms:
       - expression:
           expr: "rns = rlds - rlus + rsds - rsus"
@@ -457,7 +457,7 @@ Radiation and Energy Cycle:
 
     GEWEX.SRB:
       sources:
-        rns: GEWEX.SRB/rns_0.5x0.5.nc
+        rns: rns/GEWEX.SRB/rns_0.5x0.5.nc
       transforms:
       - expression:
           expr: "rns = rlds - rlus + rsds - rsus"
@@ -465,7 +465,7 @@ Radiation and Energy Cycle:
 
     WRMC.BSRN:
       sources:
-        rns: WRMC.BSRN/rns.nc
+        rns: rns/WRMC.BSRN/rns.nc
       transforms:
       - expression:
           expr: "rns = rlds - rlus + rsds - rsus"
@@ -473,7 +473,7 @@ Radiation and Energy Cycle:
 
     CLASS:
       sources:
-        rns: CLASS/rns.nc
+        rns: rns/CLASS/rns.nc
       transforms:
       - expression:
           expr: "rns = rlds - rlus + rsds - rsus"
@@ -485,33 +485,33 @@ Forcings:
 
     FLUXNET2015:
       sources:
-        tas: FLUXNET2015/tas.nc
+        tas: tas/FLUXNET2015/tas.nc
       variable_cmap: cool
 
     CRU4.02:
       sources:
-        tas: CRU4.02/tas.nc
+        tas: tas/CRU4.02/tas.nc
       variable_cmap: cool
 
   Diurnal Maximum Temperature:
 
     CRU4.02:
       sources:
-        tasmax: CRU4.02/tasmax.nc
+        tasmax: tasmax/CRU4.02/tasmax.nc
       variable_cmap: cool
 
   Diurnal Minimum Temperature:
 
     CRU4.02:
       sources:
-        tasmin: CRU4.02/tasmin.nc
+        tasmin: tasmin/CRU4.02/tasmin.nc
       variable_cmap: cool
 
   Diurnal Temperature Range:
 
     CRU4.02:
       sources:
-        dtr: CRU4.02/dtr.nc
+        dtr: dtr/CRU4.02/dtr.nc
       variable_cmap: cool
       transforms:
       - expression:
@@ -521,34 +521,34 @@ Forcings:
 
     CMAPv1904:
       sources:
-        pr: CMAPv1904/pr.nc
+        pr: pr/CMAPv1904/pr.nc
       variable_cmap: Blues
 
     FLUXNET2015:
       sources:
-        pr: FLUXNET2015/pr.nc
+        pr: pr/FLUXNET2015/pr.nc
       variable_cmap: Blues
 
     GPCPv2.3:
       sources:
-        pr: GPCPv2.3/pr.nc
+        pr: pr/GPCPv2.3/pr.nc
       variable_cmap: Blues
 
     GPCCv2018:
       sources:
-        pr: GPCCv2018/pr.nc
+        pr: pr/GPCCv2018/pr.nc
       variable_cmap: Blues
 
     CLASS:
       sources:
-        pr: CLASS/pr.nc
+        pr: pr/CLASS/pr.nc
       variable_cmap: Blues
 
   Surface Relative Humidity:
 
     CRU4.02:
       sources:
-        rhums: CRU4.02/rhums.nc
+        rhums: rhums/CRU4.02/rhums.nc
       variable_cmap: Blues
     alternate_vars:
     - hurs
@@ -557,44 +557,44 @@ Forcings:
 
     FLUXNET2015:
       sources:
-        rsds: FLUXNET2015/rsds.nc
+        rsds: rsds/FLUXNET2015/rsds.nc
       variable_cmap: RdPu
 
     CERESed4.2:
       sources:
-        rsds: CERESed4.2/rsds.nc
+        rsds: rsds/CERESed4.2/rsds.nc
       variable_cmap: RdPu
 
     GEWEX.SRB:
       sources:
-        rsds: GEWEX.SRB/rsds_0.5x0.5.nc
+        rsds: rsds/GEWEX.SRB/rsds_0.5x0.5.nc
       variable_cmap: RdPu
 
     WRMC.BSRN:
       sources:
-        rsds: WRMC.BSRN/rsds.nc
+        rsds: rsds/WRMC.BSRN/rsds.nc
       variable_cmap: RdPu
 
   Surface Downward LW Radiation:
 
     FLUXNET2015:
       sources:
-        rlds: FLUXNET2015/rlds.nc
+        rlds: rlds/FLUXNET2015/rlds.nc
       variable_cmap: RdPu
 
     CERESed4.2:
       sources:
-        rlds: CERESed4.2/rlds.nc
+        rlds: rlds/CERESed4.2/rlds.nc
       variable_cmap: RdPu
 
     GEWEX.SRB:
       sources:
-        rlds: GEWEX.SRB/rlds_0.5x0.5.nc
+        rlds: rlds/GEWEX.SRB/rlds_0.5x0.5.nc
       variable_cmap: RdPu
 
     WRMC.BSRN:
       sources:
-        rlds: WRMC.BSRN/rlds.nc
+        rlds: rlds/WRMC.BSRN/rlds.nc
       variable_cmap: RdPu
 
 Sensitivities:
