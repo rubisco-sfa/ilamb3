@@ -13,7 +13,7 @@ class expression(ILAMBTransform):
     to an `xarray.Dataset`. It creates a new variable in the dataset if variables on the left-hand-side (lhs) of `=`
     do not already exist and all right-hand-side (rhs) variables are present.
 
-    Optionally, time integration can be applied after evaluation if `integrate_time=True`.
+    Optionally, time integration can be applied to each input variable before running the expression if `integrate_time=True`.
 
     Parameters
     ----------
@@ -56,12 +56,13 @@ class expression(ILAMBTransform):
         if not set(self.required_variables()).issubset(ds):
             return ds
 
+        # optionally, integrate the input variables over time
+        for var in self.rhs_vars:
+            if self.integrate_time and dset.is_temporal(ds[var]):
+                ds[var] = dset.integrate_time(ds, var, mean=True)
+
         # evaluate the expression and add to dataset
         ds[self.lhs_vars[0]] = eval(
             self.expression, {}, {key: ds[key] for key in self.rhs_vars}
         )
-
-        # optionally integrate the new variable over time
-        if self.integrate_time:
-            ds[self.lhs_vars[0]] = dset.integrate_time(ds, self.lhs_vars[0], mean=True)
         return ds
