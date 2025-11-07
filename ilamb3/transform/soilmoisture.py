@@ -4,6 +4,7 @@ An ILAMB transform for converting integrated soil moisture to a density.
 
 import xarray as xr
 
+import ilamb3
 import ilamb3.dataset as dset
 from ilamb3.transform.base import ILAMBTransform
 
@@ -35,34 +36,43 @@ class soil_moisture_to_vol_fraction(ILAMBTransform):
 def _to_vol_fraction(ds: xr.Dataset, varname: str) -> xr.DataArray:
     """
     Convert the array from a mass area density to a volume fraction.
+
+    Note
+    ----
+    As of xarray 2025.10.1, pint 0.25, pint-xarray 0.6.0, quantifying the
+    dataarray here changes the depth dimension data yielding differences in the
+    dimension on the order (1e-8). Here we avoid using quantify to circumvent
+    this issue.
     """
     da = ds[varname]
-    da = da.pint.quantify()
-    ureg = da.pint.registry
-    quantity = 1.0 * da.pint.units
+    ureg = ilamb3.units
+    quantity = ureg(da.attrs["units"])
     if quantity.check(""):
-        return da.pint.dequantify()
+        # units are already compatible with volume fraction
+        return da
     if not quantity.check("[mass] / [length]**2"):
-        raise ValueError("Cannot convert array of this type.")
+        raise ValueError(
+            f"Cannot convert a variable with units of this type {da.pint.units}."
+        )
     if dset.is_layered(da):
-        depth_name = dset.get_dim_name(da, "depth")
-        depth = da[depth_name]
-        if "bounds" not in depth.attrs:
+        depth_dim = dset.get_dim_name(da, "depth")
+        depth = ds[depth_dim]
+        bnd_name = depth.attrs["bounds"] if "bounds" in depth.attrs else None
+        if not dset.has_bounds(ds, depth_dim, bnd_name):
             raise ValueError(
                 "Cannot convert soil mositure data when depth bounds are not coordinates."
             )
-        depth_name = depth.attrs["bounds"]
-        if depth_name not in ds:
-            raise ValueError(
-                "Cannot convert soil mositure data when depth bounds are not coordinates."
-            )
-        depth = ds[depth_name] * da.pint.registry.meter
-        da = da / depth.diff(dim=depth.dims[-1])
+        depth = ds[bnd_name]
+        interval_dim = set(depth.dims).difference([depth_dim]).pop()
+        da = (
+            da / depth.diff(dim=interval_dim).squeeze()
+        )  # <-- this was failing, see Note
+        da = da.pint.quantify() / ureg.meter
     else:
         # If not layered, we are assuming this is mrsos which is the moisture in
         # the top 10cm
-        depth = 0.1 * da.pint.registry.meter
-        da = da / depth
+        depth = 0.1 * ureg.meter
+        da = da.pint.quantify() / depth
     water_density = 998.2071 * ureg.kilogram / ureg.meter**3
     da = (da / water_density).pint.to("dimensionless")
     da = da.pint.dequantify()
