@@ -728,10 +728,13 @@ def sel(dset: xr.Dataset, coord: str, cmin: Any, cmax: Any) -> xr.Dataset:
         if "bounds" in coord.attrs:
             if coord.attrs["bounds"] in dset:
                 coord = dset[coord.attrs["bounds"]]
+                coord.load()
                 ind = ((coord[:, 0] <= value) & (coord[:, 1] >= value)).to_numpy()
                 ind = np.where(ind)[0]
-                assert len(ind) <= 2
-                assert len(ind) > 0
+                if len(ind) not in [1, 2]:
+                    raise ValueError(
+                        f"We could not find an appropriate interval for {value} in \n{coord}"
+                    )
                 if len(ind) == 2:
                     if side == "low":
                         return ind[1]
