@@ -323,6 +323,21 @@ Cryosphere:
       analyses:
       - Area Comparison
 
+  Active Layer Thickness:
+
+    CALM:
+      sources:
+        active_layer_thickness: active_layer_thickness/CALM/CALM_1990-2024.nc
+      transforms:
+      - select_time:
+          vmin: 1990-01
+          vmax: 2023-01
+      - select_lat:
+          vmin: 30.
+          vmax: 90.
+      - active_layer_thickness:
+          method: slater2013
+
 Radiation and Energy Cycle:
 
   Surface Upward SW Radiation:

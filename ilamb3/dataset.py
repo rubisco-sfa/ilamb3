@@ -3,6 +3,7 @@
 import warnings
 from typing import Any, Literal
 
+import cftime as cf
 import numpy as np
 import xarray as xr
 from scipy.interpolate import NearestNDInterpolator
@@ -1049,4 +1050,31 @@ def shift_time_by_years(ds: xr.Dataset, years: int) -> xr.Dataset:
         )
         for t in ds[time_dim]
     ]
+    return ds
+
+
+def convert_year_to_datetime(ds: xr.Dataset) -> xr.Dataset:
+    """
+    Return the dataset with a integer 'years' dimension converted to a
+    CF-compliant time.
+    """
+    if "year" not in ds.coords:
+        raise ValueError("Function expects a 'year' coordinate with integer years.")
+    # We are about to reassign the 'time' dimension, let's remove everything
+    # with 'time' in it. We are assuming that it is no longer relevant.
+    if "time" in ds.coords:
+        ds = ds.drop_vars([v for v in ds if "time" in ds[v].dims]).drop_dims("time")
+    years = ds["year"]
+    ds = ds.rename_dims(year="time").rename_vars(year="time")
+    ds["time"] = [cf.DatetimeNoLeap(y, 7, 1) for y in years]
+    ds["time_bnds"] = (
+        ("time", "nb"),
+        np.array(
+            [
+                [cf.DatetimeNoLeap(y, 1, 1) for y in years],
+                [cf.DatetimeNoLeap(y + 1, 1, 1) for y in years],
+            ]
+        ).T,
+    )
+    ds["time"].attrs["bounds"] = "time_bnds"
     return ds
