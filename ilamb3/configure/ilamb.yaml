@@ -53,12 +53,10 @@ Ecosystem and Carbon Cycle:
 
   Burnt Area:
 
-    GFED4.1S:
+    GFED-5-0:
       sources:
-        burntArea: burntArea/GFED4.1S/burntArea.nc
+        burntFractionAll: GFED-5-0/obs4MIPs_NASA-NOSR_GFED-5-0_mon_burntFractionAll_gr_v20251029.nc
       variable_cmap: YlOrBr
-      alternate_vars:
-      - burntFractionAll
 
   Gross Primary Productivity:
 
