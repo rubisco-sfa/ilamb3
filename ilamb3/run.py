@@ -357,7 +357,8 @@ def _load_comparison_data(
         var: xr.open_mfdataset(
             sorted((df[df["variable_id"] == var]["path"]).to_list()),
             preprocess=fix_lndgrid_coords,
-            data_vars="all",
+            data_vars=None,
+            compat="no_conflicts",
         )
         for var in df["variable_id"].unique()
     }
