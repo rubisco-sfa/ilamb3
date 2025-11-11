@@ -190,7 +190,6 @@ class area_analysis(ILAMBAnalysis):
                 )
             ]
         )
-        print(df)
         return df, ref_.rename({varname: "extent"}), com_.rename({varname: "extent"})
 
     def plots(

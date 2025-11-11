@@ -6,7 +6,6 @@ biomass/Saatchi2011/biomass_0.5x0.5.nc sha1:af0dad922bc2d174293a22ab374b8662220f
 biomass/Thurner/biomass_0.5x0.5.nc sha1:d76bb837865b8bb4ed42ddd04a20454ed68db9bb
 biomass/USForest/biomass_0.5x0.5.nc sha1:cde74c443271f3e98d7d59e2c827e686a5abe95f
 biomass/XuSaatchi2021/XuSaatchi.nc sha1:244543e731dfd46f9842d6e40f4a2eeead122ee3
-burntArea/GFED4.1S/burntArea.nc sha1:cf9d73c6a8bfc594737c9ba6ca4df613df4a28ab
 cSoil/HWSD/soilc_0.5x0.5.nc sha1:5dd084a66a7e0d0b4ca6125db47af0eb0c119377
 cSoil/HWSD2/hwsd2_cSoil.nc sha1:9a6377e4c5ff457c08c194d2c376c46e003a4f84
 cSoil/Koven/fracpeat_0.5x0.5.nc sha1:fa7cab1379c66baf7c1977d3c4c676ee9678de49

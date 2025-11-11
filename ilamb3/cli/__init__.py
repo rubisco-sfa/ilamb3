@@ -89,7 +89,7 @@ def run(
     config: Path,
     regions: str | None = None,
     region_sources: list[str] | None = None,
-    df_comparison: Path | None = None,
+    df_comparison: list[Path] | None = None,
     output_path: Path = Path("_build"),
     cache: bool = True,
     central_longitude: float = 0.0,
@@ -121,7 +121,8 @@ def run(
     if df_comparison is None:
         df_com = _dataframe_cmip()
     else:
-        df_com = pd.read_csv(df_comparison)
+        df_comparison = [Path(f) for f in str(df_comparison[0]).split(",")]
+        df_com = pd.concat([pd.read_csv(f) for f in df_comparison])
 
     # execute
     if HAS_MPI4PY:
