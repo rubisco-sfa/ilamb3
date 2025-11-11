@@ -246,7 +246,7 @@ Hydrology Cycle:
         hfss: hfss/FLUXCOM/hfss.nc
       variable_cmap: Blues
 
-    WECANN:
+    WECANN-1-0:
       sources:
         hfss: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfss_gn_v20250902.nc
       variable_cmap: Blues
