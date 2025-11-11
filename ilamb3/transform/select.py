@@ -12,18 +12,18 @@ from ilamb3.transform.base import ILAMBTransform
 
 class select_dim(ILAMBTransform):
     """
-    Select a depth if the dimension exists.
+    Select a value or slice in the dimension if the dimension exists.
 
     Parameters
     ----------
     dim : str
         The dimension.
     value : float
-        The value at which to select the nearest depth.
+        The value at which to select the nearest dimension.
     vmin : float
-        The minimum depth to slice.
+        The minimum value to slice.
     vmax : float
-        The maximum depth to slice.
+        The maximum value to slice.
 
     Note
     ----
