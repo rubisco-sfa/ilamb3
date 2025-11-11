@@ -33,6 +33,10 @@ def _permafrost_extent_slater2013(
     ds["permafrost_extent"] = (frozen & frozen.shift(year=-1, fill_value=False)).any(
         dim=depth_dim
     )
+    ds["permafrost_extent"].attrs = {
+        "long_name": "Permafrost extent based on slater2013",
+        "units": "1",
+    }
 
     # the active layer is then the non-frozen thickness over permafrosted areas
     depth_bnds = ds[ds.cf.bounds[depth_dim][0]]
@@ -42,19 +46,29 @@ def _permafrost_extent_slater2013(
     ds["active_layer_thickness"] = xr.where(
         ds["permafrost_extent"], (~frozen * layer_thickness).sum(dim=depth_dim), np.nan
     )
+    ds["active_layer_thickness"].attrs = {
+        "long_name": "Active layer thickness based on slater2013",
+        "units": (
+            ds[depth_dim].attrs["units"] if "units" in ds[depth_dim].attrs else "m"
+        ),
+    }
 
     return ds
 
 
 EXTENT_METHODS = {"slater2013": _permafrost_extent_slater2013}
+ALT_METHODS = {"slater2013": _permafrost_extent_slater2013}
 
 
 class permafrost_extent(ILAMBTransform):
     """
-    An ILAMB transform for .
+    An ILAMB transform for estimating permafrost from layered soil temperature
+    (`tsl`).
 
     Parameters
     ----------
+    method: str
+        The method to use to estimate extent from `tsl`.
     """
 
     def __init__(self, method: Literal["slater2013"] = "slater2013", **kwargs: Any):
@@ -75,12 +89,43 @@ class permafrost_extent(ILAMBTransform):
         if not set(self.required_variables()).issubset(ds):
             return ds
         ds = EXTENT_METHODS[self.method](ds)
-        ds["permafrost_extent"].attrs = {
-            "long_name": f"Permafrost extent based on {self.method}",
-            "units": "1",
-        }
         ds = ds["permafrost_extent"].any(dim="year").squeeze().to_dataset()
         ds["permafrost_extent"] = xr.where(
             ds["permafrost_extent"] > 0, ds["permafrost_extent"], np.nan
         )
+        ds = ds.drop_vars("tsl")
+        return ds
+
+
+class active_layer_thickness(ILAMBTransform):
+    """
+    An ILAMB transform for estimating active layer thickness from layered soil
+    temperature (`tsl`).
+
+    Parameters
+    ----------
+    method: str
+        The method to use to estimate active layer thickness from `tsl`.
+    """
+
+    def __init__(self, method: Literal["slater2013"] = "slater2013", **kwargs: Any):
+        self.method = method
+
+    def required_variables(self) -> list[str]:
+        """
+        Return the required variables for the transform.
+        """
+        return ["tsl"]
+
+    def __call__(self, ds: xr.Dataset) -> xr.Dataset:
+        """
+        Compute
+        """
+        if "active_layer_thickness" in ds:
+            return ds
+        if not set(self.required_variables()).issubset(ds):
+            return ds
+        ds = ALT_METHODS[self.method](ds)
+        ds = ds.drop_vars("tsl")
+        ds = dset.convert_year_to_datetime(ds)
         return ds
