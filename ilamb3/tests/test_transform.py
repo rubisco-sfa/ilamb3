@@ -41,6 +41,38 @@ def gen_msftmz_dset(seed: int = 1):
     )
 
 
+def gen_permafrost_dset(seed: int = 1):
+    rs = np.random.RandomState(seed)
+    coords = {}
+    # time, depth, lat, lon
+    coords["time"] = [
+        cf.DatetimeNoLeap(2000 + int(m / 12), (m % 12) + 1, 15) for m in range(3 * 12)
+    ]
+    coords["depth"] = 0.5 * (
+        np.linspace(0, 5, 10 + 1)[1:] + np.linspace(0, 5, 10 + 1)[:-1]
+    )
+    coords["lat"] = 0.5 * (
+        np.linspace(60, 90, 10 + 1)[1:] + np.linspace(60, 90, 10 + 1)[:-1]
+    )
+    coords["lon"] = 0.5 * (
+        np.linspace(-180, 180, 20 + 1)[1:] + np.linspace(-180, 180, 20 + 1)[:-1]
+    )
+    dims = [c for c in coords]
+    ds = xr.Dataset(
+        data_vars={
+            "tsl": xr.DataArray(
+                rs.rand(*[len(coords[d]) for d in dims]) * 20 - 18,
+                coords=coords,
+                dims=dims,
+                name="tsl",
+                attrs={"units": "degC"},
+            ),
+        }
+    )
+    ds = ds.cf.add_bounds("depth")
+    return ds
+
+
 def gen_expression_dset(
     expr: str,
     var_meta: dict[str, dict[str, float | str]],
@@ -100,6 +132,7 @@ DATA = {
     "depth_gradient": generate_test_dset(
         "thetao", "K", nyear=1, nlat=2, nlon=4, ndepth=10
     ),
+    "active_layer_thickness": gen_permafrost_dset(),
 }
 
 
@@ -112,12 +145,17 @@ DATA = {
         ("select_depth", {"value": 0}, "thetao", 9.43861150676275),
         ("select_depth", {"vmin": 1, "vmax": 40}, "thetao", 9.983843647875275),
         ("depth_gradient", {}, "thetao", -0.005550578833866464),
+        (
+            "active_layer_thickness",
+            {"method": "slater2013"},
+            "active_layer_thickness",
+            2.224852071005917,
+        ),
     ],
 )
 def test_transform(name, kwargs, out, value):
     transform = ALL_TRANSFORMS[name](**kwargs)
     ds = transform(DATA[name])
-    print(ds[out].mean().values)  # this value should be the correct one
     assert np.allclose(value, ds[out].mean().values)
 
 
