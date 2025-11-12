@@ -12,6 +12,8 @@ class integrate(ILAMBTransform):
         dim: str,
         varname: str,
         mean: bool = False,
+        # give trapezoidal option to use xarray built-in .integrate()
+        # otherwise, use nate's method
         **kwargs: Any,
     ):
         self.dim = dim
@@ -39,7 +41,7 @@ class integrate(ILAMBTransform):
         elif dim_name == "space":
             ds[self.varname] = dset.integrate_space(ds, self.varname, mean=self.mean)
         else:
-            return ds
+            return ds  # if someone really wants to integrate over a different magical dim, they can implement their own transform
 
 
 class integrate_time(integrate):
