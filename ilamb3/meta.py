@@ -13,6 +13,7 @@ from jinja2 import Template
 
 import ilamb3.regions as ilr
 from ilamb3.analysis import add_overall_score
+from ilamb3.run import _clean_pathname, parse_benchmark_setup
 
 
 def dataframe_to_cmec(df: pd.DataFrame) -> dict[str, Any]:
@@ -106,6 +107,28 @@ def dataframe_to_cmec(df: pd.DataFrame) -> dict[str, Any]:
     return bundle
 
 
+def _sortby_categories(df: pd.DataFrame, output_path: Path) -> pd.DataFrame:
+    config = output_path / "run.yaml"
+    if not config.is_file():
+        return df
+    config = parse_benchmark_setup(config)
+    df["category"] = pd.Categorical(
+        df["section"] + "/" + df["variable"] + "/" + df["dataset"],
+        categories=[
+            f"{_clean_pathname(s)}/{_clean_pathname(v)}/{_clean_pathname(d)}"
+            for s in config.keys()
+            for v in config[s].keys()
+            for d in config[s][v].keys()
+        ],
+        ordered=True,
+    )
+    df = df.sort_values(
+        by=["category", "source"],
+        key=lambda col: col if col.dtype == "category" else col.str.lower(),
+    ).drop(columns="category")
+    return df
+
+
 def generate_dashboard_page(
     output_path: Path, page_title: str = "ILAMB Results"
 ) -> None:
@@ -113,6 +136,7 @@ def generate_dashboard_page(
     Create the required CMEC assets for a Unified Dashboard page.
     """
     df = build_global_dataframe(output_path)
+    df = _sortby_categories(df, output_path)
     bundle = dataframe_to_cmec(df)
     with open(output_path / "scalar_database.json", "w") as out:
         out.write(json.dumps(bundle))

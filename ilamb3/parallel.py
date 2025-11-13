@@ -1,4 +1,5 @@
 import itertools
+import shutil
 from functools import partial
 from pathlib import Path
 
@@ -168,6 +169,7 @@ def run_study_parallel(
     analyses_list = run._to_leaf_list(analyses)
 
     # Save configure so it can be passed to other workers
+    shutil.copy(Path(study_setup), output_path / "run.yaml")
     cfg_file = output_path / "cfg.yaml"
     ilamb3.conf.save(cfg_file)
 

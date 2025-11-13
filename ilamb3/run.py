@@ -2,6 +2,7 @@
 
 import importlib
 import re
+import shutil
 from itertools import chain
 from pathlib import Path
 from typing import Any
@@ -896,6 +897,9 @@ def run_study(
     else:
         raise ValueError("Unsupported registry.")
     set_model_colors(df_datasets)
+
+    # Save configure
+    shutil.copy(Path(study_setup), output_path / "run.yaml")
 
     # The yaml analysis setup can be as structured as the user needs. We are no longer
     # limited to the `h1` and `h2` headers from ILAMB 2.x. We will detect leaf nodes by
