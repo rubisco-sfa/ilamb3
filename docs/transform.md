@@ -11,8 +11,8 @@ kernelspec:
 
 A transform should do one simple action if possible. You don't want to combine multiple operations into a single transform. Instead, chain multiple transforms together in the configuration file.
 
-1) The transform should be permissive. If the input dataset is not appropriate for the transform, it should simply return the input dataset unchanged.
-2) The transform has to tell you what variables it needs to operate. This is so that `ilamb3` can find those variables in the model output datasets.
+- The transform should be permissive. If the input dataset is not appropriate for the transform, it should simply return the input dataset unchanged.
+- The transform has to tell you what variables it needs to operate. This is so that `ilamb3` can find those variables in the model output datasets.
 
 
 The ILAMB paradigm is to apply consistent analysis methods to reference data whose variables map directly to model output as part of experimental runs. While this applies to many datasets, it is not always possible. For example, the Hoffman global net biome production reference dataset is a global integral and yet exists in models as a a function of `time`, `lat`, and `lon`. We could write a specialized analysis that embeds this global integration when loading the model data, but this makes the analysis routines specialized to this variable and not reusable elsewhere.
