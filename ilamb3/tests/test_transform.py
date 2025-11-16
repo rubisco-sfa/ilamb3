@@ -1,11 +1,8 @@
-import re
-
 import cftime as cf
 import numpy as np
 import pytest
 import xarray as xr
 
-import ilamb3.dataset as dset
 from ilamb3.tests.test_run import generate_test_dset
 from ilamb3.transform import ALL_TRANSFORMS
 
@@ -13,6 +10,7 @@ ALL_TRANSFORMS
 PYTHON_VARIABLE = r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"
 
 
+# Helper function to generate msftmz dataset
 def gen_msftmz_dset(seed: int = 1):
     rs = np.random.RandomState(seed)
     coords = {}
@@ -41,6 +39,7 @@ def gen_msftmz_dset(seed: int = 1):
     )
 
 
+# Helper function to generate permafrost dataset
 def gen_permafrost_dset(seed: int = 1):
     rs = np.random.RandomState(seed)
     coords = {}
@@ -73,39 +72,7 @@ def gen_permafrost_dset(seed: int = 1):
     return ds
 
 
-def gen_expression_dset(
-    expr: str,
-    var_meta: dict[str, dict[str, float | str]],
-    nyear: int = 2,
-    nlat: int = 2,
-    nlon: int = 4,
-    base_seed: int = 1,
-) -> xr.Dataset:
-    lhs, rhs_vars = _parse_expr_variables(expr)
-
-    ds_list: list[xr.Dataset] = []
-    for i, var in enumerate(rhs_vars):
-        meta = var_meta.get(var, {})
-        unit = meta.get("unit", "1")
-        scale = meta.get("scale", 20.0)
-        shift = meta.get("shift", 0.0)
-        seed = base_seed + i  # different seed per variable
-
-        ds_var = generate_test_dset(
-            name=var,
-            unit=unit,
-            seed=seed,
-            nyear=nyear,
-            nlat=nlat,
-            nlon=nlon,
-            scale=scale,
-            shift=shift,
-        )
-        ds_list.append(ds_var)
-
-    return xr.merge(ds_list)
-
-
+# Synthetic datasets for testing
 DATA = {
     "soil_moisture_to_vol_fraction": generate_test_dset(
         "mrsos", "kg m-2", nyear=1, nlat=2, nlon=4
@@ -133,9 +100,29 @@ DATA = {
         "thetao", "K", nyear=1, nlat=2, nlon=4, ndepth=10
     ),
     "active_layer_thickness": gen_permafrost_dset(),
+    "integrate_time": generate_test_dset(
+        "pr", "kg m-2 s-1", nyear=3, nlat=2, nlon=4, scale=5e-4, shift=0.0
+    ),
+    "integrate_depth": generate_test_dset(
+        "rhopoto", "kg m-3", nlat=2, nlon=4, ndepth=10, scale=4.0, shift=1023.0
+    ),
+    "integrate_space": generate_test_dset(
+        "rlut", "W m-2", nyear=1, nlat=2, nlon=4, scale=100.0, shift=200.0
+    ),
+    "expression": xr.merge(
+        [
+            generate_test_dset(
+                "rsus", "W m-2", nyear=1, nlat=2, nlon=4, scale=150.0, shift=0.0
+            ),
+            generate_test_dset(
+                "rsds", "W m-2", nyear=1, nlat=2, nlon=4, scale=300.0, shift=0.0
+            ),
+        ]
+    ),
 }
 
 
+# Test all the above transforms
 @pytest.mark.parametrize(
     "name,kwargs,out,value",
     [
@@ -159,64 +146,41 @@ def test_transform(name, kwargs, out, value):
     assert np.allclose(value, ds[out].mean().values)
 
 
-def _parse_expr_variables(expr: str):
-    lhs, rhs = expr.split("=")
-    lhs_vars = re.findall(PYTHON_VARIABLE, lhs)
-    rhs_vars = re.findall(PYTHON_VARIABLE, rhs)
-
-    assert len(lhs_vars) == 1
-    lhs = lhs_vars[0]
-    return lhs, rhs_vars
-
-
 @pytest.mark.parametrize(
-    "expr_kwargs,var_meta,value",
+    "name,out",
     [
-        (
-            {"expr": "albedo = rsus / rsds", "integrate_time": False},
-            {
-                "rsus": {"unit": "W m-2", "scale": 150.0, "shift": 0.0},
-                "rsds": {"unit": "W m-2", "scale": 300.0, "shift": 100.0},
-            },
-            0.34482726580080203,
-        ),
-        (
-            {"expr": "albedo = rsus / rsds", "integrate_time": True},
-            {
-                "rsus": {"unit": "W m-2", "scale": 150.0, "shift": 0.0},
-                "rsds": {"unit": "W m-2", "scale": 300.0, "shift": 100.0},
-            },
-            0.30226715582441277,
-        ),
+        ("integrate_time", "pr"),
+        ("integrate_depth", "rhopoto"),
+        ("integrate_space", "rlut"),
     ],
 )
-def test_expression(expr_kwargs, var_meta, value):
-    expr = expr_kwargs["expr"]
+def test_integrate_common(name, out):
+    original_ds = DATA[name]
 
-    # build a test dataset for whatever variables appear in expr
-    ds = gen_expression_dset(
-        expr,
-        var_meta=var_meta,
-        nyear=2,
-        nlat=2,
-        nlon=4,
-        base_seed=1,
-    )
+    # Test mean=False (sum)
+    transform = ALL_TRANSFORMS[name](varname=out, mean=False)
+    integral = transform(original_ds.copy())
 
-    transform = ALL_TRANSFORMS["expression"](**expr_kwargs)
-    ds_out = transform(ds)
+    # Test mean=True (mean)
+    transform_mean = ALL_TRANSFORMS[name](varname=out, mean=True)
+    integral_mean = transform_mean(original_ds.copy())
 
-    lhs, rhs_vars = _parse_expr_variables(expr)
-    assert lhs in ds_out
-
-    if not expr_kwargs.get("integrate_time", False):
-        print(ds_out[lhs].mean().values)
-        assert np.allclose(ds_out[lhs].mean().values, value)
+    # Dim(s) should be removed for spatial integration
+    if name == "integrate_space":
+        for d in ("lat", "lon"):
+            if d in original_ds[out].dims:
+                assert d not in integral[out].dims
+                assert d not in integral_mean[out].dims
     else:
-        ds_expected = ds.copy()
-        for v in rhs_vars:
-            arr = ds_expected[v]
-            if dset.is_temporal(arr):
-                ds_expected[v] = dset.integrate_time(ds_expected, v, mean=True)
-        print(ds_out[lhs].mean().values)
-        assert np.allclose(ds_out[lhs].mean().values, value)
+        if transform.dim in DATA[name][out].dims:
+            assert transform.dim not in integral[out].dims
+            assert transform.dim not in integral_mean[out].dims
+
+    # Mean should keep original units
+    assert integral_mean[out].attrs["units"] == DATA[name][out].attrs["units"]
+
+    # Sum should NOT keep original units
+    assert integral[out].attrs["units"] != DATA[name][out].attrs["units"]
+
+    # Sum and Mean values should differ
+    assert not np.allclose(integral[out].values, integral_mean[out].values)

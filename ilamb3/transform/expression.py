@@ -3,7 +3,6 @@ from typing import Any
 
 import xarray as xr
 
-import ilamb3.dataset as dset
 from ilamb3.transform.base import ILAMBTransform
 
 
@@ -13,24 +12,19 @@ class expression(ILAMBTransform):
     to an `xarray.Dataset`. It creates a new variable in the dataset if variables on the left-hand-side (lhs) of `=`
     do not already exist and all right-hand-side (rhs) variables are present.
 
-    Optionally, time integration can be applied to each input variable before running the expression if `integrate_time=True`.
-
     Parameters
     ----------
     expr : str
         An algebraic expression of the form "a = b + c" defining how to compute a new variable.
         The lhs is the output variable name, and the rhs is a valid Python expression referencing existing dataset variables.
-    integrate_time : bool, optional
-        Whether to integrate the resulting variable over time (default: False).
     **kwargs : Any
         Additional keyword arguments passed to the base `ILAMBTransform` class.
     """
 
-    def __init__(self, expr: str, integrate_time: bool = False, **kwargs: Any):
-        # instantiate expression and time integration flag
+    def __init__(self, expr: str, **kwargs: Any):
+        # instantiate expression
         assert "=" in expr
         self.expression = expr.split("=")[1]
-        self.integrate_time = integrate_time
 
         # instantiate the lhs_vars, rhs_vars, and check validity
         PYTHON_VARIABLE = r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"
@@ -55,11 +49,6 @@ class expression(ILAMBTransform):
             return ds
         if not set(self.required_variables()).issubset(ds):
             return ds
-
-        # optionally, integrate the input variables over time
-        for var in self.rhs_vars:
-            if self.integrate_time and dset.is_temporal(ds[var]):
-                ds[var] = dset.integrate_time(ds, var, mean=True)
 
         # evaluate the expression and add to dataset
         ds[self.lhs_vars[0]] = eval(

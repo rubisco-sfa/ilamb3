@@ -7,13 +7,30 @@ from ilamb3.transform.base import ILAMBTransform
 
 
 class integrate(ILAMBTransform):
+    """
+    This ILAMB Transform integrates a variable over a specified dimension if that
+    dimension exists. The integrated variable replaces the original variable in the
+    dataset. The integration is the sum over the specified dimension weighted by
+    the appropriate measure (e.g., time interval lengths for time integration).
+    E.g., `ds["nbp"].weighted(ds["time_measures"].fillna(0)).sum(dim="time")`
+
+    Parameters
+    ----------
+    dim : str
+        The dimension over which to integrate ('time', 'depth', or 'space').
+    varname : str
+        The variable to integrate.
+    mean : bool, optional
+        If True, compute the integrated mean instead of sum (default: False).
+    **kwargs : Any
+        Additional keyword arguments passed to the base `ILAMBTransform` class.
+    """
+
     def __init__(
         self,
         dim: str,
         varname: str,
         mean: bool = False,
-        # give trapezoidal option to use xarray built-in .integrate()
-        # otherwise, use nate's method
         **kwargs: Any,
     ):
         self.dim = dim
@@ -30,18 +47,36 @@ class integrate(ILAMBTransform):
         """
         Select a dim or dim range of the input dataset, if the dimension is found.
         """
-        try:
-            dim_name = dset.get_dim_name(ds, self.dim)
-        except KeyError:  # so if the user implements integrate but it hits this error, it'll still pass thru even tho it's wrong
-            return ds
-        if dim_name == "time":
-            ds[self.varname] = dset.integrate_time(ds, self.varname, mean=self.mean)
-        elif dim_name == "depth":
-            ds[self.varname] = dset.integrate_depth(ds, self.varname, mean=self.mean)
-        elif dim_name == "space":
-            ds[self.varname] = dset.integrate_space(ds, self.varname, mean=self.mean)
+
+        # time integration
+        if self.dim == "time":
+            if dset.is_temporal(ds[self.varname]):
+                ds[self.varname] = dset.integrate_time(ds, self.varname, mean=self.mean)
+                return ds
+            else:
+                return ds
+
+        # depth integration
+        elif self.dim == "depth":
+            if dset.is_layered(ds[self.varname]):
+                ds[self.varname] = dset.integrate_depth(
+                    ds, self.varname, mean=self.mean
+                )
+                return ds
+            else:
+                return ds
+
+        # spatial (lat/lon) integration
+        elif self.dim == "space":
+            if dset.is_spatial(ds[self.varname]):
+                ds[self.varname] = dset.integrate_space(
+                    ds, self.varname, mean=self.mean
+                )
+                return ds
+            else:
+                return ds
         else:
-            return ds  # if someone really wants to integrate over a different magical dim, they can implement their own transform
+            return ds
 
 
 class integrate_time(integrate):
