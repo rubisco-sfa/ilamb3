@@ -45,38 +45,28 @@ class integrate(ILAMBTransform):
 
     def __call__(self, ds: xr.Dataset) -> xr.Dataset:
         """
-        Select a dim or dim range of the input dataset, if the dimension is found.
+        Apply the appropriate integration transform to the dataset.
         """
 
         # time integration
         if self.dim == "time":
-            if dset.is_temporal(ds[self.varname]):
-                ds[self.varname] = dset.integrate_time(ds, self.varname, mean=self.mean)
+            if not dset.is_temporal(ds):
                 return ds
-            else:
-                return ds
+            ds[self.varname] = dset.integrate_time(ds, self.varname, mean=self.mean)
 
         # depth integration
         elif self.dim == "depth":
-            if dset.is_layered(ds[self.varname]):
-                ds[self.varname] = dset.integrate_depth(
-                    ds, self.varname, mean=self.mean
-                )
+            if not dset.is_layered(ds):
                 return ds
-            else:
-                return ds
+            ds[self.varname] = dset.integrate_depth(ds, self.varname, mean=self.mean)
 
         # spatial (lat/lon) integration
         elif self.dim == "space":
-            if dset.is_spatial(ds[self.varname]):
-                ds[self.varname] = dset.integrate_space(
-                    ds, self.varname, mean=self.mean
-                )
+            if not dset.is_spatial(ds[self.varname]):
                 return ds
-            else:
-                return ds
-        else:
-            return ds
+            ds[self.varname] = dset.integrate_space(ds, self.varname, mean=self.mean)
+
+        return ds
 
 
 class integrate_time(integrate):
