@@ -138,6 +138,7 @@ DATA = {
             "active_layer_thickness",
             2.224852071005917,
         ),
+        ("expression", {"expr": "net_rs = rsds - rsus"}, "net_rs", 72.64174767520022),
     ],
 )
 def test_transform(name, kwargs, out, value):
