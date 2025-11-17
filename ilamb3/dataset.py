@@ -321,7 +321,7 @@ def compute_time_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     Returns
     -------
     xr.DataArray
-        The time measures, the length of the time intervals.
+        The time measures, the length of the time intervals, in days.
 
     Notes
     -----
@@ -335,8 +335,11 @@ def compute_time_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
         if time.size == 1:
             msg = "Cannot estimate time measures from single value without bounds"
             raise ValueError(msg)
+        # compute time measures as differences (timedelta64[ns]) converted to days
         delt = time.diff(dim=time_name).to_numpy().astype(float) * 1e-9 / 3600 / 24
+        # pad the array to match the original time array size
         delt = np.hstack([delt[0], delt, delt[-1]])
+        # compute the average measure in days for each time step
         msr = xr.DataArray(
             0.5 * (delt[:-1] + delt[1:]), coords=[time], dims=[time_name]
         )
@@ -352,7 +355,7 @@ def compute_time_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     delt = dset[timeb_name]
     nbnd = delt.dims[-1]
     delt = delt.diff(nbnd).squeeze().compute()
-    measure = delt.astype("float") * 1e-9 / 86400  # [ns] to [d]
+    measure = delt.astype("float") * 1e-9 / 86400  # .diff [ns] to [d]
     measure.attrs["units"] = "d"
     return measure
 
@@ -529,7 +532,7 @@ def integrate_time(
     Returns
     -------
     integral
-        The integral or mean.
+        The integral or mean as a DataArray.
 
     Notes
     -----
