@@ -499,6 +499,7 @@ def run_single_block(
         ref_file = output_path / "Reference.nc"
         com_file = output_path / f"{source_name}.nc"
         log_file = output_path / f"{source_name}.log"
+        log_file.unlink(missing_ok=True)  # start each log empty
         log_id = logger.add(log_file, backtrace=True, diagnose=True)
 
         # Attempt to load local assets if preferred
@@ -553,6 +554,7 @@ def run_single_block(
             logger.exception(
                 f"ILAMB analysis '{block_name}' failed for '{source_name}'."
             )
+            logger.remove(log_id)
             continue
 
         # Pop log and remove zero size files
@@ -579,6 +581,7 @@ def run_single_block(
         df_plots = plot_analyses(df, ds_ref, ds_com, analyses, output_path)
     except Exception:
         logger.exception(f"ILAMB analysis '{block_name}' failed in plotting.")
+        logger.remove(log_id)
         return
 
     # Generate an output page
@@ -592,6 +595,7 @@ def run_single_block(
             out.write(html)
     except Exception:
         logger.exception(f"ILAMB analysis '{block_name}' failed in generating html.")
+        logger.remove(log_id)
         return
     logger.remove(log_id)
 

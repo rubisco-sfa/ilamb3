@@ -2,10 +2,10 @@ import itertools
 import shutil
 from functools import partial
 from pathlib import Path
+from traceback import format_exc
 
 import pandas as pd
 import xarray as xr
-from loguru import logger
 from matplotlib import pyplot as plt
 from mpi4py import MPI
 from mpi4py.futures import MPIPoolExecutor, get_comm_workers
@@ -35,7 +35,7 @@ def _perform_work_phase1(work, reference_data, output_path):
     ref_file = local_path / f"Reference{rank}.nc"
     com_file = local_path / f"{source_name}.nc"
     log_file = local_path / f"{source_name}.log"
-    log_id = logger.add(log_file, backtrace=True, diagnose=True)
+    log_file.unlink(missing_ok=True)
     if ilamb3.conf["use_cached_results"] and csv_file.is_file() and com_file.is_file():
         return
 
@@ -94,12 +94,12 @@ def _perform_work_phase1(work, reference_data, output_path):
         ds_com.to_netcdf(com_file)
 
     except Exception:
-        logger.exception(
-            f"ILAMB analysis '{block_name}' failed for '{source_name}' on {process_name} ({rank}/{size})"
-        )
+        with open(log_file, "a") as log:
+            log.write(
+                f"ILAMB analysis '{block_name}' failed for '{source_name}' on {process_name} ({rank}/{size})\n"
+            )
+            log.write(format_exc())
         return
-
-    logger.remove(log_id)
 
     return
 
@@ -108,37 +108,69 @@ def _perform_work_phase2(setup, output_path):
     # unpack work
     block_name = setup["path"].replace("/", " | ")
     local_path = output_path / setup["path"]
+    log_file = local_path / "post.log"
+    log_file.unlink(missing_ok=True)
     analyses = run.setup_analyses(setup, local_path)
 
+    # get parallel worker information for logging
+    comm = get_comm_workers()
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+    process_name = MPI.Get_processor_name()
+
     # local scalars
-    df_all = [pd.read_csv(str(df)) for df in local_path.glob("*.csv")]
-    if not df_all:
+    try:
+        df_all = [pd.read_csv(str(df)) for df in local_path.glob("*.csv")]
+        if not df_all:
+            return
+        df = pd.concat(df_all).drop_duplicates(
+            subset=["source", "region", "analysis", "name"]
+        )
+        df["region"] = df["region"].astype(str).str.replace("nan", "None")
+        df = run.add_overall_score(df)
+    except Exception:
+        with open(log_file, "a") as log:
+            log.write(
+                f"ILAMB '{block_name}' failed in post on {process_name} ({rank}/{size})"
+            )
+            log.write(format_exc())
         return
-    df = pd.concat(df_all).drop_duplicates(
-        subset=["source", "region", "analysis", "name"]
-    )
-    df["region"] = df["region"].astype(str).str.replace("nan", "None")
-    df = run.add_overall_score(df)
 
-    # cleanup local directory
-    for f in local_path.glob("Reference*.nc"):
-        f.rename(local_path / "Reference.nc")
+    try:
+        # cleanup local directory
+        for f in local_path.glob("Reference*.nc"):
+            f.rename(local_path / "Reference.nc")
 
-    # load nc files
-    ds_com = {f.stem: xr.load_dataset(str(f)) for f in local_path.glob("*.nc")}
-    ds_ref = ds_com.pop("Reference") if "Reference" in ds_com else xr.Dataset()
+        # load nc files
+        ds_com = {f.stem: xr.load_dataset(str(f)) for f in local_path.glob("*.nc")}
+        ds_ref = ds_com.pop("Reference") if "Reference" in ds_com else xr.Dataset()
 
-    # plot
-    plt.rcParams.update({"figure.max_open_warning": 0})
-    df_plots = run.plot_analyses(df, ds_ref, ds_com, analyses, local_path)
+        # plot
+        plt.rcParams.update({"figure.max_open_warning": 0})
+        df_plots = run.plot_analyses(df, ds_ref, ds_com, analyses, local_path)
+    except Exception:
+        with open(log_file, "a") as log:
+            log.write(
+                f"ILAMB '{block_name}' failed in post on {process_name} ({rank}/{size})"
+            )
+            log.write(format_exc())
+        return
 
-    # generate an output page
     if ilamb3.conf["debug_mode"] and (local_path / "index.html").is_file():
         return
-    ds_ref.attrs["header"] = block_name
-    html = run.generate_html_page(df, ds_ref, ds_com, df_plots)
-    with open(local_path / "index.html", mode="w") as out:
-        out.write(html)
+
+    # generate an output page
+    try:
+        ds_ref.attrs["header"] = block_name
+        html = run.generate_html_page(df, ds_ref, ds_com, df_plots)
+        with open(local_path / "index.html", mode="w") as out:
+            out.write(html)
+    except Exception:
+        with open(log_file, "a") as log:
+            log.write(
+                f"ILAMB '{block_name}' failed in post on {process_name} ({rank}/{size})"
+            )
+            log.write(format_exc())
 
 
 def _start_worker(cfg_path: Path):
