@@ -275,10 +275,10 @@ def _space_labels(
     dsd: dict[str, xr.Dataset], ymin: float, maxit: int = 10
 ) -> dict[str, float]:
     """
-    Space out the model labels for the nbp plot using a modified Laplacian
+    Space out the model labels for the anbp plot using a modified Laplacian
     smoothing.
     """
-    sorted_dsd = {key: float(ds.isel(year=-1)["nbp"]) for key, ds in dsd.items()}
+    sorted_dsd = {key: float(ds.isel(year=-1)["anbp"]) for key, ds in dsd.items()}
     sorted_dsd = dict(sorted(sorted_dsd.items(), key=lambda item: item[1]))
     y = np.array([v for _, v in sorted_dsd.items()])
     for j in range(maxit):

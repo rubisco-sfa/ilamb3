@@ -107,13 +107,19 @@ Ecosystem and Carbon Cycle:
 
     Hoffman-1-0:
       sources:
-        nbp: Hoffman-1-0/obs4MIPs_UCI-ORNL_Hoffman-1-0_yr_nbp_gm_v20250903.nc
+        nbp: Hoffman-1-0/obs4MIPs_UCI-ORNL_Hoffman-1-0_yr_nbp_gm_v20251117.nc
+      transforms:
+      - integrate_space:
+          varname: nbp
       analyses:
       - nbp
 
     GCP:
       sources:
         nbp: nbp/GCP/nbp_1959-2016.nc
+      transforms:
+      - integrate_space:
+          varname: nbp
       analyses:
       - nbp
       evaluation_year: 2014
