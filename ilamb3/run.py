@@ -898,9 +898,6 @@ def run_study(
         raise ValueError("Unsupported registry.")
     set_model_colors(df_datasets)
 
-    # Save configure
-    shutil.copy(Path(study_setup), output_path / "run.yaml")
-
     # The yaml analysis setup can be as structured as the user needs. We are no longer
     # limited to the `h1` and `h2` headers from ILAMB 2.x. We will detect leaf nodes by
     # the presence of a `sources` dictionary.
@@ -908,6 +905,9 @@ def run_study(
 
     # Various traversal actions
     _create_paths(analyses, output_path)
+
+    # Save configure
+    shutil.copy(Path(study_setup), output_path / "run.yaml")
 
     # Create a list of just the leaves to use in creation all work combinations
     analyses_list = _to_leaf_list(analyses)
