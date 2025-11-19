@@ -2,8 +2,8 @@ CCI-CryoClim-FSC-1/snc_mon_Snow-cci_BE_gn_198201-201906.nc sha1:c0bfecd2f8b886e9
 WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_gpp_gn_v20250902.nc sha1:ada10d3d291008857461b97f2886dd18e7d02fe7
 WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfss_gn_v20250902.nc sha1:b5e7eb85ccf8a897b20781d30ee812ee13105e42
 WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfls_gn_v20250902.nc sha1:380cea38eb6adb8ff547376c06d83e296090d12d
-Hoffman-1-0/obs4MIPs_UCI-ORNL_Hoffman-1-0_yr_fgco2_gm_v20250903.nc sha1:f06d909348c05fdea0a7af87b01bfd4cb440e075
-Hoffman-1-0/obs4MIPs_UCI-ORNL_Hoffman-1-0_yr_nbp_gm_v20250903.nc sha1:803453d7b3873732190b1a20b25c4b50d34642c9
+Hoffman-1-0/obs4MIPs_UCI-ORNL_Hoffman-1-0_yr_fgco2_gm_v20251117.nc sha1:9685ca2a33159931a18bebe83bccb22c2ff20e9e
+Hoffman-1-0/obs4MIPs_UCI-ORNL_Hoffman-1-0_yr_nbp_gm_v20251117.nc sha1:a71609cf54bcfbf1a4bb19a7e1f879aa33ddd66e
 HWSD-2-0/obs4MIPs_IIASA-FAO_HWSD-2-0_fx_cSoil_gn_v20250903.nc sha1:9855622a525902f0e2625ee6293e8d7c2b18c24c
 GFED-5-0/obs4MIPs_NASA-NOSR_GFED-5-0_mon_burntFractionAll_gr_v20251029.nc sha1:0527f07ae72ea9520486f7f3d47f8ec26a7a017f
 RAPID-2023-1a/obs4MIPs_NOC_RAPID-2023-1a_mon_msftmz_gm_v20250902.nc sha1:0dfeea11872bdc453cf5d0a3b0cf1abf4d14369f

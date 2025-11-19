@@ -182,5 +182,20 @@ def fetch(config: Path):
             raise ValueError(f"Could not find '{source}' in the data registries.")
 
 
+@app.command(help="What went wrong in the run?")
+def debug(output_path: Path):
+    for root, _, files in output_path.walk():
+        logs_no_csvs = [
+            f
+            for f in files
+            if f.endswith(".log") and f"{(root / f).stem}.csv" not in files
+        ]
+        if logs_no_csvs:
+            print(f"\n{root}")
+            for log in logs_no_csvs:
+                with open(root / log) as fin:
+                    print("  -", Path(log).stem, fin.readlines()[-1].strip())
+
+
 if __name__ == "__main__":
     app()

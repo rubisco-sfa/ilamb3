@@ -93,7 +93,7 @@ class permafrost_extent(ILAMBTransform):
         ds["permafrost_extent"] = xr.where(
             ds["permafrost_extent"] > 0, ds["permafrost_extent"], np.nan
         )
-        ds = ds.drop_vars("tsl")
+        ds = ds.drop_vars("tsl", errors="ignore")
         return ds
 
 
