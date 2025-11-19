@@ -963,24 +963,70 @@ def get_scalar_uncertainty(ds: xr.Dataset, varname: str) -> xr.DataArray:
     attribute or the `bounds` attribute. In the case of the latter, we will
     return the harmonic mean as a scalar measure of uncertainty.
     """
+
+    def _get_bound_dim(da: xr.DataArray) -> str | None:
+        possible = set(da.dims).difference(da.coords)
+        if len(possible) > 1:
+            raise ValueError(
+                f"Ambiguity in determinging the `bounds` dimension, found: {possible} in\n\n{da}"
+            )
+        if len(possible) == 0:
+            return None
+        return possible.pop()
+
+    # do we have some uncertainty?
     var = ds[varname]
     da = None
     if "ancillary_variables" in var.attrs and var.attrs["ancillary_variables"] in ds:
         da = ds[var.attrs["ancillary_variables"]]
     if "bounds" in var.attrs and var.attrs["bounds"] in ds:
         da = ds[var.attrs["bounds"]]
-        bnd_dim = set(da.dims) - set(var.dims)
-        if len(bnd_dim) > 1:
-            raise ValueError(
-                f"Ambiguity in determinging the `bounds` dimension, found: {bnd_dim}"
-            )
-        if bnd_dim:
-            bnd_dim = list(bnd_dim)[0]
-            da = np.sqrt(
-                (var - da.isel({bnd_dim: 0})) ** 2 + (da.isel({bnd_dim: 1}) - var) ** 2
-            )
     if da is None:
         raise NoUncertainty()
+
+    # if the uncertainty is an interval, compute the scalar by quadrature
+    bnd_dim = _get_bound_dim(da)
+    if da is not None and bnd_dim is not None:
+        da = np.sqrt(
+            (var - da.isel({bnd_dim: 0})) ** 2 + (da.isel({bnd_dim: 1}) - var) ** 2
+        )
+    da.attrs["units"] = var.attrs["units"]
+    da.name = "uncert"
+    return da
+
+
+def get_interval_uncertainty(ds: xr.Dataset, varname: str) -> xr.DataArray:
+    """
+    Get the uncertainty interval from the variable.
+
+    Note
+    ----
+    Uncertainty is indicated either by the presence of the `ancillary_variables`
+    attribute or the `bounds` attribute.
+    """
+
+    def _get_bound_dim(da: xr.DataArray) -> str | None:
+        possible = set(da.dims).difference(da.coords)
+        if len(possible) > 1:
+            raise ValueError(
+                f"Ambiguity in determinging the `bounds` dimension, found: {possible} in\n\n{da}"
+            )
+        if len(possible) == 0:
+            return None
+        return possible.pop()
+
+    # do we have some uncertainty?
+    var = ds[varname]
+    da = None
+    if "ancillary_variables" in var.attrs and var.attrs["ancillary_variables"] in ds:
+        da = ds[var.attrs["ancillary_variables"]]
+    if "bounds" in var.attrs and var.attrs["bounds"] in ds:
+        da = ds[var.attrs["bounds"]]
+    if da is None:
+        raise NoUncertainty()
+    bnd_dim = _get_bound_dim(da)
+    if bnd_dim is None:
+        raise NoUncertainty("Only scalar uncertainty present.")
     da.attrs["units"] = var.attrs["units"]
     da.name = "uncert"
     return da
