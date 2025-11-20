@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+import ilamb3
 import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 import ilamb3.plot as ilp
@@ -151,7 +152,7 @@ class area_analysis(ILAMBAnalysis):
             [
                 {
                     "source": "Reference",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": self.analysis_name,
                     "name": "Total Area",
                     "type": "scalar",
@@ -162,7 +163,7 @@ class area_analysis(ILAMBAnalysis):
             + [
                 {
                     "source": "Comparison",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": self.analysis_name,
                     "name": f"{name} Area",
                     "type": "scalar",
@@ -177,7 +178,7 @@ class area_analysis(ILAMBAnalysis):
             + [
                 {
                     "source": "Comparison",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": self.analysis_name,
                     "name": f"{name} Score",
                     "type": "score",
@@ -207,7 +208,7 @@ class area_analysis(ILAMBAnalysis):
             {
                 "name": "extent",
                 "title": self.req_variable.replace("_", " ").title(),
-                "region": None,
+                "region": ilamb3.conf["global_region"],
                 "source": source,
                 "axis": ilp.plot_map(
                     ds["extent"],
@@ -236,7 +237,7 @@ class area_analysis(ILAMBAnalysis):
             {
                 "name": "bias",
                 "title": "Bias",
-                "region": None,
+                "region": ilamb3.conf["global_region"],
                 "source": source,
                 "axis": ilp.plot_map(
                     ds["bias"],

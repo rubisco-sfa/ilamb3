@@ -94,8 +94,10 @@ def run(
     cache: bool = True,
     central_longitude: float = 0.0,
     title: str = "Benchmarking Results",
+    global_region: str | None = None,
 ):
     # by default, we run over the None region, that is, no regional reduction
+    ilamb3.conf.reset()
     if regions is None:
         regions = [None]
     else:
@@ -114,6 +116,7 @@ def run(
         plot_central_longitude=central_longitude,
         comparison_groupby=["source_id", "grid_label"],
         model_name_facets=["source_id"],
+        global_region=global_region,
     )
 
     # load local databases, need a better way
