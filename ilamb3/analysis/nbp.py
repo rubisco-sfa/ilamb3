@@ -176,7 +176,7 @@ class nbp_analysis(ILAMBAnalysis):
             [
                 {
                     "source": "Reference",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": "nbp",
                     "name": f"nbp({self.evaluation_year})",
                     "type": "scalar",
@@ -185,7 +185,7 @@ class nbp_analysis(ILAMBAnalysis):
                 },
                 {
                     "source": "Comparison",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": "nbp",
                     "name": f"nbp({self.evaluation_year})",
                     "type": "scalar",
@@ -194,7 +194,7 @@ class nbp_analysis(ILAMBAnalysis):
                 },
                 {
                     "source": "Comparison",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": "nbp",
                     "name": f"diff({self.evaluation_year})",
                     "type": "scalar",
@@ -203,7 +203,7 @@ class nbp_analysis(ILAMBAnalysis):
                 },
                 {
                     "source": "Comparison",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": "nbp",
                     "name": "Difference Score",
                     "type": "score",
@@ -212,7 +212,7 @@ class nbp_analysis(ILAMBAnalysis):
                 },
                 {
                     "source": "Comparison",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": "nbp",
                     "name": "Trajectory Score",
                     "type": "score",
@@ -236,7 +236,7 @@ class nbp_analysis(ILAMBAnalysis):
             {
                 "name": "accumulation",
                 "title": "nbp_accumulation",
-                "region": None,
+                "region": ilamb3.conf["global_region"],
                 "source": None,
                 "axis": plot_accumulated_nbp(
                     com, ref, vmin=float(uncert.min()), vmax=float(uncert.max())
@@ -248,7 +248,7 @@ class nbp_analysis(ILAMBAnalysis):
             {
                 "name": plot,
                 "title": "nbp",
-                "region": None,
+                "region": ilamb3.conf["global_region"],
                 "source": source,
                 "axis": (
                     ilplt.plot_curve(

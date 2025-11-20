@@ -25,6 +25,7 @@ defaults = {
     "run_mode": "interactive",  # for internal use
     "label_colors": {},
     "region_sources": [],
+    "global_region": None,  # which region label to we use for 'everything'
 }
 
 
@@ -79,6 +80,7 @@ class Config(dict):
         figure_dpi: int | None = None,
         debug_mode: bool | None = None,
         label_colors: dict[str, list[float]] | None = None,
+        global_region: str | None = None,
     ):
         """Change ilamb3 configuration options."""
         temp = copy.deepcopy(self)
@@ -113,6 +115,20 @@ class Config(dict):
         if label_colors is not None:
             assert isinstance(label_colors, dict)
             self["label_colors"].update(label_colors)
+        # This could cause a bug. If you set a region and then change your mind
+        # and want to change it back to None, you can't. But if you just always
+        # set it to None, you may erase the region someone has set and just
+        # didn't provide in the arguments.
+        if global_region is not None:
+            ilamb_regions = reg.Regions()
+            does_not_exist = (
+                set([global_region]) - set(ilamb_regions._regions) - set([None])
+            )
+            if does_not_exist:
+                raise ValueError(
+                    f"Cannot set {global_region=} because it is not registerd in our system: {list(ilamb_regions._regions)}"
+                )
+            self["global_region"] = global_region
         return self._unset(temp)
 
     def __getitem__(self, item):

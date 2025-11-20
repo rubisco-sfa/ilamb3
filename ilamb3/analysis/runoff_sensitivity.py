@@ -106,7 +106,7 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
             [
                 {
                     "source": "Reference",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": "Runoff Sensitivity",
                     "name": "Mean Temperature Sensitivity",
                     "type": "scalar",
@@ -115,7 +115,7 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
                 },
                 {
                     "source": "Reference",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": "Runoff Sensitivity",
                     "name": "Mean Precipitation Sensitivity",
                     "type": "scalar",
@@ -124,7 +124,7 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
                 },
                 {
                     "source": "Comparison",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": "Runoff Sensitivity",
                     "name": "Mean Temperature Sensitivity",
                     "type": "scalar",
@@ -133,7 +133,7 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
                 },
                 {
                     "source": "Comparison",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": "Runoff Sensitivity",
                     "name": "Mean Precipitation Sensitivity",
                     "type": "scalar",
@@ -142,7 +142,7 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
                 },
                 {
                     "source": "Comparison",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": "Runoff Sensitivity",
                     "name": "Bias Temperature Sensitivity",
                     "type": "scalar",
@@ -151,7 +151,7 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
                 },
                 {
                     "source": "Comparison",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": "Runoff Sensitivity",
                     "name": "Bias Precipitation Sensitivity",
                     "type": "scalar",
@@ -160,7 +160,7 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
                 },
                 {
                     "source": "Comparison",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": "Runoff Sensitivity",
                     "name": "Score Temperature Sensitivity",
                     "type": "score",
@@ -169,7 +169,7 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
                 },
                 {
                     "source": "Comparison",
-                    "region": "None",
+                    "region": str(ilamb3.conf["global_region"]),
                     "analysis": "Runoff Sensitivity",
                     "name": "Score Precipitation Sensitivity",
                     "type": "score",
@@ -214,7 +214,7 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
                     {
                         "name": var.replace("_", ""),
                         "title": title,
-                        "region": None,
+                        "region": ilamb3.conf["global_region"],
                         "source": model,
                         "axis": False,
                     }
@@ -225,7 +225,8 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
                     return fig
                 else:
                     fig.savefig(
-                        self.output_path / f"{model}_None_{var.replace('_', '')}.png"
+                        self.output_path
+                        / f"{model}_{str(ilamb3.conf['global_region'])}_{var.replace('_', '')}.png"
                     )
                     plt.close()
 
@@ -236,7 +237,7 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
                     {
                         "name": str(basin.values),
                         "title": f"Basin plot for {str(basin.values)}",
-                        "region": None,
+                        "region": ilamb3.conf["global_region"],
                         "source": model,
                         "axis": False,
                     }
@@ -380,5 +381,8 @@ def _basin_plots(
     if output_path is None:
         return fig
     else:
-        fig.savefig(output_path / f"{model}_None_{str(basin.values)}.png")
+        fig.savefig(
+            output_path
+            / f"{model}_{str(ilamb3.conf['global_region'])}_{str(basin.values)}.png"
+        )
         plt.close()
