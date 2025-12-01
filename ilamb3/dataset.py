@@ -44,8 +44,8 @@ def get_dim_name(
     """
     dim_names = {
         "time": ["time", "TIME", "month"],
-        "lat": ["lat", "latitude", "Latitude", "y", "lat_", "Lat", "LATITUDE"],
-        "lon": ["lon", "longitude", "Longitude", "x", "lon_", "Lon", "LONGITUDE"],
+        "lat": ["lat", "latitude", "Latitude", "lat_", "Lat", "LATITUDE"],
+        "lon": ["lon", "longitude", "Longitude", "lon_", "Lon", "LONGITUDE"],
         "depth": ["depth", "lev"],
     }
     # Assumption: the 'site' dimension is what is left over after all others are removed
@@ -98,14 +98,13 @@ def get_coord_name(
     get_dim_name : A variant when the coordinate is a dimension.
     """
     coord_names = {
-        "lat": ["lat", "latitude", "Latitude", "y", "lat_", "Lat", "LATITUDE"],
-        "lon": ["lon", "longitude", "Longitude", "x", "lon_", "Lon", "LONGITUDE"],
+        "lat": ["lat", "latitude", "Latitude", "lat_", "Lat", "LATITUDE"],
+        "lon": ["lon", "longitude", "Longitude", "lon_", "Lon", "LONGITUDE"],
     }
     possible_names = coord_names[coord]
     coord_name = set(dset.coords).intersection(possible_names)
     if len(coord_name) != 1:
-        msg = f"{coord} coordinate not found: {dset.coords} "
-        msg += f"not in [{','.join(possible_names)}]"
+        msg = f"'{coord}' coordinate not found or ambiguous: {coord_name=}"
         raise KeyError(msg)
     return str(coord_name.pop())
 
