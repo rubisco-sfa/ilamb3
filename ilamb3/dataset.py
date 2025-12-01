@@ -223,14 +223,20 @@ def get_integer_dims(da: xr.DataArray) -> list[str]:
 def is_latlon2d(da: xr.DataArray) -> bool:
     """
     Return if the dataarray has 2D latitudes and longitudes.
+
+    Note
+    ----
+    To be considered 2d lat/lon, the dataset must have 1d indexing arrays of
+    integer type and then 2d latitude/longitude coordinates in those indexing
+    dimensions.
     """
+    index_dims = get_integer_dims(da)
+    if not index_dims:
+        return False
     try:
         lat_coord = get_coord_name(da, "lat")
         lon_coord = get_coord_name(da, "lon")
     except KeyError:
-        return False
-    index_dims = get_integer_dims(da)
-    if not index_dims:
         return False
     # Are the index dimensions of da also the dimensions of the the coordinates?
     if set(da[lon_coord].dims) == set(da[lat_coord].dims) == set(index_dims):
@@ -249,7 +255,13 @@ def latlon2d_to_1d(grid: xr.Dataset | xr.DataArray, da: xr.DataArray) -> xr.Data
     lat_coord = get_coord_name(da, "lat")
     lon_coord = get_coord_name(da, "lon")
     index_dims = get_integer_dims(da)
+    if len(index_dims) != 2:
+        raise ValueError(f"Expected 2 index dimension but found {index_dims=}")
     da[lon_coord] = xr.where(da[lon_coord] > 180, da[lon_coord] - 360, da[lon_coord])
+    # Some models start the indices at 1 and not 0
+    index_starting_number = int(da[index_dims[0]].min())
+    if index_starting_number not in [0, 1]:
+        raise ValueError(f"Unexpected {index_starting_number=}")
     # Create an interpolator that maps lat,lon --> i,j
     index_map = NearestNDInterpolator(
         np.array([da[lat_coord].values.flatten(), da[lon_coord].values.flatten()]).T,
@@ -265,6 +277,8 @@ def latlon2d_to_1d(grid: xr.Dataset | xr.DataArray, da: xr.DataArray) -> xr.Data
         (grid[lat_dim] * xr.ones_like(grid[lon_dim])).values.flatten(),
         (xr.ones_like(grid[lat_dim]) * grid[lon_dim]).values.flatten(),
     ).astype(int)
+    ids -= index_starting_number
+
     # Create a new dataarray
     not_index_dims = [d for d in da.dims if d not in index_dims]
     coords = {c: da[c] for c in not_index_dims if c in da.coords}
