@@ -1060,7 +1060,7 @@ requires-dist = [
     { name = "statsmodels", specifier = ">=0.14.4" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "typer", specifier = ">=0.20.0" },
-    { name = "xarray", specifier = ">=2025.1.1" },
+    { name = "xarray", specifier = "<=2025.10.1" },
 ]
 
 [package.metadata.requires-dev]
