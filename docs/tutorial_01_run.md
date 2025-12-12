@@ -21,6 +21,12 @@ In order to run this tutorial, you will need to have `ilamb3` installed. While t
 pip install ilamb3
 ```
 
+While not required, we will also demonstrate how to obtain and integrate model data into `ilamb3` using `intake-esgf`. To follow the tutorial precisely you will also need this package:
+
+```bash
+pip install intake-esgf
+```
+
 ## Configuration
 
 ```{code-cell}
@@ -49,7 +55,7 @@ The configuration of an ILAMB study uses a [YAML](https://yaml.org) file to desc
 :language: yaml
 ```
 
-Copy the contents above and paste it into a file with that name. The `ilamb3` system will scan this nested dictionary file looking for the `sources` keyword and initialize a comparison for each instance, the title of which comes from the containing dictionary. In this example, `ilamb3` will find a single comparison which it will call `WECANN-1-0`. The `sources` dictionary then details which variables are expected to be found in which sources. These sources can be:
+Copy the contents above and paste it into a file with that name. The `ilamb3` system will scan this nested dictionary looking for the `sources` keyword and initialize a comparison for each instance found, the title of which comes from the containing dictionary. In this example, `ilamb3` will find a single comparison and call it `WECANN-1-0`. The `sources` dictionary then details which variables are expected to be found in which sources. These sources can be:
 
 1. Keys in a `ilamb3` registry. See [this](https://github.com/rubisco-sfa/ilamb3/blob/main/ilamb3/registry/ilamb3.txt) registry for a sample. The text `WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_gpp_gn_v20250902.nc` is such a key and can be used to automatically download the reference data. We will do this in the next section.
 2. An absolute path. `ilamb3` will at first assume that you are specifying a key from our registries. However if this fails, then we will treat your key as an absolute path and see if the file can be found.
