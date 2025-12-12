@@ -28,9 +28,7 @@ This package is being developed and *not* currently listed in PyPI or conda-forg
    :hidden:
    :caption: I want to...
 
-   jupyter
-   expansion
-   run
+   tutorial_01_run
 
 .. toctree::
    :maxdepth: 2
