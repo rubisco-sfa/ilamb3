@@ -1,1 +1,5 @@
 test/thetao.nc sha1:f860da12a759eda161e22145a969d6af215914ca
+test/ELMngee4_TFSmeq2-DAT_0.01deg_GSWP3_arctic_ICB20TRCNPRDCTCBC.elm.h0.2008-01-01-00000.nc sha1:63b4e62b23125f97acb536c320c556bf93750022
+test/ELMngee4_TFSmeq2-DAT_0.01deg_GSWP3_arctic_ICB20TRCNPRDCTCBC.elm.h0.2009-01-01-00000.nc sha1:b7546f9c7dc8633e38fc69d8699aea4c6e04304b
+test/gpp_Lmon_NorESM2-LM_historical_r1i1p1f1_gn_200001-200912.nc sha1:1d4a5c0469098c68dacad9c4d90a6ced291971f5
+test/gpp_Lmon_NorESM2-LM_historical_r1i1p1f1_gn_201001-201412.nc sha1:5ffc4d2838e23341ba2613f5e3328d112aaadc98
