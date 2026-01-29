@@ -292,7 +292,9 @@ if len(Regions().regions) == 0:
     seas, Southeast Asia                   ,  5, 30,  65, 120
     eqas, Equatorial Asia                  ,-10, 10, 100, 150
     aust, Australia                        ,-41,-11, 112, 154
-    """.strip().split("\n")
+    """.strip().split(
+        "\n"
+    )
     for line in regions:
         lbl, name, lat0, latf, lon0, lonf = line.split(",")
         r.add_latlon_bounds(
