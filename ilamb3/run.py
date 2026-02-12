@@ -918,9 +918,10 @@ def run_study(
     # Run the confrontations
     for analysis in analyses_list:
         path = analysis.pop("path")
+        block_name = path.replace("/", " | ")
         try:
             run_single_block(
-                path.replace("/", " | "),
+                block_name,
                 (
                     ref_datasets
                     if ref_datasets is not None
@@ -930,5 +931,5 @@ def run_study(
                 output_path / path,
                 **analysis,
             )
-        except Exception:
-            continue
+        except Exception as exc:
+            logger.debug(f"Uncaught error when running {block_name}: {exc}")
