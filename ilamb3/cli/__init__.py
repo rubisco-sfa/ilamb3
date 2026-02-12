@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import pandas as pd
+import pooch
 import typer
 
 try:
@@ -20,7 +21,7 @@ app = typer.Typer(name="ilamb", no_args_is_help=True)
 
 
 def _dataframe_reference(
-    root: Path = Path().home() / ".cache/ilamb3/",
+    root: Path = pooch.os_cache("ilamb3"),
     cache_file: Path = Path("df_reference.csv"),
 ) -> pd.DataFrame:
     if cache_file.exists():
