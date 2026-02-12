@@ -185,6 +185,9 @@ def fetch(config: Path):
         if not found:
             raise ValueError(f"Could not find '{source}' in the data registries.")
 
+    # Messy, find a way to get rid of this idea
+    Path("df_reference.csv").unlink(missing_ok=True)
+
 
 @app.command(help="What went wrong in the run?")
 def debug(output_path: Path):
