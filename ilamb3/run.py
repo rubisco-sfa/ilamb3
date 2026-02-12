@@ -287,8 +287,8 @@ def _load_reference_data(
     ref = {key: dset.fix_missing_bounds_attrs(ds) for key, ds in ref.items()}
     # Merge all the data together
     if len(ref) > 1:
-        ref = cmp.trim_time(**ref)
-        ref = cmp.same_spatial_grid(ref[variable_id], **ref)
+        grid_variable = variable_id if variable_id in ref else next(iter(ref))
+        ref = cmp.same_spatial_grid(ref[grid_variable], **ref)
         ds_ref = xr.merge([v for _, v in ref.items()], compat="override")
     else:
         ds_ref = ref[variable_id]
