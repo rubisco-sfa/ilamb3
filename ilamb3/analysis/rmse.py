@@ -107,6 +107,9 @@ class rmse_analysis(ILAMBAnalysis):
         ANALYSIS_NAME = "RMSE"
         varname = self.req_variable
 
+        if not (dset.is_temporal(ref[varname]) and dset.is_temporal(com[varname])):
+            raise AnalysisNotAppropriate()
+
         # Make the variables comparable and force loading into memory
         ref, com = cmp.make_comparable(ref, com, varname)
 

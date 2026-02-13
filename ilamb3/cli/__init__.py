@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import pandas as pd
+import pooch
 import typer
 
 try:
@@ -20,7 +21,7 @@ app = typer.Typer(name="ilamb", no_args_is_help=True)
 
 
 def _dataframe_reference(
-    root: Path = Path().home() / ".cache/ilamb3/",
+    root: Path = pooch.os_cache("ilamb3"),
     cache_file: Path = Path("df_reference.csv"),
 ) -> pd.DataFrame:
     if cache_file.exists():
@@ -183,6 +184,9 @@ def fetch(config: Path):
                 found = True
         if not found:
             raise ValueError(f"Could not find '{source}' in the data registries.")
+
+    # Messy, find a way to get rid of this idea
+    Path("df_reference.csv").unlink(missing_ok=True)
 
 
 @app.command(help="What went wrong in the run?")

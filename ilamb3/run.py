@@ -3,6 +3,7 @@
 import importlib
 import re
 import shutil
+from collections.abc import Callable
 from itertools import chain
 from pathlib import Path
 from typing import Any
@@ -265,6 +266,20 @@ def _lookup(df: xr.Dataset, key: str) -> list[str]:
     return out
 
 
+def _is_uniform(
+    condition: Callable[[xr.DataArray], bool], dsd: dict[str, xr.Dataset]
+) -> bool:
+    """
+    Given a condition, return whether true for all items in the dataset
+    dictionary.
+
+    Note: This function could live in ilamb3.compare, but we are making an
+    assumption that is valid here for our reference data--the keys of the
+    dataset dictionary are also found in the contained datasets.
+    """
+    return all([condition(ds[key]) for key, ds in dsd.items()])
+
+
 def _load_reference_data(
     reference_data: pd.DataFrame,
     variable_id: str,
@@ -287,8 +302,9 @@ def _load_reference_data(
     ref = {key: dset.fix_missing_bounds_attrs(ds) for key, ds in ref.items()}
     # Merge all the data together
     if len(ref) > 1:
-        ref = cmp.trim_time(**ref)
-        ref = cmp.same_spatial_grid(ref[variable_id], **ref)
+        if _is_uniform(dset.is_spatial, ref):
+            grid_variable = variable_id if variable_id in ref else next(iter(ref))
+            ref = cmp.same_spatial_grid(ref[grid_variable], **ref)
         ds_ref = xr.merge([v for _, v in ref.items()], compat="override")
     else:
         ds_ref = ref[variable_id]
@@ -918,9 +934,10 @@ def run_study(
     # Run the confrontations
     for analysis in analyses_list:
         path = analysis.pop("path")
+        block_name = path.replace("/", " | ")
         try:
             run_single_block(
-                path.replace("/", " | "),
+                block_name,
                 (
                     ref_datasets
                     if ref_datasets is not None
@@ -930,5 +947,5 @@ def run_study(
                 output_path / path,
                 **analysis,
             )
-        except Exception:
-            continue
+        except Exception as exc:
+            logger.debug(f"Uncaught error when running {block_name}: {exc}")
