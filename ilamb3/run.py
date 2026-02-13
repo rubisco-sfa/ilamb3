@@ -3,6 +3,7 @@
 import importlib
 import re
 import shutil
+from collections.abc import Callable
 from itertools import chain
 from pathlib import Path
 from typing import Any
@@ -265,6 +266,20 @@ def _lookup(df: xr.Dataset, key: str) -> list[str]:
     return out
 
 
+def _is_uniform(
+    condition: Callable[[xr.DataArray], bool], dsd: dict[str, xr.Dataset]
+) -> bool:
+    """
+    Given a condition, return whether true for all items in the dataset
+    dictionary.
+
+    Note: This function could live in ilamb3.compare, but we are making an
+    assumption that is valid here for our reference data--the keys of the
+    dataset dictionary are also found in the contained datasets.
+    """
+    return all([condition(ds[key]) for key, ds in dsd.items()])
+
+
 def _load_reference_data(
     reference_data: pd.DataFrame,
     variable_id: str,
@@ -287,8 +302,9 @@ def _load_reference_data(
     ref = {key: dset.fix_missing_bounds_attrs(ds) for key, ds in ref.items()}
     # Merge all the data together
     if len(ref) > 1:
-        grid_variable = variable_id if variable_id in ref else next(iter(ref))
-        ref = cmp.same_spatial_grid(ref[grid_variable], **ref)
+        if _is_uniform(dset.is_spatial, ref):
+            grid_variable = variable_id if variable_id in ref else next(iter(ref))
+            ref = cmp.same_spatial_grid(ref[grid_variable], **ref)
         ds_ref = xr.merge([v for _, v in ref.items()], compat="override")
     else:
         ds_ref = ref[variable_id]
