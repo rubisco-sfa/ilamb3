@@ -201,6 +201,62 @@ Hydrology Cycle:
       alternate_vars:
       - evspsbl
 
+  Evaporative Fraction:
+  
+    WECANN-1-0:
+      analysis_variable: evapfrac
+      sources:
+        hfss: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfss_gn_v20250902.nc
+        hfls: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfls_gn_v20250902.nc
+      transforms:
+      - select_time:
+          vmin: 2007-01
+          vmax: 2015-01
+      - integrate_time:
+          varname: hfss
+          mean: true
+      - integrate_time:
+          varname: hfls
+          mean: true
+      - expression:
+          expr: "evapfrac = hfls / (hfls + hfss)"
+
+    CLASS-1-1:
+      analysis_variable: evapfrac
+      sources:
+        hfss: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_hfss_gn_v20260204.nc
+        hfls: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_hfls_gn_v20260204.nc
+      transforms:
+      - select_time:
+          vmin: 2003-01
+          vmax: 2009-12  
+      - integrate_time:
+          varname: hfss
+          mean: true
+      - integrate_time:
+          varname: hfls
+          mean: true
+      - expression:
+          expr: "evapfrac = hfls / (hfls + hfss)"
+
+    Fluxnet-2015:
+      analysis_variable: evapfrac  
+      sources:
+        hfss: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_hfss_site_v20260202.nc
+        hfls: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_hfls_site_v20260202.nc
+      transforms:
+      - select_time:
+          vmin: 1991-01
+          vmax: 2015-01
+      - integrate_time:
+          varname: hfss
+          mean: true
+      - integrate_time:
+          varname: hfls
+          mean: true
+      - expression:
+          expr: "evapfrac = hfls / (hfls + hfss)"
+
   Latent Heat:
 
     FLUXNET2015:
@@ -343,6 +399,62 @@ Cryosphere:
           method: slater2013
 
 Radiation and Energy Cycle:
+
+  Albedo:
+
+    CERES-EBAF-4-2-1:
+      analysis_variable: albedo
+      sources:
+        rsus: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsus_gn_v20260205.nc
+        rsds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsds_gn_v20260205.nc
+      transforms:
+      - select_time:
+          vmin: 2000-03
+          vmax: 2015-01
+      - integrate_time:
+          varname: rsus
+          mean: true
+      - integrate_time:
+          varname: rsds
+          mean: true
+      - expression:
+          expr: "albedo = rsus / rsds"
+
+    Fluxnet-2015:
+      analysis_variable: albedo
+      sources:
+        rsus: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rsus_site_v20260202.nc
+        rsds: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rsds_site_v20260202.nc
+      transforms:
+      - select_time:
+          vmin: 1991-01
+          vmax: 2015-01
+      - integrate_time:
+          varname: rsus
+          mean: true
+      - integrate_time:
+          varname: rsds
+          mean: true
+      - expression:
+          expr: "albedo = rsus / rsds"
+
+    GEWEX-SRB-4-IP:
+      analysis_variable: albedo
+      sources:
+        rsus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsus_gn_v20260206.nc
+        rsds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsds_gn_v20260206.nc
+      transforms:
+      - select_time:
+          vmin: 1988-01
+          vmax: 2009-12
+      - integrate_time:
+          varname: rsus
+          mean: true
+      - integrate_time:
+          varname: rsds
+          mean: true
+      - expression:
+          expr: "albedo = rsus / rsds"
 
   Surface Upward SW Radiation:
 

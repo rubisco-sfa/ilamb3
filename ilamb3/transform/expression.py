@@ -52,6 +52,6 @@ class expression(ILAMBTransform):
 
         # evaluate the expression and add to dataset
         ds[self.lhs_vars[0]] = eval(
-            self.expression, {}, {key: ds[key] for key in self.rhs_vars}
-        )
+            self.expression, {}, {key: ds[key].pint.quantify() for key in self.rhs_vars}
+        ).pint.dequantify()
         return ds
