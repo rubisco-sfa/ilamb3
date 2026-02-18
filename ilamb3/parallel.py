@@ -162,7 +162,7 @@ def _perform_work_phase2(setup, output_path):
     # generate an output page
     try:
         ds_ref.attrs["header"] = block_name
-        html = run.generate_html_page(df, ds_ref, ds_com, df_plots)
+        html = run.generate_html_page(df, ds_ref, ds_com, df_plots, setup)
         with open(local_path / "index.html", mode="w") as out:
             out.write(html)
     except Exception:

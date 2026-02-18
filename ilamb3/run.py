@@ -27,6 +27,7 @@ from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
 from ilamb3.exceptions import AnalysisNotAppropriate, VarNotInModel
 from ilamb3.transform import ALL_TRANSFORMS
 from ilamb3.transform.base import ILAMBTransform
+from ilamb3.meta import dict_to_yaml_html
 
 
 def fix_pint_units(ds: xr.Dataset) -> xr.Dataset:
@@ -605,7 +606,7 @@ def run_single_block(
             logger.remove(log_id)
             return
         ds_ref.attrs["header"] = block_name
-        html = generate_html_page(df, ds_ref, ds_com, df_plots)
+        html = generate_html_page(df, ds_ref, ds_com, df_plots, setup)
         with open(output_path / "index.html", mode="w") as out:
             out.write(html)
     except Exception:
@@ -729,6 +730,7 @@ def generate_html_page(
     ref: xr.Dataset,
     com: dict[str, xr.Dataset],
     df_plots: pd.DataFrame,
+    setup: dict[str, Any],
 ) -> str:
     """
     Generate an html page encoding all analysis data.
@@ -743,6 +745,7 @@ def generate_html_page(
         A dictionary of the comparison datasets whose keys are the model names.
     df_plots : pd.DataFrame
         A dataframe containing plot information and matplotlib axes.
+    setup: a dict contains the yaml config for a metric
 
     Returns
     -------
@@ -786,9 +789,12 @@ def generate_html_page(
         },
         "analyses": analyses,
         "data_information": {
-            key.capitalize(): ref.attrs[key]
-            for key in ["title", "institution", "version", "doi"]
-            if key in ref.attrs
+            **{
+                key.capitalize(): ref.attrs[key]
+                for key in ["title", "institution", "version", "doi"]
+                if key in ref.attrs
+            },
+            "yaml snippet": dict_to_yaml_html(setup),
         },
         "table_data": str(
             [row.to_dict() for _, row in df.drop(columns="units").iterrows()]
