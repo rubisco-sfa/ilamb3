@@ -5,6 +5,8 @@ import xarray as xr
 import ilamb3.dataset as dset
 from ilamb3.transform.base import ILAMBTransform
 
+from functools import partial
+
 
 class integrate(ILAMBTransform):
     """
@@ -29,7 +31,7 @@ class integrate(ILAMBTransform):
     def __init__(
         self,
         dim: str,
-        varname: str,
+        varname: str | list[str],
         mean: bool = False,
         **kwargs: Any,
     ):
@@ -48,31 +50,36 @@ class integrate(ILAMBTransform):
         Apply the appropriate integration transform to the dataset.
         """
 
-        # time integration
-        if self.dim == "time":
-            if not dset.is_temporal(ds):
-                return ds
-            ds[self.varname] = dset.integrate_time(ds, self.varname, mean=self.mean)
+        # Normalize varname to list
+        varnames = [self.varname] if isinstance(self.varname, str) else self.varname
+        
+        # Map dimension to integration function and validator
+        integration_map = {
+            "time":  (dset.integrate_time,  dset.is_temporal),
+            "depth": (dset.integrate_depth, dset.is_layered ),
+            "space": (dset.integrate_space, dset.is_spatial )
+        }
 
-        # depth integration
-        elif self.dim == "depth":
-            if not dset.is_layered(ds):
-                return ds
-            ds[self.varname] = dset.integrate_depth(ds, self.varname, mean=self.mean)
+        integration_func, var_type_func = integration_map[self.dim]
 
-        # spatial (lat/lon) integration
-        elif self.dim == "space":
-            if not dset.is_spatial(ds[self.varname]):
-                return ds
-            ds[self.varname] = dset.integrate_space(ds, self.varname, mean=self.mean)
-
+        # Create partially applied function
+        integrate = partial(integration_func, mean=self.mean)
+        
+        # Apply to all variables
+        for varname in varnames:
+            if varname in ds:
+                if var_type_func(ds[varname]):
+                    ds[varname] = integrate(ds, varname)
+            else:
+                raise ValueError(f"{varname} not in the dataset")
+    
         return ds
 
 
 class integrate_time(integrate):
     def __init__(
         self,
-        varname: str,
+        varname: str | list[str],
         mean: bool = False,
         **kwargs: Any,
     ):
@@ -82,7 +89,7 @@ class integrate_time(integrate):
 class integrate_depth(integrate):
     def __init__(
         self,
-        varname: str,
+        varname: str | list[str],
         mean: bool = False,
         **kwargs: Any,
     ):
@@ -92,7 +99,7 @@ class integrate_depth(integrate):
 class integrate_space(integrate):
     def __init__(
         self,
-        varname: str,
+        varname: str | list[str],
         mean: bool = False,
         **kwargs: Any,
     ):
