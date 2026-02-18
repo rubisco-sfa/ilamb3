@@ -36,12 +36,8 @@ class mask_condition(ILAMBTransform):
 
     Parameters
     ----------
-    dim : str
-        The dimension over which to integrate ('time', 'depth', or 'space').
-    varname : str
-        The variable to integrate.
-    mean : bool, optional
-        If True, compute the integrated mean instead of sum (default: False).
+    condition: str
+        A condition of the form `hfls < 0`
     **kwargs : Any
         Additional keyword arguments passed to the base `ILAMBTransform` class.
     """
