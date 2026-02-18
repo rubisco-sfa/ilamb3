@@ -158,30 +158,36 @@ def test_transform(name, kwargs, out, value):
 def test_integrate_common(name, out):
     original_ds = DATA[name]
 
-    # Test mean=False (sum)
-    transform = ALL_TRANSFORMS[name](varname=out, mean=False)
-    integral = transform(original_ds.copy())
+    list_ds = original_ds.copy()
+    second_var_name = out + "_dup"
+    out_list = [out, second_var_name]
+    list_ds[second_var_name] = original_ds[out].copy()
 
-    # Test mean=True (mean)
-    transform_mean = ALL_TRANSFORMS[name](varname=out, mean=True)
-    integral_mean = transform_mean(original_ds.copy())
+    for var in [out, out_list]:
+        # Test mean=False (sum)
+        transform = ALL_TRANSFORMS[name](varname=var, mean=False)
+        integral = transform(list_ds.copy()) if isinstance(var, list) else transform(original_ds.copy()) 
 
-    # Dim(s) should be removed for spatial integration
-    if name == "integrate_space":
-        for d in ("lat", "lon"):
-            if d in original_ds[out].dims:
-                assert d not in integral[out].dims
-                assert d not in integral_mean[out].dims
-    else:
-        if transform.dim in DATA[name][out].dims:
-            assert transform.dim not in integral[out].dims
-            assert transform.dim not in integral_mean[out].dims
+        # Test mean=True (mean)
+        transform_mean = ALL_TRANSFORMS[name](varname=var, mean=True)
+        integral_mean = transform_mean(list_ds.copy()) if isinstance(var, list) else transform_mean(original_ds.copy())
 
-    # Mean should keep original units
-    assert integral_mean[out].attrs["units"] == DATA[name][out].attrs["units"]
+        # Dim(s) should be removed for spatial integration
+        if name == "integrate_space":
+            for d in ("lat", "lon"):
+                if d in original_ds[out].dims:
+                    assert d not in integral[out].dims
+                    assert d not in integral_mean[out].dims
+        else:
+            if transform.dim in DATA[name][out].dims:
+                assert transform.dim not in integral[out].dims
+                assert transform.dim not in integral_mean[out].dims
 
-    # Sum should NOT keep original units
-    assert integral[out].attrs["units"] != DATA[name][out].attrs["units"]
+        # Mean should keep original units
+        assert integral_mean[out].attrs["units"] == DATA[name][out].attrs["units"]
 
-    # Sum and Mean values should differ
-    assert not np.allclose(integral[out].values, integral_mean[out].values)
+        # Sum should NOT keep original units
+        assert integral[out].attrs["units"] != DATA[name][out].attrs["units"]
+
+        # Sum and Mean values should differ
+        assert not np.allclose(integral[out].values, integral_mean[out].values)
