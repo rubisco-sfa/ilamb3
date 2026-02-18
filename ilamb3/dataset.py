@@ -840,6 +840,8 @@ def integrate_depth(
     else:
         out = out.sum(dim=depth_name)
         out.attrs["units"] = f"({var.attrs['units']})*({msr.attrs['units']})"
+
+    out = out.squeeze("bounds")
     return out
 
 
