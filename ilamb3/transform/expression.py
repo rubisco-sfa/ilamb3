@@ -45,13 +45,20 @@ class expression(ILAMBTransform):
         Evaluate the expression.
         """
         # check if lhs variable already exists or if rhs variables are missing
-        if self.lhs_vars[0] in ds:
+        lhs = self.lhs_vars[0]
+        if lhs in ds:
             return ds
         if not set(self.required_variables()).issubset(ds):
             return ds
 
         # evaluate the expression and add to dataset
-        ds[self.lhs_vars[0]] = eval(
+        ds[lhs] = eval(
             self.expression, {}, {key: ds[key].pint.quantify() for key in self.rhs_vars}
         ).pint.dequantify()
+
+        # cleanup attributes
+        ds[lhs].attrs["standard_name"] = lhs
+        ds[lhs].attrs["long_name"] = f"{lhs} = {self.expression.strip()}"
+        if "ancillary_variables" in ds[lhs].attrs:
+            ds[lhs].attrs.pop("ancillary_variables")
         return ds
