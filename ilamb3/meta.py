@@ -15,6 +15,8 @@ import ilamb3.regions as ilr
 from ilamb3.analysis import add_overall_score
 from ilamb3.run import _clean_pathname, parse_benchmark_setup
 
+import yaml
+import html
 
 def dataframe_to_cmec(df: pd.DataFrame) -> dict[str, Any]:
     """
@@ -228,3 +230,17 @@ def generate_directory_of_dashboards(output_path: Path) -> None:
     html = Template(template).render({"links": links})
     with open(output_path / "index.html", "w") as out:
         out.write(html)
+
+def dict_to_yaml_html(data: dict) -> str:
+    """
+    Convert a dict of ymal config to the html block with the yaml format.
+    """
+    yaml_text = yaml.safe_dump(
+        data,
+        sort_keys=False,
+        default_flow_style=False,
+    ).strip()
+
+    escaped = html.escape(yaml_text)
+
+    return f'<pre class="yaml-block"><code>{escaped}</code></pre>'
