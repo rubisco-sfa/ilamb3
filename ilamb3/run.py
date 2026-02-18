@@ -545,6 +545,7 @@ def run_single_block(
                 transforms=transforms,
             )
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
+            ds_ref = ds_ref.assign_attrs(ref.attrs)  # Retain global attrs
             dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
 
             # Set a group name optionally, if facets were specified
@@ -787,7 +788,7 @@ def generate_html_page(
         "analyses": analyses,
         "data_information": {
             key.capitalize(): ref.attrs[key]
-            for key in ["title", "institution", "version", "doi"]
+            for key in ["title", "variable_id", "institution", "version", "doi"]
             if key in ref.attrs
         },
         "table_data": str(
