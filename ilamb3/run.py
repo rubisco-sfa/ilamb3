@@ -305,7 +305,18 @@ def _load_reference_data(
         if _is_uniform(dset.is_spatial, ref):
             grid_variable = variable_id if variable_id in ref else next(iter(ref))
             ref = cmp.same_spatial_grid(ref[grid_variable], **ref)
-        ds_ref = xr.merge([v for _, v in ref.items()], compat="override")
+        if _is_uniform(dset.is_temporal, ref):
+            ref = {
+                var: cmp.convert_calendar_monthly_noleap(ds) for var, ds in ref.items()
+            }
+            ref = cmp.trim_time(**ref)
+        ds_ref = xr.merge(
+            [
+                ds if varname == variable_id else ds[varname]
+                for varname, ds in ref.items()
+            ],
+            compat="override",
+        )
     else:
         ds_ref = ref[variable_id]
     # pint can't handle some units like `0.001`, so we have to intercept and fix
