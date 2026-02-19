@@ -148,7 +148,6 @@ DATA = {
 def test_transform(name, kwargs, out, value):
     transform = ALL_TRANSFORMS[name](**kwargs)
     ds = transform(DATA[name])
-    print(ds[out].mean().values)
     assert np.allclose(value, ds[out].mean().values)
 
 
