@@ -140,7 +140,7 @@ class rmse_analysis(ILAMBAnalysis):
             try:
                 uncert = dset.get_scalar_uncertainty(ref, varname)
                 args.append(uncert)
-            except NoUncertainty:
+            except (NoUncertainty, ValueError):
                 self.use_uncertainty = False
                 uncert = None
 

@@ -394,6 +394,36 @@ def has_bounds(dset: xr.Dataset | xr.DataArray, dim: str, bounds: str | None) ->
     return False
 
 
+def get_ancillary_variable(ds: xr.Dataset, varname: str) -> xr.Dataset | None:
+    """
+    Return the sub-dataset with the ancillary variables found in ds[varname].
+    """
+    var = ds[varname]
+    if "ancillary_variables" not in var.attrs:
+        return None
+    anc_vars = [v for v in var.attrs["ancillary_variables"].split() if v in ds]
+    if not anc_vars:
+        raise ValueError(
+            f"Ancillary variables specified {var.attrs['ancillary_variables']=} but at least one was not found in the dataset {ds=}."
+        )
+    return ds[anc_vars]
+
+
+def get_bounds_variable(ds: xr.Dataset, varname: str) -> xr.DataArray | None:
+    """
+    Return the dataarray defined as the bounds of the input variable.
+    """
+    var = ds[varname]
+    if "bounds" not in var.attrs:
+        return None
+    bnd_var = var.attrs["bounds"]
+    if bnd_var not in ds:
+        raise ValueError(
+            f"A bound variable is specified {var.attrs['bounds']=} but was not found in the dataset {ds=}."
+        )
+    return ds[bnd_var]
+
+
 def compute_cell_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     """
     Return the area of each spatial cell.
@@ -987,25 +1017,36 @@ def get_scalar_uncertainty(ds: xr.Dataset, varname: str) -> xr.DataArray:
             return None
         return possible.pop()
 
-    # do we have some uncertainty?
-    var = ds[varname]
-    da = None
-    if "ancillary_variables" in var.attrs and var.attrs["ancillary_variables"] in ds:
-        da = ds[var.attrs["ancillary_variables"]]
-    if "bounds" in var.attrs and var.attrs["bounds"] in ds:
-        da = ds[var.attrs["bounds"]]
-    if da is None:
+    out = None
+    # Uncertainty could be an ancillary variable with the same dims
+    ds_anc = get_ancillary_variable(ds, varname)
+    if ds_anc is not None and len(ds_anc) == 1:
+        # We found an ancillary variable, but does it have the same dims
+        out = (
+            ds_anc[next(iter(ds_anc))]
+            if set(ds[varname].dims) != set(ds_anc.dims)
+            else None
+        )
+
+    # Uncertainty could be defined using intervals
+    if out is None:
+        try:
+            out = get_interval_uncertainty(ds, varname)
+        except NoUncertainty:
+            pass
+
+    if out is None:
         raise NoUncertainty()
 
-    # if the uncertainty is an interval, compute the scalar by quadrature
-    bnd_dim = _get_bound_dim(da)
-    if da is not None and bnd_dim is not None:
-        da = np.sqrt(
-            (var - da.isel({bnd_dim: 0})) ** 2 + (da.isel({bnd_dim: 1}) - var) ** 2
-        )
-    da.attrs["units"] = var.attrs["units"]
-    da.name = "uncert"
-    return da
+    # Cleanup if an inverval style uncertainty
+    bnd_dim = _get_bound_dim(out)
+    if bnd_dim is not None:
+        var = ds[varname]
+        out = np.sqrt(((var - out) ** 2).sum(dim=bnd_dim))
+    if "units" not in out.attrs:
+        out.attrs["units"] = var.attrs["units"]
+    out.name = "uncert"
+    return out
 
 
 def get_interval_uncertainty(ds: xr.Dataset, varname: str) -> xr.DataArray:
@@ -1028,21 +1069,37 @@ def get_interval_uncertainty(ds: xr.Dataset, varname: str) -> xr.DataArray:
             return None
         return possible.pop()
 
-    # do we have some uncertainty?
-    var = ds[varname]
-    da = None
-    if "ancillary_variables" in var.attrs and var.attrs["ancillary_variables"] in ds:
-        da = ds[var.attrs["ancillary_variables"]]
-    if "bounds" in var.attrs and var.attrs["bounds"] in ds:
-        da = ds[var.attrs["bounds"]]
-    if da is None:
+    # What ancillary/bounds variables are found?
+    ds_anc = get_ancillary_variable(ds, varname)
+    da_bnd = get_bounds_variable(ds, varname)
+
+    # Handle if we find ancillary variables
+    if ds_anc is not None:
+        if len(ds_anc) == 1:
+            # Only 1 ancillary variable present, but does it represent a bounds?
+            da_bnd = ds[next(iter(ds_anc))]
+            bnd_dim = _get_bound_dim(da_bnd)
+            if bnd_dim is None:
+                raise NoUncertainty("Only scalar uncertainty present.")
+        elif len(ds_anc) == 2:
+            # Assume that the 2 variables found form a bounds and create it
+            da_bnd = xr.concat(
+                [da for _, da in ds_anc.items()], dim="uncert_bnds"
+            ).transpose()
+        else:
+            raise ValueError(
+                f"Uncertainty can only be encoded with 1 or 2 ancillary variables, I found {ds_anc=}."
+            )
+
+    # If we get here and this is still none, we have no uncertainty
+    if da_bnd is None:
         raise NoUncertainty()
-    bnd_dim = _get_bound_dim(da)
-    if bnd_dim is None:
-        raise NoUncertainty("Only scalar uncertainty present.")
-    da.attrs["units"] = var.attrs["units"]
-    da.name = "uncert"
-    return da
+
+    # Cleanup name and units
+    if "units" not in da_bnd.attrs:
+        da_bnd.attrs["units"] = ds[varname].attrs["units"]
+    da_bnd.name = "uncert"
+    return da_bnd
 
 
 def fix_missing_bounds_attrs(ds: xr.Dataset) -> xr.Dataset:
