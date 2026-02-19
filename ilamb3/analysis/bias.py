@@ -168,7 +168,7 @@ class bias_analysis(ILAMBAnalysis):
                     if dset.is_temporal(ref["uncert"])
                     else ref["uncert"]
                 )
-            except NoUncertainty:
+            except (NoUncertainty, ValueError):
                 self.use_uncertainty = False
 
         # If temporal information is available, we normalize the error by the

@@ -305,7 +305,18 @@ def _load_reference_data(
         if _is_uniform(dset.is_spatial, ref):
             grid_variable = variable_id if variable_id in ref else next(iter(ref))
             ref = cmp.same_spatial_grid(ref[grid_variable], **ref)
-        ds_ref = xr.merge([v for _, v in ref.items()], compat="override")
+        if _is_uniform(dset.is_temporal, ref):
+            ref = {
+                var: cmp.convert_calendar_monthly_noleap(ds) for var, ds in ref.items()
+            }
+            ref = cmp.trim_time(**ref)
+        ds_ref = xr.merge(
+            [
+                ds if varname == variable_id else ds[varname]
+                for varname, ds in ref.items()
+            ],
+            compat="override",
+        )
     else:
         ds_ref = ref[variable_id]
     # pint can't handle some units like `0.001`, so we have to intercept and fix
@@ -545,6 +556,7 @@ def run_single_block(
                 transforms=transforms,
             )
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
+            ds_ref = ds_ref.assign_attrs(ref.attrs)  # Retain global attrs
             dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
 
             # Set a group name optionally, if facets were specified
@@ -787,7 +799,7 @@ def generate_html_page(
         "analyses": analyses,
         "data_information": {
             key.capitalize(): ref.attrs[key]
-            for key in ["title", "institution", "version", "doi"]
+            for key in ["title", "variable_id", "institution", "version", "doi"]
             if key in ref.attrs
         },
         "table_data": str(
