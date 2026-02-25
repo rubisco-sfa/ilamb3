@@ -23,6 +23,46 @@ def generate_test_dset(
     scale: float = 20.0,
     shift: float = 0.0,
 ):
+    """
+    Generates a synthetic dataset for testing purposes.
+
+    Parameters
+    ----------
+    name: str
+        The name of the variable in the dataset.
+    unit: str
+        The units of the variable.
+    seed: int, optional
+        The random seed for reproducibility. Default is 1.
+    nyear: int, optional
+        The number of years (time dimension) to generate. If None, the time dimension is
+        not included. Default is None.
+    nlat: int, optional
+        The number of latitude points to generate. If None, the latitude dimension is
+        not included. Default is None.
+    nlon: int, optional
+        The number of longitude points to generate. If None, the longitude dimension is
+        not included. Default is None.
+    ndepth: int, optional
+        The number of depth points to generate. If None, the depth dimension is not
+        included. Default is None.
+    latlon2d: bool, optional
+        Whether to generate 2D latitude and longitude coordinates. If False, lat and lon
+        will be 1D coordinates. Default is False.
+    scale: float, optional
+        The scale factor for the random data. Default is 20.0. E.g., A scale of 20.0
+        means the random data will be between 0 and 20.0 before applying the shift.
+    shift: float, optional
+        The shift factor for the random data. Default is 0.0. E.g., A shift of 0.0 means
+        the random data will be between 0 and the scale factor. A shift of -10.0 means
+        the random data will be between -10.0 and (scale - 10.0).
+
+    Returns
+    -------
+    xr.Dataset
+        A synthetic dataset with the specified dimensions and variable.
+
+    """
     rs = np.random.RandomState(seed)
     coords = {}
     if nyear:

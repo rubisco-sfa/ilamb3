@@ -2,6 +2,7 @@ from ilamb3.transform.amoc import msftmz_to_rapid
 from ilamb3.transform.expression import expression
 from ilamb3.transform.gradient import depth_gradient
 from ilamb3.transform.integrate import integrate_depth, integrate_space, integrate_time
+from ilamb3.transform.mask import mask_condition
 from ilamb3.transform.ohc import ocean_heat_content
 from ilamb3.transform.permafrost import active_layer_thickness, permafrost_extent
 from ilamb3.transform.runoff_sensitivity import runoff_sensitivity
@@ -26,5 +27,6 @@ ALL_TRANSFORMS = {
     "integrate_time": integrate_time,
     "integrate_depth": integrate_depth,
     "integrate_space": integrate_space,
+    "mask_condition": mask_condition,
 }
 __all__ = list(ALL_TRANSFORMS.keys())

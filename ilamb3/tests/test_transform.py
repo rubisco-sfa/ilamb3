@@ -119,6 +119,9 @@ DATA = {
             ),
         ]
     ),
+    "mask_condition": generate_test_dset(
+        "hfls", "W m-2", nyear=2, nlat=2, nlon=4, scale=200.0, shift=-100.0
+    ),
 }
 
 
@@ -139,6 +142,7 @@ DATA = {
             2.224852071005917,
         ),
         ("expression", {"expr": "net_rs = rsds - rsus"}, "net_rs", 72.64174767520022),
+        ("mask_condition", {"condition": "hfls < 0"}, "hfls", 48.61691532636269),
     ],
 )
 def test_transform(name, kwargs, out, value):
