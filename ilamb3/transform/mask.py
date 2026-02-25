@@ -24,14 +24,8 @@ _MATH_OPS = sorted(MATH_MAP.keys(), key=len, reverse=True)
 
 def _check_num(s: str) -> bool:
     try:
-        value = float(s)
-        if value > 0:
-            return True
-        elif value < 0:
-            return True
-        else:
-            # Handles value of zero (0.0, -0.0, 0e0, etc.)
-            return True
+        float(s)
+        return True
     except ValueError:
         return False
 
