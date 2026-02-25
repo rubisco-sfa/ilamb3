@@ -36,7 +36,7 @@ def _split_by_op(condition: str) -> tuple[str, str, str]:
 
     # first check the operators package operators
     for op in OPERATORS:
-        if f" {op} " in condition:
+        if f" {op} " in condition.lower() or f".{op}." in condition.lower():
             op_fn = op
 
     # then check the math symbols
