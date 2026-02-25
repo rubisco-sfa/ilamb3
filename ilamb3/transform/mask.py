@@ -10,28 +10,64 @@ from ilamb3.transform.base import ILAMBTransform
 OPERATORS = ["lt", "le", "eq", "ne", "ge", "gt"]
 
 # ...but users may give the mathematical expression, so map them to operators
-MATH_MAP = {"<": "lt", "<=": "le", "==": "eq", "!=": "ne", ">=": "ge", ">": "gt"}
+MATH_MAP = {
+    "<=": "le",
+    ">=": "ge",
+    "==": "eq",
+    "!=": "ne",
+    "<": "lt",
+    ">": "gt",
+}
+
+_MATH_OPS = sorted(MATH_MAP.keys(), key=len, reverse=True)
+
+
+def _check_num(s: str) -> bool:
+    try:
+        value = float(s)
+        if value > 0:
+            return True
+        elif value < 0:
+            return True
+        else:
+            # Handles value of zero (0.0, -0.0, 0e0, etc.)
+            return True
+    except ValueError:
+        return False
 
 
 def _split_by_op(condition: str) -> tuple[str, str, str]:
+
     op_fn = None
+
     # first check the operators package operators
     for op in OPERATORS:
         if f" {op} " in condition:
             op_fn = op
+
     # then check the math symbols
     for op in MATH_MAP:
         if op in condition:
             op_fn = op
+
     # if we couldn't find an operator, raise an error
     if op_fn is None:
         raise ValueError(f"Could not parse the condition string '{condition}'.")
+
     # split the condition into lhs and rhs by the operator
     lhs, rhs = condition.split(op_fn)
+
     # if the operator is a math symbol, map it to the operators package function name
     op_fn = MATH_MAP[op_fn] if op_fn in MATH_MAP else op_fn
     lhs = lhs.strip()
     rhs = rhs.strip()
+
+    # check that the rhs is a number
+    if not _check_num(rhs):
+        raise ValueError(
+            f"The right-hand side of the condition {condition} must be a number, "
+            f"got '{rhs}'."
+        )
     return lhs, op_fn, rhs
 
 
