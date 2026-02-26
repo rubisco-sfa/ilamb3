@@ -827,7 +827,7 @@ def integrate_depth(
 
     # compute measures
     msr = dset[dset[depth_name].attrs["bounds"]]
-    msr = msr.diff(dim=msr.dims[-1])
+    msr = msr.diff(dim=msr.dims[-1]).squeeze()
     msr.attrs["units"] = (
         dset[depth_name].attrs["units"] if "units" in dset[depth_name].attrs else "m"
     )
@@ -841,7 +841,6 @@ def integrate_depth(
         out = out.sum(dim=depth_name)
         out.attrs["units"] = f"({var.attrs['units']})*({msr.attrs['units']})"
 
-    out = out.squeeze("bounds")
     return out
 
 

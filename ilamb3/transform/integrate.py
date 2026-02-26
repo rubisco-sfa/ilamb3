@@ -1,11 +1,10 @@
+from functools import partial
 from typing import Any
 
 import xarray as xr
 
 import ilamb3.dataset as dset
 from ilamb3.transform.base import ILAMBTransform
-
-from functools import partial
 
 
 class integrate(ILAMBTransform):
@@ -52,27 +51,24 @@ class integrate(ILAMBTransform):
 
         # Normalize varname to list
         varnames = [self.varname] if isinstance(self.varname, str) else self.varname
-        
+
         # Map dimension to integration function and validator
         integration_map = {
-            "time":  (dset.integrate_time,  dset.is_temporal),
-            "depth": (dset.integrate_depth, dset.is_layered ),
-            "space": (dset.integrate_space, dset.is_spatial )
+            "time": (dset.integrate_time, dset.is_temporal),
+            "depth": (dset.integrate_depth, dset.is_layered),
+            "space": (dset.integrate_space, dset.is_spatial),
         }
 
         integration_func, var_type_func = integration_map[self.dim]
 
         # Create partially applied function
         integrate = partial(integration_func, mean=self.mean)
-        
+
         # Apply to all variables
         for varname in varnames:
             if varname in ds:
                 if var_type_func(ds[varname]):
                     ds[varname] = integrate(ds, varname)
-            else:
-                raise ValueError(f"{varname} not in the dataset")
-    
         return ds
 
 
