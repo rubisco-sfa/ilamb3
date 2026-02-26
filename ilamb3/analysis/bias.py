@@ -199,7 +199,7 @@ class bias_analysis(ILAMBAnalysis):
         )
         bias = com_ - ref_
         if self.method == "Collier2018":
-            score = np.exp(-(np.abs(bias) - uncert_).clip(0) / norm_)
+            score = np.exp(-np.abs((np.abs(bias) - uncert_).clip(0) / norm_))
         elif self.method == "RegionalQuantiles":
             norm = quantile_map.interp(
                 lat=bias["lat"], lon=bias["lon"], method="nearest"
