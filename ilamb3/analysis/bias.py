@@ -175,8 +175,8 @@ class bias_analysis(ILAMBAnalysis):
         # standard deviation of the reference. If not, we revert to the traditional
         # definition of relative error.
         norm = ref_mean
-        if dset.is_temporal(ref):
-            time_dim = dset.get_dim_name(ref, "time")
+        if dset.is_temporal(ref[varname]):
+            time_dim = dset.get_dim_name(ref[varname], "time")
             if ref[time_dim].size > 1:
                 norm = dset.std_time(ref, varname)
 
