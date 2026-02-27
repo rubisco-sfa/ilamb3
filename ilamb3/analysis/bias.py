@@ -175,8 +175,8 @@ class bias_analysis(ILAMBAnalysis):
         # standard deviation of the reference. If not, we revert to the traditional
         # definition of relative error.
         norm = ref_mean
-        if dset.is_temporal(ref):
-            time_dim = dset.get_dim_name(ref, "time")
+        if dset.is_temporal(ref[varname]):
+            time_dim = dset.get_dim_name(ref[varname], "time")
             if ref[time_dim].size > 1:
                 norm = dset.std_time(ref, varname)
 
@@ -199,7 +199,7 @@ class bias_analysis(ILAMBAnalysis):
         )
         bias = com_ - ref_
         if self.method == "Collier2018":
-            score = np.exp(-(np.abs(bias) - uncert_).clip(0) / norm_)
+            score = np.exp(-np.abs((np.abs(bias) - uncert_).clip(0) / norm_))
         elif self.method == "RegionalQuantiles":
             norm = quantile_map.interp(
                 lat=bias["lat"], lon=bias["lon"], method="nearest"
