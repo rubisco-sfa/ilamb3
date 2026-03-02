@@ -1,7 +1,7 @@
 
 Ecosystems:
 
-  Chlorophyll:
+  Chlorophyll (chl/chla):
 
     GLODAP2.2022:
       sources:
@@ -26,11 +26,11 @@ Ecosystems:
       - select_depth:
           value: 0.
 
-  Oxygen Surface:
+  Oxygen Surface (o2):
 
     WOA-23:
       sources:
-        o2: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_o2_gn_v20250902.nc
+        o2: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_o2_gn_v20260302.nc
       transforms:
       - select_depth:
           value: 0.
@@ -44,11 +44,11 @@ Ecosystems:
 
 Nutrients:
 
-  Nitrate Surface:
+  Nitrate Surface (no3):
 
     WOA-23:
       sources:
-        no3: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_no3_gn_v20250902.nc
+        no3: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_no3_gn_v20260302.nc
       transforms:
       - select_depth:
           value: 0.
@@ -60,11 +60,11 @@ Nutrients:
       - select_depth:
           value: 0.
 
-  Phosphate Surface:
+  Phosphate Surface (po4):
 
     WOA-23:
       sources:
-        po4: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_po4_gn_v20250902.nc
+        po4: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_po4_gn_v20260302.nc
       transforms:
       - select_depth:
           value: 0.
@@ -76,11 +76,11 @@ Nutrients:
       - select_depth:
           value: 0.
 
-  Silicate Surface:
+  Silicate Surface (si/sio3):
 
     WOA-23:
       sources:
-        si: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_si_gn_v20250902.nc
+        si: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_si_gn_v20260302.nc
       transforms:
       - select_depth:
           value: 0.
@@ -96,7 +96,7 @@ Nutrients:
 
 Carbon:
 
-  Alkalinity:
+  Alkalinity (talk):
 
     GLODAP2.2022:
       sources:
@@ -105,7 +105,7 @@ Carbon:
       - select_depth:
           value: 0.
 
-  Dissolved Inorganic Carbon:
+  Dissolved Inorganic Carbon (dissic):
 
     GLODAP2.2022:
       sources:
@@ -116,7 +116,7 @@ Carbon:
 
 Physical Drivers:
 
-  Mixed Layer Depth:
+  Mixed Layer Depth (mlotstmax/omlmax):
 
     Boyer:
       sources:
@@ -124,11 +124,11 @@ Physical Drivers:
       alternate_vars:
       - omlmax
 
-  Temperature Surface:
+  Temperature Surface (thetao/tos):
 
     WOA-23:
       sources:
-        thetao: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_thetao_gn_v20250902.nc
+        thetao: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_thetao_gn_v20260302.nc
       transforms:
       - select_depth:
           value: 0.
@@ -144,11 +144,11 @@ Physical Drivers:
       alternate_vars:
       - tos
 
-  Temperature 200m:
+  Temperature 200m (thetao):
 
     WOA-23:
       sources:
-        thetao: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_thetao_gn_v20250902.nc
+        thetao: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_thetao_gn_v20260302.nc
       transforms:
       - select_depth:
           value: 200.
@@ -160,11 +160,11 @@ Physical Drivers:
       - select_depth:
           value: 200.
 
-  Temperature 700m:
+  Temperature 700m (thetao):
 
     WOA-23:
       sources:
-        thetao: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_thetao_gn_v20250902.nc
+        thetao: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_thetao_gn_v20260302.nc
       transforms:
       - select_depth:
           value: 700.
@@ -176,11 +176,11 @@ Physical Drivers:
       - select_depth:
           value: 700.
 
-  Vertical Temperature Gradient:
+  Vertical Temperature Gradient (thetao):
 
     WOA-23:
       sources:
-        thetao: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_thetao_gn_v20250902.nc
+        thetao: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_thetao_gn_v20260302.nc
       transforms:
       - select_time:
           vmin: 1955-01
@@ -192,11 +192,11 @@ Physical Drivers:
       plot_unit: delta_degC km-1
       table_unit: delta_degC km-1
 
-  Salinity Surface:
+  Salinity Surface (so/sos):
 
     WOA-23:
       sources:
-        so: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_so_gn_v20250902.nc
+        so: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_so_gn_v20260302.nc
       transforms:
       - select_depth:
           value: 0.
@@ -212,11 +212,11 @@ Physical Drivers:
       alternate_vars:
       - sos
 
-  Salinity 200m:
+  Salinity 200m (so):
 
     WOA-23:
       sources:
-        so: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_so_gn_v20250902.nc
+        so: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_so_gn_v20260302.nc
       transforms:
       - select_depth:
           value: 200.
@@ -228,11 +228,11 @@ Physical Drivers:
       - select_depth:
           value: 200.
 
-  Salinity 700m:
+  Salinity 700m (so):
 
     WOA-23:
       sources:
-        so: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_so_gn_v20250902.nc
+        so: WOA-23/obs4MIPs_NOAA-NCEI-OCL_WOA-23_monC_so_gn_v20260302.nc
       transforms:
       - select_depth:
           value: 700.
