@@ -1,7 +1,7 @@
 
 Ecosystems:
 
-  Chlorophyll (chl/chla):
+  Chlorophyll:
 
     GLODAP2.2022:
       sources:
@@ -26,7 +26,7 @@ Ecosystems:
       - select_depth:
           value: 0.
 
-  Oxygen Surface (o2):
+  Oxygen Surface:
 
     WOA-23:
       sources:
@@ -44,7 +44,7 @@ Ecosystems:
 
 Nutrients:
 
-  Nitrate Surface (no3):
+  Nitrate Surface:
 
     WOA-23:
       sources:
@@ -60,7 +60,7 @@ Nutrients:
       - select_depth:
           value: 0.
 
-  Phosphate Surface (po4):
+  Phosphate Surface:
 
     WOA-23:
       sources:
@@ -76,7 +76,7 @@ Nutrients:
       - select_depth:
           value: 0.
 
-  Silicate Surface (si/sio3):
+  Silicate Surface:
 
     WOA-23:
       sources:
@@ -96,7 +96,7 @@ Nutrients:
 
 Carbon:
 
-  Alkalinity (talk):
+  Alkalinity:
 
     GLODAP2.2022:
       sources:
@@ -105,7 +105,7 @@ Carbon:
       - select_depth:
           value: 0.
 
-  Dissolved Inorganic Carbon (dissic):
+  Dissolved Inorganic Carbon:
 
     GLODAP2.2022:
       sources:
@@ -116,7 +116,7 @@ Carbon:
 
 Physical Drivers:
 
-  Mixed Layer Depth (mlotstmax/omlmax):
+  Mixed Layer Depth:
 
     Boyer:
       sources:
@@ -124,7 +124,7 @@ Physical Drivers:
       alternate_vars:
       - omlmax
 
-  Temperature Surface (thetao/tos):
+  Temperature Surface:
 
     WOA-23:
       sources:
@@ -144,7 +144,7 @@ Physical Drivers:
       alternate_vars:
       - tos
 
-  Temperature 200m (thetao):
+  Temperature 200m:
 
     WOA-23:
       sources:
@@ -160,7 +160,7 @@ Physical Drivers:
       - select_depth:
           value: 200.
 
-  Temperature 700m (thetao):
+  Temperature 700m:
 
     WOA-23:
       sources:
@@ -176,7 +176,7 @@ Physical Drivers:
       - select_depth:
           value: 700.
 
-  Vertical Temperature Gradient (thetao):
+  Vertical Temperature Gradient:
 
     WOA-23:
       sources:
@@ -192,7 +192,7 @@ Physical Drivers:
       plot_unit: delta_degC km-1
       table_unit: delta_degC km-1
 
-  Salinity Surface (so/sos):
+  Salinity Surface:
 
     WOA-23:
       sources:
@@ -212,7 +212,7 @@ Physical Drivers:
       alternate_vars:
       - sos
 
-  Salinity 200m (so):
+  Salinity 200m:
 
     WOA-23:
       sources:
@@ -228,7 +228,7 @@ Physical Drivers:
       - select_depth:
           value: 200.
 
-  Salinity 700m (so):
+  Salinity 700m:
 
     WOA-23:
       sources:

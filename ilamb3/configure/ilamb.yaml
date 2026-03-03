@@ -1,6 +1,6 @@
 Ecosystem and Carbon Cycle:
 
-  Biomass (biomass/cVeg):
+  Biomass:
 
     Thurner:
       sources:
@@ -51,14 +51,14 @@ Ecosystem and Carbon Cycle:
       - cVeg
       variable_cmap: Greens
 
-  Burnt Area (burntFractionAll):
+  Burnt Area:
 
     GFED-5-0:
       sources:
         burntFractionAll: GFED-5-0/obs4MIPs_NASA-NOSR_GFED-5-0_mon_burntFractionAll_gr_v20260302.nc
       variable_cmap: YlOrBr
 
-  Gross Primary Productivity (gpp):
+  Gross Primary Productivity:
 
     Fluxnet-2015:
       sources:
@@ -91,7 +91,7 @@ Ecosystem and Carbon Cycle:
       table_unit: Pg yr-1
       plot_unit: g m-2 d-1
 
-  Leaf Area Index (lai):
+  Leaf Area Index:
 
     GIMMS_LAI4g:
       sources:
@@ -121,7 +121,7 @@ Ecosystem and Carbon Cycle:
         pr: pr/GPCPv2.3/pr.nc
       variable_cmap: Greens
 
-  Global Net Ecosystem Carbon Balance (nbp):
+  Global Net Ecosystem Carbon Balance:
 
     Hoffman-1-0:
       sources:
@@ -142,7 +142,7 @@ Ecosystem and Carbon Cycle:
       - nbp
       evaluation_year: 2014
 
-  Net Ecosystem Exchange (nee):
+  Net Ecosystem Exchange:
 
     Fluxnet-2015:
       sources:
@@ -152,7 +152,7 @@ Ecosystem and Carbon Cycle:
           expr: "nee = ra + rh - gpp"
       variable_cmap: Greens
 
-  Ecosystem Respiration (reco):
+  Ecosystem Respiration:
 
     Fluxnet-2015:
       sources:
@@ -168,7 +168,7 @@ Ecosystem and Carbon Cycle:
       - expression:
           expr: "reco = ra + rh"
 
-  Soil Carbon (cSoil/cSoilAbove1m):
+  Soil Carbon:
 
     Wang2024:
       sources:
@@ -184,7 +184,7 @@ Ecosystem and Carbon Cycle:
       alternate_vars:
       - cSoil
 
-  Nitrogen Fixation (fBNF):
+  Nitrogen Fixation:
 
     Davies-Barnard:
       sources:
@@ -196,7 +196,7 @@ Ecosystem and Carbon Cycle:
 
 Hydrology Cycle:
 
-  Evapotranspiration (et/evspsbl):
+  Evapotranspiration:
 
     MOD16A2:
       sources:
@@ -228,7 +228,7 @@ Hydrology Cycle:
       alternate_vars:
       - evspsbl
 
-  Evaporative Fraction (evapfrac):
+  Evaporative Fraction:
 
     WECANN-1-0:
       analysis_variable: evapfrac
@@ -284,7 +284,7 @@ Hydrology Cycle:
       - expression:
           expr: "evapfrac = hfls / (hfls + hfss)"
 
-  Latent Heat (hfls):
+  Latent Heat:
 
     Fluxnet-2015:
       sources:
@@ -311,7 +311,7 @@ Hydrology Cycle:
         hfls: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_hfls_gn_v20260302.nc
       variable_cmap: Blues
 
-  Runoff (mrro):
+  Runoff:
 
     LORA-1-0:
       sources:
@@ -323,7 +323,7 @@ Hydrology Cycle:
         mrro: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_mrro_gn_v20260302.nc
       variable_cmap: Blues
 
-  Sensible Heat (hfss):
+  Sensible Heat:
 
     Fluxnet-2015:
       sources:
@@ -345,7 +345,7 @@ Hydrology Cycle:
         hfss: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_hfss_gn_v20260302.nc
       variable_cmap: Blues
 
-  Surface Soil Moisture (mrsos/mrsol):
+  Surface Soil Moisture:
 
     WangMao:
       sources:
@@ -358,7 +358,7 @@ Hydrology Cycle:
       alternate_vars:
       - mrsos
 
-  Soil Moisture 1m (mrsol):
+  Soil Moisture 1m:
 
     WangMao:
       sources:
@@ -371,14 +371,14 @@ Hydrology Cycle:
 
 Cryosphere:
 
-  Snow Cover (snc):
+  Snow Cover:
 
     CCI-CryoClim-FSC-1:
       sources:
         snc: CCI-CryoClim-FSC-1/snc_mon_Snow-cci_BE_gn_198201-201906.nc
       variable_cmap: BuPu
 
-  Permafrost Extent (permafrost_extent):
+  Permafrost Extent:
 
     Brown2002:
       sources:
@@ -410,7 +410,7 @@ Cryosphere:
       analyses:
       - Area Comparison
 
-  Active Layer Thickness (active_layer_thickness):
+  Active Layer Thickness:
 
     CALM:
       sources:
@@ -483,7 +483,7 @@ Radiation and Energy Cycle:
       - expression:
           expr: "albedo = rsus / rsds"
 
-  Surface Upward SW Radiation (rsus):
+  Surface Upward SW Radiation:
 
     Fluxnet-2015:
       sources:
@@ -505,7 +505,7 @@ Radiation and Energy Cycle:
         rsus: rsus/WRMC.BSRN/rsus.nc
       variable_cmap: RdPu
 
-  Surface Upward LW Radiation (rlus):
+  Surface Upward LW Radiation:
 
     Fluxnet-2015:
       sources:
@@ -527,7 +527,7 @@ Radiation and Energy Cycle:
         rlus: rlus/WRMC.BSRN/rlus.nc
       variable_cmap: RdPu
 
-  Surface Net SW Radiation (rns/rss/rsns):
+  Surface Net SW Radiation:
 
     Fluxnet-2015:
       sources:
@@ -563,7 +563,7 @@ Radiation and Energy Cycle:
           expr: "rsns = rsds - rsus"
       variable_cmap: RdPu
 
-  Surface Net LW Radiation (rls/rlns):
+  Surface Net LW Radiation:
 
     Fluxnet-2015:
       sources:
@@ -599,7 +599,7 @@ Radiation and Energy Cycle:
           expr: "rlns = rlds - rlus"
       variable_cmap: RdPu
 
-  Surface Net Radiation (rns):
+  Surface Net Radiation:
 
     Fluxnet-2015:
       sources:
@@ -649,7 +649,7 @@ Radiation and Energy Cycle:
 
 Forcings:
 
-  Surface Air Temperature (tas):
+  Surface Air Temperature:
 
     Fluxnet-2015:
       sources:
@@ -661,21 +661,21 @@ Forcings:
         tas: tas/CRU4.02/tas.nc
       variable_cmap: cool
 
-  Diurnal Maximum Temperature (tasmax):
+  Diurnal Maximum Temperature:
 
     CRU4.02:
       sources:
         tasmax: tasmax/CRU4.02/tasmax.nc
       variable_cmap: cool
 
-  Diurnal Minimum Temperature (tasmin):
+  Diurnal Minimum Temperature:
 
     CRU4.02:
       sources:
         tasmin: tasmin/CRU4.02/tasmin.nc
       variable_cmap: cool
 
-  Diurnal Temperature Range (dtr):
+  Diurnal Temperature Range:
 
     CRU4.02:
       sources:
@@ -685,7 +685,7 @@ Forcings:
       - expression:
           expr: "dtr = tasmax - tasmin"
 
-  Precipitation (pr):
+  Precipitation:
 
     CMAPv1904:
       sources:
@@ -712,7 +712,7 @@ Forcings:
         pr: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_pr_gn_v20260302.nc
       variable_cmap: Blues
 
-  Surface Relative Humidity (rhums):
+  Surface Relative Humidity:
 
     CRU4.02:
       sources:
@@ -721,7 +721,7 @@ Forcings:
     alternate_vars:
     - hurs
 
-  Surface Downward SW Radiation (rsds):
+  Surface Downward SW Radiation:
 
     Fluxnet-2015:
       sources:
@@ -743,7 +743,7 @@ Forcings:
         rsds: rsds/WRMC.BSRN/rsds.nc
       variable_cmap: RdPu
 
-  Surface Downward LW Radiation (rlds):
+  Surface Downward LW Radiation:
 
     Fluxnet-2015:
       sources:
@@ -767,7 +767,7 @@ Forcings:
 
 Sensitivities:
 
-  Runoff (psens_obs):
+  Runoff:
 
     G-RUN:
       sources:
