@@ -55,24 +55,24 @@ Ecosystem and Carbon Cycle:
 
     GFED-5-0:
       sources:
-        burntFractionAll: GFED-5-0/obs4MIPs_NASA-NOSR_GFED-5-0_mon_burntFractionAll_gr_v20251029.nc
+        burntFractionAll: GFED-5-0/obs4MIPs_NASA-NOSR_GFED-5-0_mon_burntFractionAll_gr_v20260302.nc
       variable_cmap: YlOrBr
 
   Gross Primary Productivity:
 
-    FLUXNET2015:
+    Fluxnet-2015:
       sources:
-        gpp: gpp/FLUXNET2015/gpp.nc
+        gpp: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_gpp_site_v20260302.nc
       variable_cmap: Greens
 
-    FLUXCOM:
+    FLUXCOM-1:
       sources:
-        gpp: FLUXCOM-1/obs4MIPs_MPI-BGC-BGI_FLUXCOM-1_mon_gpp_gn_v20260204.nc
+        gpp: FLUXCOM-1/obs4MIPs_MPI-BGC-BGI_FLUXCOM-1_mon_gpp_gn_v20260302.nc
       relationships:
         pr: pr/GPCPv2.3/pr.nc
         tas: tas/CRU4.02/tas.nc
         evspsbl: evspsbl/GLEAMv3.3a/et.nc
-        rsds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsds_gn_v20260205.nc
+        rsds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsds_gn_v20260302.nc
       variable_cmap: Greens
       spatial_sum: True
       table_unit: Pg yr-1
@@ -80,12 +80,12 @@ Ecosystem and Carbon Cycle:
 
     WECANN-1-0:
       sources:
-        gpp: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_gpp_gn_v20250902.nc
+        gpp: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_gpp_gn_v20260302.nc
       relationships:
         pr: pr/GPCPv2.3/pr.nc
         tas: tas/CRU4.02/tas.nc
         evspsbl: evspsbl/GLEAMv3.3a/et.nc
-        rsds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsds_gn_v20260205.nc
+        rsds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsds_gn_v20260302.nc
       variable_cmap: Greens
       spatial_sum: True
       table_unit: Pg yr-1
@@ -125,7 +125,7 @@ Ecosystem and Carbon Cycle:
 
     Hoffman-1-0:
       sources:
-        nbp: Hoffman-1-0/obs4MIPs_UCI-ORNL_Hoffman-1-0_yr_nbp_gm_v20251117.nc
+        nbp: Hoffman-1-0/obs4MIPs_UCI-ORNL_Hoffman-1-0_yr_nbp_gm_v20260302.nc
       transforms:
       - integrate_space:
           varname: nbp
@@ -144,9 +144,9 @@ Ecosystem and Carbon Cycle:
 
   Net Ecosystem Exchange:
 
-    FLUXNET2015:
+    Fluxnet-2015:
       sources:
-        nee: nee/FLUXNET2015/nee.nc
+        nee: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_nee_site_v20260302.nc
       transforms:
       - expression:
           expr: "nee = ra + rh - gpp"
@@ -154,16 +154,16 @@ Ecosystem and Carbon Cycle:
 
   Ecosystem Respiration:
 
-    FLUXNET2015:
+    Fluxnet-2015:
       sources:
-        reco: reco/FLUXNET2015/reco.nc
+        reco: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_reco_site_v20260302.nc
       transforms:
       - expression:
           expr: "reco = ra + rh"
 
-    FLUXCOM:
+    FLUXCOM-1:
       sources:
-        reco: reco/FLUXCOM/reco.nc
+        reco: FLUXCOM-1/obs4MIPs_MPI-BGC-BGI_FLUXCOM-1_mon_reco_gn_v20260302.nc
       transforms:
       - expression:
           expr: "reco = ra + rh"
@@ -176,7 +176,7 @@ Ecosystem and Carbon Cycle:
 
     HWSD-2-0:
       sources:
-        cSoil: HWSD-2-0/obs4MIPs_IIASA-FAO_HWSD-2-0_fx_cSoil_gn_v20250903.nc
+        cSoil: HWSD-2-0/obs4MIPs_IIASA-FAO_HWSD-2-0_fx_cSoil_gn_v20260302.nc
 
     NCSCDV22:
       sources:
@@ -233,8 +233,8 @@ Hydrology Cycle:
     WECANN-1-0:
       analysis_variable: evapfrac
       sources:
-        hfss: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfss_gn_v20250902.nc
-        hfls: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfls_gn_v20250902.nc
+        hfss: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfss_gn_v20260302.nc
+        hfls: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfls_gn_v20260302.nc
       transforms:
       - select_time:
           vmin: 2007-01
@@ -251,8 +251,8 @@ Hydrology Cycle:
     CLASS-1-1:
       analysis_variable: evapfrac
       sources:
-        hfss: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_hfss_gn_v20260204.nc
-        hfls: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_hfls_gn_v20260204.nc
+        hfss: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_hfss_gn_v20260302.nc
+        hfls: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_hfls_gn_v20260302.nc
       transforms:
       - select_time:
           vmin: 2003-01
@@ -269,8 +269,8 @@ Hydrology Cycle:
     Fluxnet-2015:
       analysis_variable: evapfrac
       sources:
-        hfss: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_hfss_site_v20260202.nc
-        hfls: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_hfls_site_v20260202.nc
+        hfss: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_hfss_site_v20260302.nc
+        hfls: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_hfls_site_v20260302.nc
       transforms:
       - select_time:
           vmin: 1991-01
@@ -286,19 +286,19 @@ Hydrology Cycle:
 
   Latent Heat:
 
-    FLUXNET2015:
+    Fluxnet-2015:
       sources:
-        hfls: hfls/FLUXNET2015/hfls.nc
+        hfls: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_hfls_site_v20260302.nc
       variable_cmap: Blues
 
-    FLUXCOM:
+    FLUXCOM-1:
       sources:
-        hfls: hfls/FLUXCOM/hfls.nc
+        hfls: FLUXCOM-1/obs4MIPs_MPI-BGC-BGI_FLUXCOM-1_mon_hfls_gn_v20260302.nc
       variable_cmap: Blues
 
     WECANN-1-0:
       sources:
-        hfls: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfls_gn_v20250902.nc
+        hfls: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfls_gn_v20260302.nc
       variable_cmap: Blues
 
     DOLCE:
@@ -306,43 +306,43 @@ Hydrology Cycle:
         hfls: evspsbl/DOLCE/DOLCE.nc
       variable_cmap: Blues
 
-    CLASS:
+    CLASS-1-1:
       sources:
-        hfls: hfls/CLASS/hfls.nc
+        hfls: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_hfls_gn_v20260302.nc
       variable_cmap: Blues
 
   Runoff:
 
     LORA-1-0:
       sources:
-        mrro: LORA-1-0/obs4MIPs_ARCCSS_LORA-1-0_mon_mrro_gn_v20250902.nc
+        mrro: LORA-1-0/obs4MIPs_ARCCSS_LORA-1-0_mon_mrro_gn_v20260302.nc
       variable_cmap: Blues
 
-    CLASS:
+    CLASS-1-1:
       sources:
-        mrro: mrro/CLASS/mrro.nc
+        mrro: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_mrro_gn_v20260302.nc
       variable_cmap: Blues
 
   Sensible Heat:
 
-    FLUXNET2015:
+    Fluxnet-2015:
       sources:
-        hfss: hfss/FLUXNET2015/hfss.nc
+        hfss: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_hfss_site_v20260302.nc
       variable_cmap: Blues
 
-    FLUXCOM:
+    FLUXCOM-1:
       sources:
-        hfss: hfss/FLUXCOM/hfss.nc
+        hfss: FLUXCOM-1/obs4MIPs_MPI-BGC-BGI_FLUXCOM-1_mon_hfss_gn_v20260302.nc
       variable_cmap: Blues
 
     WECANN-1-0:
       sources:
-        hfss: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfss_gn_v20250902.nc
+        hfss: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfss_gn_v20260302.nc
       variable_cmap: Blues
 
     CLASS:
       sources:
-        hfss: hfss/CLASS/hfss.nc
+        hfss: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_hfss_gn_v20260302.nc
       variable_cmap: Blues
 
   Surface Soil Moisture:
@@ -432,8 +432,8 @@ Radiation and Energy Cycle:
     CERES-EBAF-4-2-1:
       analysis_variable: albedo
       sources:
-        rsus: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsus_gn_v20260205.nc
-        rsds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsds_gn_v20260205.nc
+        rsus: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsus_gn_v20260302.nc
+        rsds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsds_gn_v20260302.nc
       transforms:
       - select_time:
           vmin: 2000-03
@@ -450,8 +450,8 @@ Radiation and Energy Cycle:
     Fluxnet-2015:
       analysis_variable: albedo
       sources:
-        rsus: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rsus_site_v20260202.nc
-        rsds: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rsds_site_v20260202.nc
+        rsus: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rsus_site_v20260302.nc
+        rsds: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rsds_site_v20260302.nc
       transforms:
       - select_time:
           vmin: 1991-01
@@ -468,8 +468,8 @@ Radiation and Energy Cycle:
     GEWEX-SRB-4-IP:
       analysis_variable: albedo
       sources:
-        rsus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsus_gn_v20260206.nc
-        rsds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsds_gn_v20260206.nc
+        rsus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsus_gn_v20260302.nc
+        rsds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsds_gn_v20260302.nc
       transforms:
       - select_time:
           vmin: 1988-01
@@ -485,19 +485,19 @@ Radiation and Energy Cycle:
 
   Surface Upward SW Radiation:
 
-    FLUXNET2015:
+    Fluxnet-2015:
       sources:
-        rsus: rsus/FLUXNET2015/rsus.nc
+        rsus: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rsus_site_v20260302.nc
       variable_cmap: RdPu
 
-    CERESed4.2:
+    CERES-EBAF-4-2-1:
       sources:
-        rsus: rsus/CERESed4.2/rsus.nc
+        rsus: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsus_gn_v20260302.nc
       variable_cmap: RdPu
 
-    GEWEX.SRB:
+    GEWEX-SRB-4-IP:
       sources:
-        rsus: rsus/GEWEX.SRB/rsus_0.5x0.5.nc
+        rsus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsus_gn_v20260302.nc
       variable_cmap: RdPu
 
     WRMC.BSRN:
@@ -507,19 +507,19 @@ Radiation and Energy Cycle:
 
   Surface Upward LW Radiation:
 
-    FLUXNET2015:
+    Fluxnet-2015:
       sources:
-        rlus: rlus/FLUXNET2015/rlus.nc
+        rlus: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rlus_site_v20260302.nc
       variable_cmap: RdPu
 
-    CERESed4.2:
+    CERES-EBAF-4-2-1:
       sources:
-        rlus: rlus/CERESed4.2/rlus.nc
+        rlus: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rlus_gn_v20260302.nc
       variable_cmap: RdPu
 
-    GEWEX.SRB:
+    GEWEX-SRB-4-IP:
       sources:
-        rlus: rlus/GEWEX.SRB/rlus_0.5x0.5.nc
+        rlus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rlus_gn_v20260302.nc
       variable_cmap: RdPu
 
     WRMC.BSRN:
@@ -529,28 +529,30 @@ Radiation and Energy Cycle:
 
   Surface Net SW Radiation:
 
-    FLUXNET2015:
+    Fluxnet-2015:
       sources:
-        rsns: rsns/FLUXNET2015/rsns.nc
+        rns: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rns_site_v20260302.nc
       transforms:
       - expression:
-          expr: "rsns = rsds - rsus"
+          expr: "rns = rsds - rsus"
       variable_cmap: RdPu
 
-    CERESed4.2:
+    CERES-EBAF-4-2-1:
+      analysis_variable: rss
       sources:
-        rsns: rsns/CERESed4.2/rsns.nc
+        rss: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rss_gn_v20260302.nc
       transforms:
       - expression:
-          expr: "rsns = rsds - rsus"
+          expr: "rss = rsds - rsus"
       variable_cmap: RdPu
 
-    GEWEX.SRB:
+    GEWEX-SRB-4-IP:
       sources:
-        rsns: rsns/GEWEX.SRB/rsns_0.5x0.5.nc
+        rsds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsds_gn_v20260302.nc
+        rsus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsus_gn_v20260302.nc
       transforms:
       - expression:
-          expr: "rsns = rsds - rsus"
+          expr: "rns = rsds - rsus"
       variable_cmap: RdPu
 
     WRMC.BSRN:
@@ -563,28 +565,30 @@ Radiation and Energy Cycle:
 
   Surface Net LW Radiation:
 
-    FLUXNET2015:
+    Fluxnet-2015:
       sources:
-        rlns: rlns/FLUXNET2015/rlns.nc
+        rlds: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rlds_site_v20260302.nc
+        rlus: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rlus_site_v20260302.nc
       transforms:
       - expression:
-          expr: "rlns = rlds - rlus"
+          expr: "rls = rlds - rlus"
       variable_cmap: RdPu
 
-    CERESed4.2:
+    CERES-EBAF-4-2-1:
       sources:
-        rlns: rlns/CERESed4.2/rlns.nc
+        rls: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rls_gn_v20260302.nc
       transforms:
       - expression:
-          expr: "rlns = rlds - rlus"
+          expr: "rls = rlds - rlus"
       variable_cmap: RdPu
 
-    GEWEX.SRB:
+    GEWEX-SRB-4-IP:
       sources:
-        rlns: rlns/GEWEX.SRB/rlns_0.5x0.5.nc
+        rlds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rlds_gn_v20260302.nc
+        rlus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rlus_gn_v20260302.nc
       transforms:
       - expression:
-          expr: "rlns = rlds - rlus"
+          expr: "rls = rlds - rlus"
       variable_cmap: RdPu
 
     WRMC.BSRN:
@@ -597,25 +601,31 @@ Radiation and Energy Cycle:
 
   Surface Net Radiation:
 
-    FLUXNET2015:
+    Fluxnet-2015:
       sources:
-        rns: rns/FLUXNET2015/rns.nc
+        rns: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rns_site_v20260302.nc
       transforms:
       - expression:
           expr: "rns = rlds - rlus + rsds - rsus"
       variable_cmap: RdPu
 
-    CERESed4.2:
+    CERES-EBAF-4-2-1:
       sources:
-        rns: rns/CERESed4.2/rns.nc
+        rlds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rlds_gn_v20260302.nc
+        rlus: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rlus_gn_v20260302.nc
+        rsds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsds_gn_v20260302.nc
+        rsus: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsus_gn_v20260302.nc
       transforms:
       - expression:
           expr: "rns = rlds - rlus + rsds - rsus"
       variable_cmap: RdPu
 
-    GEWEX.SRB:
+    GEWEX-SRB-4-IP:
       sources:
-        rns: rns/GEWEX.SRB/rns_0.5x0.5.nc
+        rlds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rlds_gn_v20260302.nc
+        rlus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rlus_gn_v20260302.nc
+        rsds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsds_gn_v20260302.nc
+        rsus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsus_gn_v20260302.nc
       transforms:
       - expression:
           expr: "rns = rlds - rlus + rsds - rsus"
@@ -629,9 +639,9 @@ Radiation and Energy Cycle:
           expr: "rns = rlds - rlus + rsds - rsus"
       variable_cmap: RdPu
 
-    CLASS:
+    CLASS-1-1:
       sources:
-        rns: rns/CLASS/rns.nc
+        rns: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_rns_gn_v20260302.nc
       transforms:
       - expression:
           expr: "rns = rlds - rlus + rsds - rsus"
@@ -641,9 +651,9 @@ Forcings:
 
   Surface Air Temperature:
 
-    FLUXNET2015:
+    Fluxnet-2015:
       sources:
-        tas: tas/FLUXNET2015/tas.nc
+        tas: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_tas_site_v20260302.nc
       variable_cmap: cool
 
     CRU4.02:
@@ -682,9 +692,9 @@ Forcings:
         pr: pr/CMAPv1904/pr.nc
       variable_cmap: Blues
 
-    FLUXNET2015:
+    Fluxnet-2015:
       sources:
-        pr: pr/FLUXNET2015/pr.nc
+        pr: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_pr_site_v20260302.nc
       variable_cmap: Blues
 
     GPCPv2.3:
@@ -697,9 +707,9 @@ Forcings:
         pr: pr/GPCCv2018/pr.nc
       variable_cmap: Blues
 
-    CLASS:
+    CLASS-1-1:
       sources:
-        pr: pr/CLASS/pr.nc
+        pr: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_pr_gn_v20260302.nc
       variable_cmap: Blues
 
   Surface Relative Humidity:
@@ -713,19 +723,19 @@ Forcings:
 
   Surface Downward SW Radiation:
 
-    FLUXNET2015:
+    Fluxnet-2015:
       sources:
-        rsds: rsds/FLUXNET2015/rsds.nc
+        rsds: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rsds_site_v20260302.nc
       variable_cmap: RdPu
 
-    CERESed4.2:
+    CERES-EBAF-4-2-1:
       sources:
-        rsds: rsds/CERESed4.2/rsds.nc
+        rsds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsds_gn_v20260302.nc
       variable_cmap: RdPu
 
-    GEWEX.SRB:
+    GEWEX-SRB-4-IP:
       sources:
-        rsds: rsds/GEWEX.SRB/rsds_0.5x0.5.nc
+        rsds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsds_gn_v20260302.nc
       variable_cmap: RdPu
 
     WRMC.BSRN:
@@ -735,19 +745,19 @@ Forcings:
 
   Surface Downward LW Radiation:
 
-    FLUXNET2015:
+    Fluxnet-2015:
       sources:
-        rlds: rlds/FLUXNET2015/rlds.nc
+        rlds: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rlds_site_v20260302.nc
       variable_cmap: RdPu
 
-    CERESed4.2:
+    CERES-EBAF-4-2-1:
       sources:
-        rlds: rlds/CERESed4.2/rlds.nc
+        rlds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rlds_gn_v20260302.nc
       variable_cmap: RdPu
 
-    GEWEX.SRB:
+    GEWEX-SRB-4-IP:
       sources:
-        rlds: rlds/GEWEX.SRB/rlds_0.5x0.5.nc
+        rlds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rlds_gn_v20260302.nc
       variable_cmap: RdPu
 
     WRMC.BSRN:
