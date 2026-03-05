@@ -545,6 +545,7 @@ Radiation and Energy Cycle:
       variable_cmap: RdPu
 
     GEWEX-SRB-4-IP:
+      analysis_variable: rns
       sources:
         rsds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsds_gn_v20260302.nc
         rsus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsus_gn_v20260302.nc
@@ -564,6 +565,7 @@ Radiation and Energy Cycle:
   Surface Net LW Radiation:
 
     Fluxnet-2015:
+      analysis_variable: rls
       sources:
         rlds: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rlds_site_v20260302.nc
         rlus: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rlus_site_v20260302.nc
@@ -581,6 +583,7 @@ Radiation and Energy Cycle:
       variable_cmap: RdPu
 
     GEWEX-SRB-4-IP:
+      analysis_variable: rls
       sources:
         rlds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rlds_gn_v20260302.nc
         rlus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rlus_gn_v20260302.nc
@@ -608,6 +611,7 @@ Radiation and Energy Cycle:
       variable_cmap: RdPu
 
     CERES-EBAF-4-2-1:
+      analysis_variable: rns
       sources:
         rlds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rlds_gn_v20260302.nc
         rlus: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rlus_gn_v20260302.nc
@@ -619,6 +623,7 @@ Radiation and Energy Cycle:
       variable_cmap: RdPu
 
     GEWEX-SRB-4-IP:
+      analysis_variable: rns
       sources:
         rlds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rlds_gn_v20260302.nc
         rlus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rlus_gn_v20260302.nc
