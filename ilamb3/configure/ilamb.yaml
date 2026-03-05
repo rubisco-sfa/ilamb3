@@ -71,7 +71,6 @@ Ecosystem and Carbon Cycle:
       relationships:
         pr: pr/GPCPv2.3/pr.nc
         tas: tas/CRU4.02/tas.nc
-        evspsbl: evspsbl/GLEAMv3.3a/et.nc
         rsds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsds_gn_v20260302.nc
       variable_cmap: Greens
       spatial_sum: True
@@ -84,7 +83,6 @@ Ecosystem and Carbon Cycle:
       relationships:
         pr: pr/GPCPv2.3/pr.nc
         tas: tas/CRU4.02/tas.nc
-        evspsbl: evspsbl/GLEAMv3.3a/et.nc
         rsds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsds_gn_v20260302.nc
       variable_cmap: Greens
       spatial_sum: True
