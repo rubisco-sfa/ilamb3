@@ -1132,6 +1132,7 @@ def get_mean_time_frequency(ds: xr.Dataset) -> float:
     Return the mean time frequency of the dataset.
     """
     tm = compute_time_measures(ds)
+    tm.load()
     return float(tm.mean())
 
 

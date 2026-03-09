@@ -148,7 +148,7 @@ def trim_time(*args: xr.Dataset, **kwargs: xr.Dataset) -> tuple[xr.Dataset]:
     # soil carbon), we need the time bounds in the extent to compute the mean of
     # the appropriate quantity.
     time_frequency = [
-        float(dset.compute_time_measures(arg).mean().values)
+        dset.get_mean_time_frequency(arg)
         for arg in list(args) + [arg for _, arg in kwargs.items()]
     ]
     inc_bounds = True
