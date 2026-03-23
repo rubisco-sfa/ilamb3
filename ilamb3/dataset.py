@@ -12,6 +12,23 @@ import ilamb3.regions as ilreg
 from ilamb3.exceptions import NoSiteDimension, NoUncertainty
 
 
+def _get_bnds_dims(dset: xr.Dataset | xr.DataArray) -> list[str]:
+    """ """
+    if isinstance(dset, xr.DataArray):
+        return []
+    # which variables have been labeled as a variable's bounds?
+    bound_vars = [
+        dset[v].attrs.get("bounds", None)
+        for v in list(dset.coords) + list(dset.data_vars)
+    ]
+    bound_vars = [v for v in bound_vars if v is not None]
+    # which of these variables' dimensions are not coordinates
+    bounds_dims = [
+        d for v in bound_vars for d in dset[v].dims if d not in dset[v].coords
+    ]
+    return bounds_dims
+
+
 def get_dim_name(
     dset: xr.Dataset | xr.DataArray,
     dim: Literal["time", "lat", "lon", "depth", "site"],
@@ -50,14 +67,12 @@ def get_dim_name(
     }
     # Assumption: the 'site' dimension is what is left over after all others are removed
     if dim == "site":
-        try:
-            get_dim_name(dset, "lat")
-            get_dim_name(dset, "lon")
+        if is_spatial(dset):
             raise NoSiteDimension("Dataset/dataarray is spatial")
-        except KeyError:
-            pass
         possible_names = list(
-            set(dset.dims) - set([d for _, dims in dim_names.items() for d in dims])
+            set(dset.dims)
+            - set([d for _, dims in dim_names.items() for d in dims])
+            - set(_get_bnds_dims(dset))
         )
         if len(possible_names) == 1:
             return possible_names[0]
