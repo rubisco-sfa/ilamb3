@@ -1,3 +1,7 @@
+"""
+Functions for converting a data source into target point data.
+"""
+
 import warnings
 from typing import Literal
 
