@@ -1216,3 +1216,14 @@ def convert_year_to_datetime(ds: xr.Dataset) -> xr.Dataset:
     )
     ds["time"].attrs["bounds"] = "time_bnds"
     return ds
+
+
+def get_mean_spatial_resolution(dset: xr.Dataset) -> float:
+    """
+    Return the mean spatial resolution of the dataset.
+    """
+    lat = get_dim_name(dset, "lat")
+    lon = get_dim_name(dset, "lon")
+    return np.sqrt(
+        dset[lon].diff(dim=lon).mean() ** 2 + dset[lat].diff(dim=lat).mean() ** 2
+    )
