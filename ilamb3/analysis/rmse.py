@@ -218,14 +218,16 @@ class rmse_analysis(ILAMBAnalysis):
         if "RMSE" not in df["analysis"].unique():
             return pd.DataFrame()
 
+        # Handle units
+        _, ds = next(iter(com.items()))
+        plot_unit = (
+            ds["rmse"].attrs["units"] if self.plot_unit is None else self.plot_unit
+        )
+
         # Some initialization
         regions = [None if r == "None" else r for r in df["region"].unique()]
         com["Reference"] = ref
 
-        # Handle units
-        plot_unit = (
-            ref["mean"].attrs["units"] if self.plot_unit is None else self.plot_unit
-        )
         for source, ds in com.items():
             for plot in [
                 "rmse",
