@@ -170,6 +170,8 @@ def neighborhood_closest(
     ds_close = xr.concat(
         [ds.isel(ds["distance"].argmin(dim=op_dims)) for ds in ds_neighborhood],
         dim=site_name_tar,
+        coords="different",
+        compat="equals",
     )
 
     # Assign the target's coordinates to the output
