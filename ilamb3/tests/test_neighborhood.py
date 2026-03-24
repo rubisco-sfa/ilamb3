@@ -9,22 +9,23 @@ from ilamb3.tests.test_compare import generate_test_dset
 
 def generate_test_site_dset(ntime, nsite, seed: int = 1):
     rs = np.random.RandomState(seed)
-    coords = {}
-    dims = []
-    if ntime is not None:
-        time = pd.date_range(start="2000-01-15", periods=ntime, freq="30D")
-        coords["time"] = time
-        dims.append("time")
-    if nsite is not None:
-        lat = xr.DataArray((np.random.rand(nsite) - 0.5) * 180, dims="site")
-        lon = xr.DataArray((np.random.rand(nsite) - 0.5) * 360, dims="site")
-        dims.append("site")
     ds = xr.Dataset(
         data_vars={
-            "da": xr.DataArray(rs.rand(ntime, nsite) * 1e-8, coords=coords, dims=dims),
+            "da": xr.DataArray(
+                rs.rand(ntime, nsite) * 1e-8,
+                coords={
+                    "time": pd.date_range(start="2000-01-15", periods=ntime, freq="30D")
+                },
+                dims=("time", "site"),
+            ),
         }
     )
-    ds["da"] = ds["da"].assign_coords({"lat": lat, "lon": lon})
+    ds["da"] = ds["da"].assign_coords(
+        {
+            "lat": xr.DataArray((rs.rand(nsite) - 0.5) * 180, dims="site"),
+            "lon": xr.DataArray((rs.rand(nsite) - 0.5) * 360, dims="site"),
+        }
+    )
     ds["da"].attrs["units"] = "kg m-2 s-1"
     return ds
 
@@ -35,24 +36,32 @@ SOURCES = {
     "target": generate_test_site_dset(12, 2, seed=3),
 }
 
+TESTDATA = [
+    ("gridded", "target", 1.5, "box", 9),
+    ("gridded", "target", 3.0, "box", 36),
+    ("gridded", "target", 1.5, "circle", 7),
+    ("gridded", "target", 3.0, "circle", 28),
+    ("sites", "target", 30.0, "box", 10),
+    ("sites", "target", 70.0, "box", 10),
+    ("sites", "target", 30.0, "circle", 1),
+    ("sites", "target", 70.0, "circle", 4),
+    pytest.param("sites", "target", -1.0, "circle", 10, marks=pytest.mark.xfail),
+    pytest.param("gridded", "gridded", 3.0, "circle", 10, marks=pytest.mark.xfail),
+]
 
-# XFAIL: ds_target is not a site, negative window_size
-@pytest.mark.parametrize("source", ["gridded", "sites"])
-@pytest.mark.parametrize("window_size", [1.5, 3.0])
-@pytest.mark.parametrize("window_shape", ["box", "circle"])
-def test_extract_neighbors_by_window(source, window_size, window_shape):
+
+@pytest.mark.parametrize(
+    "source,target,window_size,window_shape,expected_notnull", TESTDATA
+)
+def test_extract_neighbors_by_window(
+    source, target, window_size, window_shape, expected_notnull
+):
     ds = next(
         iter(
             extract_neighbors_by_window(
-                SOURCES[source], SOURCES["target"], window_size, window_shape
+                SOURCES[source], SOURCES[target], window_size, window_shape
             )
         )
     )
-    # print("BLAH", source, window_size, window_shape, int(ds["distance"].isnull().sum()))
-    check = {
-        "gridded": {1.5: {"box": 0, "circle": 2}, 3.0: {"box": 0, "circle": 9}},
-        "sites": {1.5: {"box": 0, "circle": 10}, 3.0: {"box": 0, "circle": 10}},
-    }
-    assert check[source][window_size][window_shape] == int(
-        ds["distance"].isnull().sum()
-    )
+    notnull = int(ds["distance"].notnull().sum())
+    assert notnull == expected_notnull
