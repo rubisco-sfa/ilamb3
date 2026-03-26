@@ -53,18 +53,24 @@ def extract_neighbors_by_window(
             # Otherwise assume the site data is small and just use the whole
             # dataset (sel does not work on coords that are not dims) but mask
             # outside the window
-            ds_hood = xr.where(
-                (
-                    np.abs(ds_source[lat_name_src] - ds_site[lat_name_tar])
-                    < window_half_size
-                )
-                * (
-                    np.abs(ds_source[lon_name_src] - ds_site[lon_name_tar])
-                    < window_half_size
-                ),
-                ds_source,
-                np.nan,
+            condition = (
+                np.abs(ds_source[lat_name_src] - ds_site[lat_name_tar])
+                < window_half_size
+            ) * (
+                np.abs(ds_source[lon_name_src] - ds_site[lon_name_tar])
+                < window_half_size
             )
+            ds_hood = xr.Dataset(
+                {
+                    var: (
+                        xr.where(condition, da, np.nan)
+                        if set(condition.dims).issubset(da.dims)
+                        else da
+                    )
+                    for var, da in ds_source.items()
+                }
+            )
+
         # Store the distance from the site for later use
         ds_hood["distance"] = np.sqrt(
             (ds_hood[lat_name_src] - ds_site[lat_name_tar]) ** 2
