@@ -90,12 +90,10 @@ def neighborhood_mean(
     ds_neighborhood: list[xr.Dataset], ds_target: xr.Dataset, weighted: bool = False
 ) -> xr.Dataset:
 
-    def _weights(
-        ds: xr.Dataset, weighted: bool, op_dims: list[str], min_dist: float = 0.1
-    ) -> xr.DataArray:
+    def _weights(ds: xr.Dataset, weighted: bool, min_dist: float = 0.1) -> xr.DataArray:
         if weighted:
             return (1 / ds["distance"].clip(min_dist)).fillna(0)
-        return xr.ones_like(ds[op_dims])
+        return xr.where(ds["distance"].isnull(), 0.0, 1.0)
 
     # Extract dim/coord names
     site_name_tar = dset.get_dim_name(ds_target, "site")
@@ -118,14 +116,14 @@ def neighborhood_mean(
         warnings.simplefilter("ignore")
         ds_mean = xr.concat(
             [
-                ds[op_vars].weighted(_weights(ds, op_dims, weighted)).mean(dim=op_dims)
+                ds[op_vars].weighted(_weights(ds, weighted)).mean(dim=op_dims)
                 for ds in ds_neighborhood
             ],
             dim=site_name_tar,
         )
         ds_std = xr.concat(
             [
-                ds[op_vars].weighted(_weights(ds, op_dims, weighted)).std(dim=op_dims)
+                ds[op_vars].weighted(_weights(ds, weighted)).std(dim=op_dims)
                 for ds in ds_neighborhood
             ],
             dim=site_name_tar,
