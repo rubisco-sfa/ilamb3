@@ -87,9 +87,15 @@ def extract_neighbors_by_window(
 
 
 def neighborhood_mean(
-    ds_neighborhood: list[xr.Dataset],
-    ds_target: xr.Dataset,
+    ds_neighborhood: list[xr.Dataset], ds_target: xr.Dataset, weighted: bool = False
 ) -> xr.Dataset:
+
+    def _weights(
+        ds: xr.Dataset, weighted: bool, op_dims: list[str], min_dist: float = 0.1
+    ) -> xr.DataArray:
+        if weighted:
+            return (1 / ds["distance"].clip(min_dist)).fillna(0)
+        return xr.ones_like(ds[op_dims])
 
     # Extract dim/coord names
     site_name_tar = dset.get_dim_name(ds_target, "site")
@@ -100,27 +106,28 @@ def neighborhood_mean(
     assert dset.is_site(ds_target)
     assert len(ds_neighborhood) == len(ds_target[site_name_tar])
 
-    # Drop 'distance' for this method if present
-    ds_neighborhood = [
-        ds.drop_vars("distance", errors="ignore") for ds in ds_neighborhood
-    ]
-
     # Compute the mean and std for all neighborhoods
     ds_hood = next(iter(ds_neighborhood))
-    lat_name_hood = dset.get_coord_name(ds_hood, "lat")
-    lon_name_hood = dset.get_coord_name(ds_hood, "lon")
     op_dims = (
-        [lat_name_hood, lon_name_hood] if dset.is_spatial(ds_hood) else [site_name_tar]
+        [dset.get_coord_name(ds_hood, "lat"), dset.get_coord_name(ds_hood, "lon")]
+        if dset.is_spatial(ds_hood)
+        else [dset.get_dim_name(ds_hood, "site")]
     )
     op_vars = [v for v in ds_hood if set(op_dims).issubset(ds_hood[v].dims)]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         ds_mean = xr.concat(
-            [ds[op_vars].mean(dim=op_dims) for ds in ds_neighborhood],
+            [
+                ds[op_vars].weighted(_weights(ds, op_dims, weighted)).mean(dim=op_dims)
+                for ds in ds_neighborhood
+            ],
             dim=site_name_tar,
         )
         ds_std = xr.concat(
-            [ds[op_vars].std(dim=op_dims) for ds in ds_neighborhood],
+            [
+                ds[op_vars].weighted(_weights(ds, op_dims, weighted)).std(dim=op_dims)
+                for ds in ds_neighborhood
+            ],
             dim=site_name_tar,
         )
 
