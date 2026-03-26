@@ -191,9 +191,30 @@ def neighborhood_closest(
         coords="different",
         compat="equals",
     )
+    ds_close = ds_close.drop_vars("distance", errors="ignore")
 
     # Assign the target's coordinates to the output
     ds_close = ds_close.assign_coords(
         {c: ds_target[c] for c in [lat_name_tar, lon_name_tar]}
     )
     return ds_close
+
+
+def match_label(
+    ds_neighborhood: list[xr.Dataset], ds_target: xr.Dataset, label: str
+) -> list[xr.Dataset]:
+
+    site_name_tar = dset.get_dim_name(ds_target, "site")
+    assert dset.is_site(ds_target)
+    assert len(ds_neighborhood) == len(ds_target[site_name_tar])
+    ds_hood = next(iter(ds_neighborhood))
+    assert label in ds_hood
+    assert label in ds_target
+
+    for site in range(len(ds_target[site_name_tar])):
+        label_value = ds_target.isel({site_name_tar: site})[label].values
+        ds = ds_neighborhood[site]
+        ds_neighborhood[site]["distance"] = xr.where(
+            ds[label] == label_value, ds["distance"], np.nan
+        )
+    return ds_neighborhood
