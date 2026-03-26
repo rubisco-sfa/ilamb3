@@ -140,10 +140,15 @@ def neighborhood_mean(
         ds_mean[varname].attrs["ancilliary_variables"] = " ".join(anc_vars)
         ds_mean[sdname].attrs["standard_name"] = f"{varname} standard deviation"
 
+    # Restore the variables not part of the mean
+    for v in set(ds_hood) - set(op_vars):
+        ds_mean[v] = ds_hood[v]
+
     # Assign the target's coordinates to the output
     ds_mean = ds_mean.assign_coords(
         {c: ds_target[c] for c in [lat_name_tar, lon_name_tar]}
     )
+    ds_mean = ds_mean.drop_vars(["distance", "distance_sd"], errors="ignore")
     return ds_mean
 
 
