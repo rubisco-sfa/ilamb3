@@ -18,7 +18,8 @@ def extract_neighbors_by_window(
     window_shape: Literal["box", "circle"] = "circle",
 ) -> list[xr.Dataset]:
     """
-    Return closest neighbors from the source dataset to each site in the target dataset.
+    Return closest neighbors from the source dataset to each site in the target
+    dataset.
 
     Parameters
     ----------
@@ -41,10 +42,16 @@ def extract_neighbors_by_window(
     list[xr.Dataset]
         The neighborhoods, one for each site in the `ds_target`.
     """
-    # Assumption checks (FIX: convert to raise errors)
-    assert dset.is_spatial(ds_source) or dset.is_site(ds_source)
-    assert dset.is_site(ds_target)
-    assert window_half_size > 0
+    if not (dset.is_spatial(ds_source) or dset.is_site(ds_source)):
+        raise ValueError(
+            f"The source dataset must be gridded or site data.\n{ds_source=}"
+        )
+    if not dset.is_site(ds_target):
+        raise ValueError(f"The target dataset must be site data.\n{ds_target=}")
+    if window_half_size < 0:
+        raise ValueError(
+            f"The window_half_size must be non-negative {window_half_size=}"
+        )
 
     # Extract dim/coord names
     lat_name_src = dset.get_coord_name(ds_source, "lat")
@@ -144,9 +151,13 @@ def neighborhood_mean(
     lat_name_tar = dset.get_coord_name(ds_target, "lat")
     lon_name_tar = dset.get_coord_name(ds_target, "lon")
 
-    # Assumption checks (FIX: change to raise)
-    assert dset.is_site(ds_target)
-    assert len(ds_neighborhood) == len(ds_target[site_name_tar])
+    # Assumption checks
+    if not dset.is_site(ds_target):
+        raise ValueError(f"The target dataset must be site data.\n{ds_target=}")
+    if not (len(ds_neighborhood) == len(ds_target[site_name_tar])):
+        raise ValueError(
+            f"Inconsistent neighborhood and target, {len(ds_neighborhood)=} != {len(ds_target[site_name_tar])=}"
+        )
 
     # Compute the mean and std for all neighborhoods
     ds_hood = next(iter(ds_neighborhood))
@@ -223,12 +234,20 @@ def neighborhood_closest(
     lon_name_tar = dset.get_coord_name(ds_target, "lon")
 
     # Assumption checks
-    assert dset.is_site(ds_target)
-    assert len(ds_neighborhood) == len(ds_target[site_name_tar])
+    if not dset.is_site(ds_target):
+        raise ValueError(f"The target dataset must be site data.\n{ds_target=}")
+    if not (len(ds_neighborhood) == len(ds_target[site_name_tar])):
+        raise ValueError(
+            f"Inconsistent neighborhood and target, {len(ds_neighborhood)=} != {len(ds_target[site_name_tar])=}"
+        )
+
     ds_hood = next(iter(ds_neighborhood))
     lat_name_hood = dset.get_coord_name(ds_hood, "lat")
     lon_name_hood = dset.get_coord_name(ds_hood, "lon")
-    assert "distance" in ds_hood
+    if "distance" not in ds_hood:
+        raise ValueError(
+            f"The dataarray 'distance' is not in the neighborhood but should be.\n{ds_hood=}"
+        )
 
     # Pass the mask to the distance so we pick the closest non-null value
     for i, ds_hood in enumerate(ds_neighborhood):
@@ -284,11 +303,18 @@ def match_label(
         used to mask non-matching values in `ds_neighborhood`.
     """
     site_name_tar = dset.get_dim_name(ds_target, "site")
-    assert dset.is_site(ds_target)
-    assert len(ds_neighborhood) == len(ds_target[site_name_tar])
+    # Assumption checks
+    if not dset.is_site(ds_target):
+        raise ValueError(f"The target dataset must be site data.\n{ds_target=}")
+    if not (len(ds_neighborhood) == len(ds_target[site_name_tar])):
+        raise ValueError(
+            f"Inconsistent neighborhood and target, {len(ds_neighborhood)=} != {len(ds_target[site_name_tar])=}"
+        )
     ds_hood = next(iter(ds_neighborhood))
-    assert label in ds_hood
-    assert label in ds_target
+    if not (label in ds_hood and label in ds_target):
+        raise ValueError(
+            f"The {label=} should be a DataArray in both the neighborhood and target.\n{ds_hood=}\n{ds_target=}"
+        )
 
     for site in range(len(ds_target[site_name_tar])):
         label_value = ds_target.isel({site_name_tar: site})[label].values
