@@ -143,3 +143,11 @@ def test_match_label():
     tar = xform(SOURCES["target"])
     assert "label" in grid
     assert "label" in tar
+    ds_neighborhood = iln.extract_neighbors_by_window(grid, tar, 3.0)
+    ds_neighborhood = iln.match_label(ds_neighborhood, tar, "label")
+    for site in range(len(tar["site"])):
+        ds_site = tar.isel({"time": 0, "site": site})
+        ds_hood = ds_neighborhood[site]
+        xr.where(
+            ds_hood["label"] != ds_site["label"], ds_hood["distance"], np.nan
+        ).isnull().all()
