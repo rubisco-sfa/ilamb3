@@ -3,12 +3,36 @@ Functions for converting a data source into target point data.
 """
 
 import warnings
+from functools import partial
 from typing import Literal
 
 import numpy as np
 import xarray as xr
 
 import ilamb3.dataset as dset
+
+
+def extract_sites_closest(ds: xr.Dataset, ds_sites: xr.Dataset) -> xr.Dataset:
+    radius = dset.get_mean_spatial_resolution(ds) if dset.is_spatial(ds) else 1.0
+    ds_neighborhood = extract_neighbors_by_window(ds, ds_sites, radius)
+    ds_out = neighborhood_closest(ds_neighborhood, ds_sites)
+    return ds_out
+
+
+def extract_sites_mean(
+    ds: xr.Dataset, ds_sites: xr.Dataset, weighted: bool
+) -> xr.Dataset:
+    radius = 2 * (dset.get_mean_spatial_resolution(ds) if dset.is_spatial(ds) else 1.0)
+    ds_neighborhood = extract_neighbors_by_window(ds, ds_sites, radius)
+    ds_out = neighborhood_mean(ds_neighborhood, ds_sites, weighted=weighted)
+    return ds_out
+
+
+SITE_EXTRACT = {
+    "closest": extract_sites_closest,
+    "mean": partial(extract_sites_mean, weighted=False),
+    "weighted_mean": partial(extract_sites_mean, weighted=True),
+}
 
 
 def extract_neighbors_by_window(
@@ -112,7 +136,7 @@ def extract_neighbors_by_window(
             for var, da in ds_hood.items():
                 if set(condition.dims).issubset(da.dims):
                     ds_hood[var] = xr.where(condition, da, np.nan)
-        ds_neighborhood += [ds_hood]
+        ds_neighborhood += [ds_hood.load()]
     return ds_neighborhood
 
 
