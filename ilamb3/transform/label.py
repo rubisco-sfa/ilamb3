@@ -15,7 +15,9 @@ from ilamb3.transform.base import ILAMBTransform
 
 
 # FIX: this should just be how all asset loading works
-def _load_asset(asset_name: str) -> xr.Dataset:
+def _load_asset(asset_name: str | xr.Dataset) -> xr.Dataset:
+    if isinstance(asset_name, xr.Dataset):
+        return asset_name
     # First check each catalog
     for cat in [ilamb3.ilamb3_catalog(), ilamb3.ilamb_catalog(), ilamb3.iomb_catalog()]:
         try:

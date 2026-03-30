@@ -4,6 +4,7 @@ import pytest
 import xarray as xr
 
 import ilamb3.compare.neighborhood as iln
+from ilamb3.transform import apply_label
 
 
 def generate_test_dset(seed: int = 1, ntime=None, nlat=None, nlon=None):
@@ -131,3 +132,14 @@ def test_neighborhood_closest(source, target, window_size, expected_mean):
     validate = float(out.mean()["da"].values)
     print(f"{validate=}")
     assert np.allclose(validate, expected_mean)
+
+
+def test_match_label():
+    # create some fake label data
+    ds_label = SOURCES["gridded"].rename_vars(dict(da="label"))
+    ds_label["label"] = ds_label["label"].isel(time=0).round(0)
+    xform = apply_label(ds_label, "label")
+    grid = xform(SOURCES["gridded"])
+    tar = xform(SOURCES["target"])
+    assert "label" in grid
+    assert "label" in tar
