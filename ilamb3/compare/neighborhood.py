@@ -17,7 +17,30 @@ def extract_neighbors_by_window(
     window_half_size: float,
     window_shape: Literal["box", "circle"] = "circle",
 ) -> list[xr.Dataset]:
+    """
+    Return closest neighbors from the source dataset to each site in the target dataset.
 
+    Parameters
+    ----------
+    ds_source: xr.Dataset
+        The dataset from which we will extract neighborhoods. Can be gridded or
+        a collection of sites.
+    ds_target: xr.Dataset
+        The dataset around which we will extract neighborhoods. This must be
+        site or site collection data.
+    window_half_size: float
+        If the `window_shape='circle'`, this will be the radius inside of which
+        a cell from `ds_source` will be considered in the neighborhood. If a box
+        shape is used, this is half the box width to be consistent with the
+        circle.
+    window_shape: 'box' or 'circle'
+        The shape of the window used to define the neighborhood.
+
+    Returns
+    -------
+    list[xr.Dataset]
+        The neighborhoods, one for each site in the `ds_target`.
+    """
     # Assumption checks (FIX: convert to raise errors)
     assert dset.is_spatial(ds_source) or dset.is_site(ds_source)
     assert dset.is_site(ds_target)
@@ -89,6 +112,27 @@ def extract_neighbors_by_window(
 def neighborhood_mean(
     ds_neighborhood: list[xr.Dataset], ds_target: xr.Dataset, weighted: bool = False
 ) -> xr.Dataset:
+    """
+    Reduce the neighborhood by taking a mean of the non-null cells.
+
+    Parameters
+    ----------
+    ds_neighborhood: list[xr.Dataset]
+        A neighborhood of cells, one for each site in the target dataset.
+        Generated from routines like `extract_neighbors_by_window`.
+    ds_target: xr.Dataset
+        The target dataset. Used here to verify the neighborhood as well as pass
+        along its coordinates upon exit.
+    weighted: bool
+        If enabled, a reciprocal distance to the target site is used to weight
+        the mean. Otherwise, an arithemtic mean is returned.
+
+    Returns
+    -------
+    xr.Dataset
+        The mean and standard deviation of each neighborhood, now matching the
+        target dataset's sites.
+    """
 
     def _weights(ds: xr.Dataset, weighted: bool, min_dist: float = 0.1) -> xr.DataArray:
         if weighted:
@@ -154,6 +198,24 @@ def neighborhood_closest(
     ds_neighborhood: list[xr.Dataset],
     ds_target: xr.Dataset,
 ) -> xr.Dataset:
+    """
+    Reduce the neighborhood by selecting the closest non-null cell.
+
+    Parameters
+    ----------
+    ds_neighborhood: list[xr.Dataset]
+        A neighborhood of cells, one for each site in the target dataset.
+        Generated from routines like `extract_neighbors_by_window`.
+    ds_target: xr.Dataset
+        The target dataset. Used here to verify the neighborhood as well as pass
+        along its coordinates upon exit.
+
+    Returns
+    -------
+    xr.Dataset
+        The closest non-null cell of each neighborhood, now matching the target
+        dataset's sites.
+    """
 
     # Extract dim/coord names
     site_name_tar = dset.get_dim_name(ds_target, "site")
@@ -201,7 +263,26 @@ def neighborhood_closest(
 def match_label(
     ds_neighborhood: list[xr.Dataset], ds_target: xr.Dataset, label: str
 ) -> list[xr.Dataset]:
+    """
 
+    Parameters
+    ----------
+    ds_neighborhood: list[xr.Dataset]
+        A neighborhood of cells, one for each site in the target dataset.
+        Generated from routines like `extract_neighbors_by_window`.
+    ds_target: xr.Dataset
+        The target dataset.
+    label: str
+        The name of a DataArray in both datasets, where the value from
+        `ds_target` will be used to mask non-matching values in each
+        neighborhood.
+
+    Returns
+    -------
+    list[xr.Dataset]
+        The neighborhood where the `label` from each site in `ds_target` was
+        used to mask non-matching values in `ds_neighborhood`.
+    """
     site_name_tar = dset.get_dim_name(ds_target, "site")
     assert dset.is_site(ds_target)
     assert len(ds_neighborhood) == len(ds_target[site_name_tar])
