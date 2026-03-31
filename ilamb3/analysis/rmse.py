@@ -111,7 +111,7 @@ class rmse_analysis(ILAMBAnalysis):
             raise AnalysisNotAppropriate()
 
         # Make the variables comparable and force loading into memory
-        ref, com = cmp.make_comparable(ref, com, varname)
+        ref, com = cmp.make_comparable(ref, com, varname, **self.kwargs)
 
         # Is the time series long enough for this to be meaningful?
         if len(ref[dset.get_dim_name(ref, "time")]) < 24:

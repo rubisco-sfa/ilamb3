@@ -4,7 +4,7 @@ Functions for converting a data source into target point data.
 
 import warnings
 from functools import partial
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 import xarray as xr
@@ -12,18 +12,36 @@ import xarray as xr
 import ilamb3.dataset as dset
 
 
-def extract_sites_closest(ds: xr.Dataset, ds_sites: xr.Dataset) -> xr.Dataset:
-    radius = dset.get_mean_spatial_resolution(ds) if dset.is_spatial(ds) else 1.0
-    ds_neighborhood = extract_neighbors_by_window(ds, ds_sites, radius)
+def extract_sites_closest(
+    ds: xr.Dataset, ds_sites: xr.Dataset, **kwargs: Any
+) -> xr.Dataset:
+    width = kwargs.get("window_half_width", 2.0)
+    scale = kwargs.get("scale_width_by_grid_resolution", None)
+    if scale is not None and dset.is_spatial(ds):
+        width = scale * dset.get_mean_spatial_resolution(ds)
+    ds_neighborhood = extract_neighbors_by_window(
+        ds,
+        ds_sites,
+        window_half_width=width,
+        window_shape=kwargs.get("window_shape", "circle"),
+    )
     ds_out = neighborhood_closest(ds_neighborhood, ds_sites)
     return ds_out
 
 
 def extract_sites_mean(
-    ds: xr.Dataset, ds_sites: xr.Dataset, weighted: bool
+    ds: xr.Dataset, ds_sites: xr.Dataset, weighted: bool, **kwargs: Any
 ) -> xr.Dataset:
-    radius = 2 * (dset.get_mean_spatial_resolution(ds) if dset.is_spatial(ds) else 1.0)
-    ds_neighborhood = extract_neighbors_by_window(ds, ds_sites, radius)
+    width = kwargs.get("window_half_width", 2.0)
+    scale = kwargs.get("scale_width_by_grid_resolution", None)
+    if scale is not None and dset.is_spatial(ds):
+        width = scale * dset.get_mean_spatial_resolution(ds)
+    ds_neighborhood = extract_neighbors_by_window(
+        ds,
+        ds_sites,
+        window_half_width=width,
+        window_shape=kwargs.get("window_shape", "circle"),
+    )
     ds_out = neighborhood_mean(ds_neighborhood, ds_sites, weighted=weighted)
     return ds_out
 
@@ -38,7 +56,7 @@ SITE_EXTRACT = {
 def extract_neighbors_by_window(
     ds_source: xr.Dataset,
     ds_target: xr.Dataset,
-    window_half_size: float,
+    window_half_width: float,
     window_shape: Literal["box", "circle"] = "circle",
 ) -> list[xr.Dataset]:
     """
@@ -53,7 +71,7 @@ def extract_neighbors_by_window(
     ds_target: xr.Dataset
         The dataset around which we will extract neighborhoods. This must be
         site or site collection data.
-    window_half_size: float
+    window_half_width: float
         If the `window_shape='circle'`, this will be the radius inside of which
         a cell from `ds_source` will be considered in the neighborhood. If a box
         shape is used, this is half the box width to be consistent with the
@@ -72,9 +90,9 @@ def extract_neighbors_by_window(
         )
     if not dset.is_site(ds_target):
         raise ValueError(f"The target dataset must be site data.\n{ds_target=}")
-    if window_half_size < 0:
+    if window_half_width < 0:
         raise ValueError(
-            f"The window_half_size must be non-negative {window_half_size=}"
+            f"The window_half_size must be non-negative {window_half_width=}"
         )
 
     # Extract dim/coord names
@@ -94,12 +112,12 @@ def extract_neighbors_by_window(
             ds_hood = ds_source.sel(
                 {
                     lat_name_src: slice(
-                        ds_site[lat_name_tar] - window_half_size,
-                        ds_site[lat_name_tar] + window_half_size,
+                        ds_site[lat_name_tar] - window_half_width,
+                        ds_site[lat_name_tar] + window_half_width,
                     ),
                     lon_name_src: slice(
-                        ds_site[lon_name_tar] - window_half_size,
-                        ds_site[lon_name_tar] + window_half_size,
+                        ds_site[lon_name_tar] - window_half_width,
+                        ds_site[lon_name_tar] + window_half_width,
                     ),
                 }
             )
@@ -109,10 +127,10 @@ def extract_neighbors_by_window(
             # outside the window
             condition = (
                 np.abs(ds_source[lat_name_src] - ds_site[lat_name_tar])
-                < window_half_size
+                < window_half_width
             ) * (
                 np.abs(ds_source[lon_name_src] - ds_site[lon_name_tar])
-                < window_half_size
+                < window_half_width
             )
             ds_hood = xr.Dataset(
                 {
@@ -132,11 +150,11 @@ def extract_neighbors_by_window(
         )
         # Mask outside of the circle if being used
         if window_shape == "circle":
-            condition = ds_hood["distance"] <= window_half_size
+            condition = ds_hood["distance"] <= window_half_width
             for var, da in ds_hood.items():
                 if set(condition.dims).issubset(da.dims):
                     ds_hood[var] = xr.where(condition, da, np.nan)
-        ds_neighborhood += [ds_hood.load()]
+        ds_neighborhood += [ds_hood]
     return ds_neighborhood
 
 

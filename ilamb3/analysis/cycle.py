@@ -102,7 +102,9 @@ class cycle_analysis(ILAMBAnalysis):
         varname = self.req_variable
 
         # Make the variables comparable and force loading into memory
-        ref, com = cmp.rename_dims(*cmp.make_comparable(ref, com, varname))
+        ref, com = cmp.rename_dims(
+            *cmp.make_comparable(ref, com, varname, **self.kwargs)
+        )
 
         # Is the time series long enough for this to be meaningful?
         if not (_has_annual_cycle(ref, varname) & _has_annual_cycle(com, varname)):

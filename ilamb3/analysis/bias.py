@@ -144,7 +144,7 @@ class bias_analysis(ILAMBAnalysis):
             self.mass_weighting = False
 
         # Make the variables comparable and force loading into memory
-        ref, com = cmp.make_comparable(ref, com, varname)
+        ref, com = cmp.make_comparable(ref, com, varname, **self.kwargs)
 
         # Temporal means across the time period
         ref_mean = (

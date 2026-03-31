@@ -1,9 +1,12 @@
 """Functions for preparing datasets for comparison."""
 
+from typing import Any
+
 import cftime as cf
 import numpy as np
 import xarray as xr
 
+import ilamb3
 from ilamb3 import dataset as dset
 from ilamb3.compare.neighborhood import SITE_EXTRACT
 from ilamb3.exceptions import TemporalOverlapIssue
@@ -308,7 +311,7 @@ def handle_timescale_mismatch(
 
 
 def make_comparable(
-    ref: xr.Dataset, com: xr.Dataset, varname: str
+    ref: xr.Dataset, com: xr.Dataset, varname: str, **kwargs: Any
 ) -> tuple[xr.Dataset, xr.Dataset]:
     """Return the datasets in a form where they are comparable."""
 
@@ -333,12 +336,15 @@ def make_comparable(
     if dset.is_spatial(com):
         com = com.sortby([dset.get_dim_name(com, "lat"), dset.get_dim_name(com, "lon")])
 
-    # pick just the sites
-    extraction_fcn = SITE_EXTRACT["closest"]
-    if dset.is_site(ref[varname]) and not dset.is_site(com[varname]):
-        com = extraction_fcn(com, ref)
-    if dset.is_site(com[varname]) and not dset.is_site(ref[varname]):
-        ref = extraction_fcn(ref, com)
+    # pick the sites
+    site_extraction_opts = ilamb3.conf["site_extraction"].copy()
+    for key, value in kwargs.get("site_extraction", {}).items():
+        site_extraction_opts[key] = value
+    extraction_fcn = SITE_EXTRACT[site_extraction_opts["method"]]
+    if dset.is_site(ref[varname]):
+        com = extraction_fcn(com, ref, **site_extraction_opts)
+    elif dset.is_site(com[varname]):
+        ref = extraction_fcn(ref, com, **site_extraction_opts)
 
     # convert units
     com = dset.convert(com, ref[varname].attrs["units"], varname=varname)

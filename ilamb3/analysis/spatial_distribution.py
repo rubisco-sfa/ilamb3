@@ -88,7 +88,7 @@ class spatial_distribution_analysis(ILAMBAnalysis):
         varname = self.req_variable
 
         # Make the variables comparable and force loading into memory
-        ref, com = cmp.make_comparable(ref, com, varname)
+        ref, com = cmp.make_comparable(ref, com, varname, **self.kwargs)
 
         # Temporal means across the time period...
         ref = (

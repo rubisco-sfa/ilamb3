@@ -266,6 +266,7 @@ class relationship_analysis(ILAMBAnalysis):
         self.dep_variable = dep_variable
         self.ind_variable = ind_variable
         self.regions = regions
+        self.kwargs = kwargs
 
     def required_variables(self) -> list[str]:
         """
@@ -316,7 +317,7 @@ class relationship_analysis(ILAMBAnalysis):
         var_ind = self.ind_variable
         var_dep = self.dep_variable
         for var in self.required_variables():
-            ref, com = cmp.make_comparable(ref, com, var)
+            ref, com = cmp.make_comparable(ref, com, var, **self.kwargs)
             if dset.is_temporal(ref[var]):
                 ref[var] = dset.integrate_time(ref[var], mean=True)
             if dset.is_temporal(com[var]):
