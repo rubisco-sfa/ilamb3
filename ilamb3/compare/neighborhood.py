@@ -102,6 +102,10 @@ def extract_neighbors_by_window(
     lat_name_tar = dset.get_coord_name(ds_target, "lat")
     lon_name_tar = dset.get_coord_name(ds_target, "lon")
 
+    # Load the data at this stage for efficiency and to avoid dask oddities
+    ds_source.load()
+    ds_target.load()
+
     # Loop over sites and handle discretely
     ds_neighborhood = []
     for site in range(len(ds_target[site_name_tar])):
@@ -237,7 +241,9 @@ def neighborhood_mean(
 
     # Restore the variables not part of the mean
     for v in set(ds_hood) - set(op_vars):
-        ds_mean[v] = ds_hood[v]
+        dims = set(ds_hood[v].dims)
+        if not (lat_name_tar in dims or lon_name_tar in dims):
+            ds_mean[v] = ds_hood[v]
 
     # Assign the target's coordinates to the output
     ds_mean = ds_mean.assign_coords(
