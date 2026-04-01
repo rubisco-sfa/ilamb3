@@ -15,6 +15,24 @@ import ilamb3.dataset as dset
 def extract_sites_closest(
     ds: xr.Dataset, ds_sites: xr.Dataset, **kwargs: Any
 ) -> xr.Dataset:
+    """
+    Select the closest grid cell in the dataset to each site.
+
+    Parameters
+    ----------
+    ds: xr.Dataset
+        The input dataset from which to extract the closest site.
+    ds_sites: xr.Dataste
+        The source of sites to which we will match `ds`.
+    kwargs:
+        Keys and values from the `site_extraction` dictionary of the
+        configuration or yaml file.
+
+    Returns
+    -------
+    xr.Dataset
+        The closest grid cells from `ds` to the sites in `ds_sites`.
+    """
     width = kwargs.get("window_half_width", 2.0)
     scale = kwargs.get("scale_width_by_grid_resolution", None)
     if scale is not None and dset.is_spatial(ds):
@@ -32,6 +50,25 @@ def extract_sites_closest(
 def extract_sites_mean(
     ds: xr.Dataset, ds_sites: xr.Dataset, weighted: bool, **kwargs: Any
 ) -> xr.Dataset:
+    """
+    Compute the mean grid cell in the dataset from a neighborhood around each
+    site.
+
+    Parameters
+    ----------
+    ds: xr.Dataset
+        The input dataset from which to compute the mean of each site.
+    ds_sites: xr.Dataste
+        The source of sites to which we will match `ds`.
+    kwargs:
+        Keys and values from the `site_extraction` dictionary of the
+        configuration or yaml file.
+
+    Returns
+    -------
+    xr.Dataset
+        The mean of the grid cells from `ds` to the sites in `ds_sites`.
+    """
     width = kwargs.get("window_half_width", 2.0)
     scale = kwargs.get("scale_width_by_grid_resolution", None)
     if scale is not None and dset.is_spatial(ds):
@@ -46,6 +83,8 @@ def extract_sites_mean(
     return ds_out
 
 
+# Adding keys here which resolve to functions like the above will make them
+# valid options in the `method` configuration variable.
 SITE_EXTRACT = {
     "closest": extract_sites_closest,
     "mean": partial(extract_sites_mean, weighted=False),
@@ -331,6 +370,8 @@ def match_label(
     ds_neighborhood: list[xr.Dataset], ds_target: xr.Dataset, label: str
 ) -> list[xr.Dataset]:
     """
+    Apply a mask to the neighborhoods for cells that do not match the target
+    values of `label`.
 
     Parameters
     ----------
