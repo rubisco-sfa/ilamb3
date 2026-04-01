@@ -1,10 +1,14 @@
 """Functions for preparing datasets for comparison."""
 
+from typing import Any
+
 import cftime as cf
 import numpy as np
 import xarray as xr
 
+import ilamb3
 from ilamb3 import dataset as dset
+from ilamb3.compare.neighborhood import SITE_EXTRACT
 from ilamb3.exceptions import TemporalOverlapIssue
 
 
@@ -307,7 +311,7 @@ def handle_timescale_mismatch(
 
 
 def make_comparable(
-    ref: xr.Dataset, com: xr.Dataset, varname: str
+    ref: xr.Dataset, com: xr.Dataset, varname: str, **kwargs: Any
 ) -> tuple[xr.Dataset, xr.Dataset]:
     """Return the datasets in a form where they are comparable."""
 
@@ -332,11 +336,15 @@ def make_comparable(
     if dset.is_spatial(com):
         com = com.sortby([dset.get_dim_name(com, "lat"), dset.get_dim_name(com, "lon")])
 
-    # pick just the sites
-    if dset.is_site(ref[varname]) and dset.is_spatial(com[varname]):
-        com = extract_sites(ref, com, varname)
-    if dset.is_site(com[varname]) and dset.is_spatial(ref[varname]):
-        ref = extract_sites(com, ref, varname)
+    # pick the sites
+    site_extraction_opts = ilamb3.conf["site_extraction"].copy()
+    for key, value in kwargs.get("site_extraction", {}).items():
+        site_extraction_opts[key] = value
+    extraction_fcn = SITE_EXTRACT[site_extraction_opts["method"]]
+    if dset.is_site(ref[varname]):
+        com = extraction_fcn(com, ref, **site_extraction_opts)
+    elif dset.is_site(com[varname]):
+        ref = extraction_fcn(ref, com, **site_extraction_opts)
 
     # convert units
     com = dset.convert(com, ref[varname].attrs["units"], varname=varname)
@@ -345,64 +353,6 @@ def make_comparable(
     ref.load()
     com.load()
     return ref, com
-
-
-def extract_sites(
-    ds_site: xr.Dataset, ds_spatial: xr.Dataset, varname: str
-) -> xr.Dataset:
-    """
-    Extract the `ds_site` lat/lons from `ds_spatial choosing the nearest site.
-
-    Parameters
-    ----------
-    ds_site : xr.Dataset
-        The dataset which contains sites.
-    ds_spatial : xr.Dataset
-        The dataset from which we will make the extraction.
-    varname : str
-        The name of the variable of interest.
-
-    Returns
-    -------
-    xr.Dataset
-        `ds_spatial` at the sites defined in `da_site`.
-    """
-    # If this throws an exception, this isn't a site data array
-    dset.get_dim_name(ds_site[varname], "site")
-
-    # Get the lat/lon dim names
-    lat_site = dset.get_coord_name(ds_site, "lat")
-    lon_site = dset.get_coord_name(ds_site, "lon")
-    lat_spatial = dset.get_dim_name(ds_spatial, "lat")
-    lon_spatial = dset.get_dim_name(ds_spatial, "lon")
-
-    # Store the mean model resolution
-    model_res = np.sqrt(
-        ds_spatial[lon_spatial].diff(dim=lon_spatial).mean() ** 2
-        + ds_spatial[lat_spatial].diff(dim=lat_spatial).mean() ** 2
-    )
-
-    # Choose the spatial grid to the nearest site
-    ds_spatial = ds_spatial.sel(
-        {lat_spatial: ds_site[lat_site], lon_spatial: ds_site[lon_site]},
-        method="nearest",
-    )
-
-    # Check that these sites are 'close enough'
-    dist = np.sqrt(
-        (ds_site[lat_site] - ds_spatial[lat_spatial]) ** 2
-        + (ds_site[lon_site] - ds_spatial[lon_spatial]) ** 2
-    )
-    assert (dist < model_res).all()
-
-    # Set these are coordinates though so that we can tell this is site data. We
-    # also set them equal to the sites lat/lon so when comparing to other data
-    # that the coords stay on
-    ds_spatial = ds_spatial.set_coords([lat_spatial, lon_spatial])
-    ds_spatial[lat_spatial] = ds_site[lat_site]
-    ds_spatial[lon_spatial] = ds_site[lon_site]
-
-    return ds_spatial
 
 
 def rename_dims(*args):

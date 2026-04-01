@@ -3,10 +3,13 @@
 import contextlib
 import copy
 import os
+import warnings
 from pathlib import Path
+from typing import Any
 
 import yaml
 
+import ilamb3.compare.neighborhood as iln
 import ilamb3.regions as reg
 
 defaults = {
@@ -26,6 +29,12 @@ defaults = {
     "label_colors": {},
     "region_sources": [],
     "global_region": None,  # which region label to we use for 'everything'
+    "site_extraction": {
+        "method": "closest",
+        "window_half_width": 2.0,
+        "window_shape": "circle",
+        "scale_width_by_grid_resolution": 2.0,  # Can also be None to disable
+    },
 }
 
 
@@ -81,6 +90,7 @@ class Config(dict):
         debug_mode: bool | None = None,
         label_colors: dict[str, list[float]] | None = None,
         global_region: str | None = None,
+        site_extraction: dict[str, Any] | None = None,
     ):
         """Change ilamb3 configuration options."""
         temp = copy.deepcopy(self)
@@ -129,6 +139,17 @@ class Config(dict):
                     f"Cannot set {global_region=} because it is not registerd in our system: {list(ilamb_regions._regions)}"
                 )
             self["global_region"] = global_region
+        if site_extraction is not None:
+            for key, value in site_extraction.items():
+                if key not in self["site_extraction"]:
+                    warnings.warn(
+                        f"Setting an unknown option, {key=} not in {list(self['site_extraction'].keys())}"
+                    )
+                if key == "method" and value not in iln.SITE_EXTRACT:
+                    raise ValueError(
+                        f"Attempting to set an unknown site extraction method {value=} not in {list(iln.SITE_EXTRACT.keys())}"
+                    )
+                self["site_extraction"][key] = value
         return self._unset(temp)
 
     def __getitem__(self, item):
