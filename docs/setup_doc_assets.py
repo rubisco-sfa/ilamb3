@@ -69,6 +69,32 @@ def basic_canesm5():
     df.to_csv("CanESM5.csv")
 
 
+def datasets_ilamb3():
+    cat = ilamb3.ilamb3_catalog()
+    df = (
+        pd.DataFrame(
+            [
+                {
+                    "source_id": key.split("/")[0],
+                    "variable_id": key.split("/")[1].split("_")[4],
+                    "key": key,
+                    # "download": f"<a href='{cat.get_url(key)}'>'⤓'</a>",
+                }
+                for key in cat.registry
+            ]
+        )
+        .sort_values(["source_id", "variable_id"])
+        .set_index(["source_id", "variable_id"])
+    )
+    styles = [
+        {"selector": "th.col0, td.col0", "props": [("width", "5%")]},
+        {"selector": "th.col1, td.col1", "props": [("width", "5%")]},
+        {"selector": "th.col2, td.col2", "props": [("width", "90%")]},
+    ]
+    with open("catalog_ilamb3.html", "w") as fout:
+        fout.write(df.style.set_table_styles(styles).to_html())
+
+
 if __name__ == "__main__":
     # Run all the functions defined in this module
     mod = importlib.import_module("setup_doc_assets")

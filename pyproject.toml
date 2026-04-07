@@ -39,6 +39,8 @@ dependencies = [
   "tqdm>=4.67.1",
   "pyarrow>=21.0.0",
   "typer>=0.20.0",
+  "jupyterlab-myst>=2.6.0",
+  "ipykernel>=7.2.0",
 ]
 
 [dependency-groups]
