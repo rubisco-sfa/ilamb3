@@ -373,7 +373,9 @@ def neighborhood_closest(
 
     # Pick the closest value from each neighborhood
     op_dims = (
-        [lat_name_hood, lon_name_hood] if dset.is_spatial(ds_hood) else [site_name_tar]
+        [lat_name_hood, lon_name_hood]
+        if dset.is_spatial(ds_hood)
+        else [dset.get_dim_name(ds_hood, "site")]
     )
     ds_close = xr.concat(
         [ds.isel(ds["distance"].argmin(dim=op_dims)) for ds in ds_neighborhood],
