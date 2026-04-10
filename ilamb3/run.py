@@ -1,6 +1,7 @@
 """Functions for rendering ilamb3 output."""
 
 import importlib
+import os
 import re
 import shutil
 from collections.abc import Callable
@@ -261,9 +262,19 @@ def _lookup(df: xr.Dataset, key: str) -> list[str]:
     except KeyError:
         pass
     out = sorted(df[df.index.str.contains(key)]["path"].to_list())
-    if not out:
-        raise ValueError(f"Could not find {key} in the reference dataframe.")
-    return out
+    if out:
+        return out
+    # The key could rather be an absolute/relative path
+    path = Path(key)
+    if path.is_file():
+        return [key]
+    if "ILAMB_ROOT" in os.environ:
+        path = Path(os.environ["ILAMB_ROOT"]) / path
+        if path.is_file():
+            return [str(path)]
+    raise ValueError(
+        f"Could not find {key} in the reference dataframe of locate the data file."
+    )
 
 
 def _is_uniform(
