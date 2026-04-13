@@ -29,7 +29,7 @@ def basic_genyaml():
             }
         }
     }
-    with open("basic_step1.yaml", "w") as f:
+    with open("my_benchmark_study.yaml", "w") as f:
         f.write(yaml.dump(out))
     cat.fetch(wecann_gpp_key)
 
