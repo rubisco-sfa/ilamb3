@@ -313,6 +313,7 @@ def neighborhood_mean(
         {c: ds_target[c] for c in [lat_name_tar, lon_name_tar]}
     )
     ds_mean = ds_mean.drop_vars(["distance", "distance_sd"], errors="ignore")
+    _log_site(ds_neighborhood, ds_mean)
     return ds_mean
 
 
@@ -377,8 +378,21 @@ def neighborhood_closest(
         if dset.is_spatial(ds_hood)
         else [dset.get_dim_name(ds_hood, "site")]
     )
+
+    _log_site(ds_neighborhood, ds_target)
+
+    # If the distance array is all null, then just select 1 lat/lon or site from
+    # the neighborhood and create a nan-array that is the same shape and has the
+    # same dims/coords. Otherwise, pick the closest non-null.
     ds_close = xr.concat(
-        [ds.isel(ds["distance"].argmin(dim=op_dims)) for ds in ds_neighborhood],
+        [
+            (
+                xr.ones_like(ds.isel({key: 0 for key in op_dims})) * np.nan
+                if ds["distance"].isnull().all()
+                else ds.isel(ds["distance"].argmin(dim=op_dims))
+            )
+            for ds in ds_neighborhood
+        ],
         dim=site_name_tar,
         coords="different",
         compat="equals",
@@ -389,6 +403,7 @@ def neighborhood_closest(
     ds_close = ds_close.assign_coords(
         {c: ds_target[c] for c in [lat_name_tar, lon_name_tar]}
     )
+    _log_site(ds_neighborhood, ds_close)
     return ds_close
 
 
@@ -438,3 +453,19 @@ def match_label(
             ds[label] == label_value, ds["distance"], np.nan
         )
     return ds_neighborhood
+
+
+def _log_site(ds_neighborhood: list[xr.Dataset], ds: xr.Dataset):
+    """
+    Print information to help track why a site was selected.
+    """
+    site_name_tar = dset.get_dim_name(ds, "site")
+    if not (len(ds_neighborhood) == len(ds[site_name_tar])):
+        raise ValueError(
+            f"Inconsistent neighborhood and target, {len(ds_neighborhood)=} != {len(ds[site_name_tar])=}"
+        )
+    for i, ds_hood in enumerate(ds_neighborhood):
+        ds_site = ds.isel({site_name_tar: i})
+        print(f"------------- Site {i} ----------------")
+        print(ds_site)
+        print(ds_hood)
