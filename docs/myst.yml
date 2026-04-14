@@ -2,14 +2,26 @@
 version: 1
 project:
   id: c27ca160-5168-45a6-8ac4-6f8e3e2e94f9
-  # title:
+  title: ilamb3 Documentation
   # description:
   # keywords: []
   # authors: []
   github: https://github.com/rubisco-sfa/ilamb3
-  # To autogenerate a Table of Contents, run "myst init --write-toc"
+  toc:
+    - file: index.md
+    - title: Getting Started
+      file: getting_started.md
+      children:
+        - file: installation.md
+        - file: quickstart.md
+        - file: datasets.md
+    - title: How Do I...
+      file: how_do_i.md
+      children:
+        - file: configure_yaml.md
+        - file: intake.md
 site:
   template: book-theme
-  # options:
+  options:
   #   favicon: favicon.ico
-  #   logo: site_logo.png
+     logo_text: ilamb3

@@ -4,11 +4,7 @@ kernelspec:
   display_name: 'Python 3'
 ---
 
-# ILAMB Quickstart Guide
-
-## Introduction
-
-The Internaional Land Model Benchmarking (ILAMB) project is an on-going effort to systemically and holisitcally compare (a.k.a., "benchmark") Earth System Model predictions with reference data. Reference data could be site measurements, gridded satellite products, reanalysis products, or other types of observational data. The ILAMB software compares model to reference data using bias, RMSE, annual cycles, spatial distributions, and (optionally) variable-to-variable comparisons. To meaningfully interpret comparisons, users must be familiar with the methodologies we employ. So, we recommend that you first read our paper, [*Collier, et al. 2018*](https://doi.org/10.1029/2018MS001354), which details conmparison methodologies and provides our philosophy for how results should be used and interpreted.
+# Quickstart
 
 Historically, ILAMB is most often used to assess biogeochemical cycles on land, but our methods and software are generic and can be applied to any domain. Below is a tutorial that will teach you the basic steps required to use the ILAMB software on any reference/model data comparisons of your choosing. You will learn how to:
 
