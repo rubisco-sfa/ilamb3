@@ -341,10 +341,19 @@ def make_comparable(
     for key, value in kwargs.get("site_extraction", {}).items():
         site_extraction_opts[key] = value
     extraction_fcn = SITE_EXTRACT[site_extraction_opts["method"]]
-    if dset.is_site(ref[varname]):
+    if dset.is_site(com[varname]):
+        if dset.is_site(ref[varname]):
+            # If the comparison dataset is sites, we assume that users ran their
+            # models at distinct locations and want to see the nearest
+            # reference. So if the reference is also sites, we need to match the
+            # reference to the comparison.
+            ref = extraction_fcn(ref, com, **site_extraction_opts)
+        else:
+            # Just extract sites from the reference like usual.
+            com = extraction_fcn(com, ref, **site_extraction_opts)
+    elif dset.is_site(ref[varname]):
+        # Just extract sites from the reference like usual.
         com = extraction_fcn(com, ref, **site_extraction_opts)
-    elif dset.is_site(com[varname]):
-        ref = extraction_fcn(ref, com, **site_extraction_opts)
 
     # convert units
     com = dset.convert(com, ref[varname].attrs["units"], varname=varname)
