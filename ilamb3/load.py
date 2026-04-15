@@ -272,6 +272,4 @@ def load_comparison_data(
             f"Could not find or create '{variable_id}' from model variables {list(df['variable_id'].unique())}"
         )
     ds_com = dset.cmip_cell_measures(ds_com, variable_id)
-    ds_com = ds_com[["gpp", "time_bounds"]]
-    print(ds_com)
     return ds_com
