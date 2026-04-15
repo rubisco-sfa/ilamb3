@@ -4,6 +4,8 @@ Functions encapsulating the logic of how ilamb3 loads data during a run.
 
 import os
 from collections.abc import Callable
+from functools import partial
+from itertools import chain
 from pathlib import Path
 
 import numpy as np
@@ -13,6 +15,7 @@ import xarray as xr
 import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 from ilamb3.exceptions import VarNotInModel
+from ilamb3.transform.base import ILAMBTransform
 
 
 def fix_pint_units(ds: xr.Dataset) -> xr.Dataset:
@@ -60,6 +63,42 @@ def fix_lndgrid_coords(ds: xr.Dataset) -> xr.Dataset:
     with the dataset coordinates to work.
     """
     return ds.assign_coords({v: ds[v] for v in ds if ds[v].dims == ("lndgrid",)})
+
+
+def fix_too_many_variables(ds: xr.Dataset, keep: list[str]) -> xr.Dataset:
+    """
+    Sometimes the datasets load with too many variables.
+
+    Note
+    ----
+    E3SM/CESM2 raw data has all the variables in each file. So even though we
+    weed out the dataframe for variables we do not need, they will still be
+    loaded since they are present in each file. So here, we make sure we are not
+    loading more than we need to.
+    """
+
+    def _is_bounds(ds: xr.Dataset, var: str) -> bool:
+        for c in list(ds.coords):  # could also loop over ds vars but takes a while
+            if ds[c].attrs.get("bounds", "") == var:
+                return True
+        return False
+
+    # Drop if not in the whitelist or a bounds variable for a coordinate
+    ds = ds.drop_vars([v for v in ds if v not in keep and not _is_bounds(ds, v)])
+
+    # Also drop coords if their dims aren't relevant for the kept variables
+    var_dims = set([d for v in ds for d in ds[v].dims])
+    ds = ds.drop_vars([c for c in ds.coords if not set(ds[c].dims).issubset(var_dims)])
+    return ds
+
+
+def _pre_merge(ds: xr.Dataset, keep: list[str]) -> xr.Dataset:
+    """
+    Things we do before trying to open the datasets.
+    """
+    ds = fix_lndgrid_coords(ds)
+    ds = fix_too_many_variables(ds, keep)
+    return ds
 
 
 def _lookup(df: xr.Dataset, key: str) -> list[str]:
@@ -112,7 +151,7 @@ def load_reference_data(
     variable_id: str,
     sources: dict[str, str],
     relationships: dict[str, str] | None = None,
-    transforms: list | None = None,
+    transforms: list[ILAMBTransform] | None = None,
 ) -> xr.Dataset:
     """
     Load the reference data into containers and merge if more than 1 variable is
@@ -180,10 +219,20 @@ def load_comparison_data(
     """
     # First load all variables passed into the input dataframe. This will
     # include all relationship variables as well as alternates.
+    pre_merge = partial(
+        _pre_merge,
+        keep=list(
+            chain(
+                [variable_id],
+                [] if alternate_vars is None else alternate_vars,
+                *[t.required_variables() for t in transforms],
+            )
+        ),
+    )
     com = {
         var: xr.open_mfdataset(
             sorted((df[df["variable_id"] == var]["path"]).to_list()),
-            preprocess=fix_lndgrid_coords,
+            preprocess=pre_merge,
             data_vars="minimal",
         )
         for var in df["variable_id"].unique()

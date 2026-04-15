@@ -3,7 +3,7 @@ import xarray as xr
 
 import ilamb3
 from ilamb3.dataset import get_coord_name
-from ilamb3.run import fix_lndgrid_coords
+from ilamb3.load import fix_lndgrid_coords
 
 FILES = [
     "ELMngee4_TFSmeq2-DAT_0.01deg_GSWP3_arctic_ICB20TRCNPRDCTCBC.elm.h0.2008-01-01-00000.nc",
