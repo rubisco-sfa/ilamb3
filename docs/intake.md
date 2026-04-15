@@ -71,8 +71,10 @@ This produces a CSV file which looks like this:
 
 ```{code-cell} python
 :tags: [remove-input]
+from pathlib import Path
+Path("CanESM5.csv").unlink()
 import pandas as pd
-df = pd.read_csv("CanESM5.csv").drop(columns=["Unnamed: 0"])
+df = pd.read_csv("_generated/CanESM5.csv").drop(columns=["Unnamed: 0"])
 df
 ```
 

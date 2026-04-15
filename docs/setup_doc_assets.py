@@ -29,7 +29,7 @@ def basic_genyaml():
             }
         }
     }
-    with open("my_benchmark_study.yaml", "w") as f:
+    with open("_generated/my_benchmark_study.yaml", "w") as f:
         f.write(yaml.dump(out))
     cat.fetch(wecann_gpp_key)
 
@@ -66,7 +66,7 @@ def basic_canesm5():
             row["path"] = str(path)
             df.append(row)
     df = pd.DataFrame(df)
-    df.to_csv("CanESM5.csv")
+    df.to_csv("_generated/CanESM5.csv")
 
 
 def datasets_ilamb3():
@@ -91,12 +91,64 @@ def datasets_ilamb3():
         {"selector": "th.col1, td.col1", "props": [("width", "5%")]},
         {"selector": "th.col2, td.col2", "props": [("width", "90%")]},
     ]
-    with open("catalog_ilamb3.html", "w") as fout:
+    with open("_generated/catalog_ilamb3.html", "w") as fout:
+        fout.write(df.style.set_table_styles(styles).to_html())
+
+
+def datasets_ilamb():
+    cat = ilamb3.ilamb_catalog()
+    df = (
+        pd.DataFrame(
+            [
+                {
+                    "source_id": key.split("/")[1],
+                    "variable_id": key.split("/")[0],
+                    "key": key,
+                }
+                for key in cat.registry
+                if not (key.startswith("test") or "regions" in key)
+            ]
+        )
+        .sort_values(["source_id", "variable_id"])
+        .set_index(["source_id", "variable_id"])
+    )
+    styles = [
+        {"selector": "th.col0, td.col0", "props": [("width", "5%")]},
+        {"selector": "th.col1, td.col1", "props": [("width", "5%")]},
+        {"selector": "th.col2, td.col2", "props": [("width", "90%")]},
+    ]
+    with open("_generated/catalog_ilamb.html", "w") as fout:
+        fout.write(df.style.set_table_styles(styles).to_html())
+
+
+def datasets_iomb():
+    cat = ilamb3.iomb_catalog()
+    df = (
+        pd.DataFrame(
+            [
+                {
+                    "source_id": key.split("/")[0],
+                    "key": key,
+                }
+                for key in cat.registry
+            ]
+        )
+        .sort_values(["source_id"])
+        .set_index(["source_id"])
+    )
+    styles = [
+        {"selector": "th.col0, td.col0", "props": [("width", "5%")]},
+        {"selector": "th.col1, td.col1", "props": [("width", "90%")]},
+    ]
+    with open("_generated/catalog_iomb.html", "w") as fout:
         fout.write(df.style.set_table_styles(styles).to_html())
 
 
 if __name__ == "__main__":
     # Run all the functions defined in this module
+    from pathlib import Path
+
+    Path("_generated").mkdir(exist_ok=True, parents=True)
     mod = importlib.import_module("setup_doc_assets")
     for _, fnc in inspect.getmembers(mod, inspect.isfunction):
         fnc()

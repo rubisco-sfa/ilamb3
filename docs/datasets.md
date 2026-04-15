@@ -1,22 +1,26 @@
 
-# Datasets
+# Dataset Catalogs
 
-Example of a html table, generated in `setup_doc_assets.py`
+The following tables are listings of the datasets that we support. Any `key` found in these tables may be specified as a source in a benchmark configure file and then automatically downloaded using `ilamb fetch CONFIGURE_FILE.yaml`.
 
 ## ilamb3 catalog
 
 ::::{table} ilamb3 Dataset Catalog
 :label: tbl:ilamb3-catalog
-
-:::{include} catalog_ilamb3.html
+:::{include} _generated/catalog_ilamb3.html
 :::
-
 ::::
 
-## ilamb catalog
+## Legacy catalogs
 
-blah
+::::{table} Legacy ILAMB Dataset Catalog
+:label: tbl:ilamb-catalog
+:::{include} _generated/catalog_ilamb.html
+:::
+::::
 
-## iomb catalog
-
-blah
+::::{table} Legacy IOMB Dataset Catalog
+:label: tbl:iomb-catalog
+:::{include} _generated/catalog_iomb.html
+:::
+::::

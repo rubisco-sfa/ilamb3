@@ -19,13 +19,13 @@ Learn how ILAMB works and how to add your own model or reference data.
 After you have learned the basics, examples of more advanced usage.
 - [Obtaining CMIP model data](intake)
 - [Write a configure file](configure_yaml)
+- [Organize a benchmark configure file](organize)
 - Run ilamb in parallel
 - Call ilamb analysis routines from my own notebook
 - Run over and encode my own regions
 - Control run through options
-- Set global options (no way to set them through the cli)
-- Change the nesting of the benchmark study
-
+- [Set global options](global_options)
+- Access reference data programmaticaly
 :::
 
 :::{card} 🤿 Deep dive

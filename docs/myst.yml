@@ -20,6 +20,8 @@ project:
       children:
         - file: configure_yaml.md
         - file: intake.md
+        - file: organize.md
+        - file: global_options.md
 site:
   template: book-theme
   options:
