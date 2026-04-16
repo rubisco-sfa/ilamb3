@@ -17,9 +17,8 @@ build:
     - asdf install uv latest
     - asdf global uv latest
     - uv sync --group docs
-    - echo $PWD
-    - cd docs; uv run python setup_doc_assets.py; uv run myst build --html
-    - echo $PWD
+    - cd docs; uv run python setup_doc_assets.py
+    - cd docs; uv run myst build --html --execute
     - mkdir -p $READTHEDOCS_OUTPUT/html/
     - cp -r docs/_build/html/. "$READTHEDOCS_OUTPUT/html"
     - rm -rf docs/_build
