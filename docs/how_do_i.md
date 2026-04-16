@@ -1,3 +1,3 @@
 # How Do I...
 
-blah
+Once you have understood the basics of how `ilamb3` works, you will inevitably need to expand your knowledgebase. These tutorials are meant to teach specific concepts and may be digested as needed.

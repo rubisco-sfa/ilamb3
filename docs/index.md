@@ -11,7 +11,6 @@ Learn how ILAMB works and how to add your own model or reference data.
 - [Quickstart](quickstart)
 - [Datasets](datasets)
 - Reading the ILAMB results (dataset page, unified dashboard)
-
 :::
 
 :::{card} 🔍 How do I...
@@ -23,7 +22,7 @@ After you have learned the basics, examples of more advanced usage.
 - Run ilamb in parallel
 - Call ilamb analysis routines from my own notebook
 - Run over and encode my own regions
-- Control run through options
+- `ilamb run` options
 - [Set global options](global_options)
 - Access reference data programmaticaly
 :::

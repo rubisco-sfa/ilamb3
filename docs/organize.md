@@ -1,7 +1,7 @@
 # Organizing a Benchmark Study
 
-
-
-```{warning} Unified Dashboard Meta Analysis Limitation
-At the time of this writing, the unified dashboard meta analysis requires that the benchmarks be found in a 2-nested yaml (`EcosystemandCarbonCycle` and `GrossPrimaryProductivity`, in this case). While you are free to organize your benchmarks however you need, the meta analyses may have requirements that limit their applicability to your study.
+```{warning} Unfinished
+This feature is not in its final form. We will provide some details here, but expect this to change in the future.
 ```
+
+In the [quickstart](quickstart) tutorial, we present a sample benchmark yaml file with a 2-nesting of our benchmarks. While this structure was necesary in ILAMB v2, we have relaxed this requirement in `ilamb3`. Herein we will present some alternatives to demonstrate what is possible and when you may wish to use them.
