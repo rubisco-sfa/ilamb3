@@ -61,7 +61,7 @@ def generate_test_site_dset(ntime, nsite, seed: int = 1):
 
 SOURCES = {
     "gridded": generate_test_dset(seed=1, ntime=12, nlat=180, nlon=360),
-    "sites": generate_test_site_dset(12, 10, seed=2),
+    "sites": generate_test_site_dset(12, 10, seed=2).rename_dims(dict(site="lndgrid")),
     "target": generate_test_site_dset(12, 2, seed=3),
 }
 

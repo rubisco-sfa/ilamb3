@@ -1,5 +1,6 @@
 """Convenience functions which operate on datasets."""
 
+import re
 import warnings
 from typing import Any, Literal
 
@@ -1227,3 +1228,30 @@ def get_mean_spatial_resolution(dset: xr.Dataset) -> float:
     return np.sqrt(
         dset[lon].diff(dim=lon).mean() ** 2 + dset[lat].diff(dim=lat).mean() ** 2
     )
+
+
+def cmip_cell_measures(ds: xr.Dataset, varname: str) -> xr.Dataset:
+    """
+    Add a DataArray for the `cell_measures` built from CMIP variables if present.
+    """
+    da = ds[varname]
+    if "cell_measures" not in da.attrs:
+        return ds
+    m = re.search(r"area:\s(.*)", da.attrs["cell_measures"])
+    if not m:
+        return ds
+    msr_name = m.group(1)
+    if msr_name not in ds:
+        return ds
+    msr = ds[msr_name]
+    ds = ds.drop_vars(msr_name)
+    if "cell_methods" in da.attrs:
+        if "where land" in da.attrs["cell_methods"] and "sftlf" in ds:
+            msr *= ds["sftlf"] * 0.01
+            ds = ds.drop_vars("sftlf")
+        elif "where sea" in da.attrs["cell_methods"] and "sftof" in ds:
+            msr *= ds["sftof"] * 0.01
+            ds = ds.drop_vars("sftof")
+    msr = xr.where(msr > 0, msr, np.nan)
+    ds["cell_measures"] = msr
+    return ds

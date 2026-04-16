@@ -3,13 +3,11 @@
 import importlib
 import re
 import shutil
-from collections.abc import Callable
 from itertools import chain
 from pathlib import Path
 from typing import Any
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import pooch
 import xarray as xr
@@ -19,51 +17,13 @@ from loguru import logger
 
 import ilamb3
 import ilamb3.analysis as anl
-import ilamb3.compare as cmp
-import ilamb3.dataset as dset
+import ilamb3.load as ill
 import ilamb3.plot as ilp
 import ilamb3.regions as ilr
 from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
-from ilamb3.exceptions import AnalysisNotAppropriate, VarNotInModel
+from ilamb3.exceptions import AnalysisNotAppropriate
 from ilamb3.transform import ALL_TRANSFORMS
 from ilamb3.transform.base import ILAMBTransform
-
-
-def fix_pint_units(ds: xr.Dataset) -> xr.Dataset:
-    def _fix(units: str) -> str:
-        """
-        Modify units that pint cannot handle.
-        """
-        try:
-            val_units = float(units)
-        except ValueError:
-            return units
-        if np.allclose(val_units, 1):
-            return "dimensionless"
-        if np.allclose(val_units, 1e-3):
-            return "psu"
-        return units
-
-    for var, da in ds.items():
-        if "units" not in da.attrs:
-            continue
-        ds[var].attrs["units"] = _fix(da.attrs["units"])
-    return ds
-
-
-def fix_lndgrid_coords(ds: xr.Dataset) -> xr.Dataset:
-    """
-    Return a dataset with coordinates properly assigned.
-
-    Note
-    ----
-    E3SM/CESM2 raw land model output comes as if it were run over sites in the
-    `lndgrid` dimension. Some of the variables that are listed in these files
-    are only of this dimension and really belong in the coordinates. These tend
-    to be things like `lat`, `lon`, etc. and ilamb3 needs them to be associated
-    with the dataset coordinates to work.
-    """
-    return ds.assign_coords({v: ds[v] for v in ds if ds[v].dims == ("lndgrid",)})
 
 
 def select_analysis_variable(setup: dict[str, Any]) -> str:
@@ -82,7 +42,6 @@ def select_analysis_variable(setup: dict[str, Any]) -> str:
     -------
     str
         The main setup variable.
-
     """
     variable = setup.get("analysis_variable", None)
     if variable is None and "sources" in setup:
@@ -252,181 +211,6 @@ def augment_setup_with_options(
     return setup
 
 
-def _lookup(df: xr.Dataset, key: str) -> list[str]:
-    """
-    Lookup the key in the dataframe, allowing that it may be a regular expression.
-    """
-    try:
-        return [df.loc[key, "path"]]
-    except KeyError:
-        pass
-    out = sorted(df[df.index.str.contains(key)]["path"].to_list())
-    if not out:
-        raise ValueError(f"Could not find {key} in the reference dataframe.")
-    return out
-
-
-def _is_uniform(
-    condition: Callable[[xr.DataArray], bool], dsd: dict[str, xr.Dataset]
-) -> bool:
-    """
-    Given a condition, return whether true for all items in the dataset
-    dictionary.
-
-    Note: This function could live in ilamb3.compare, but we are making an
-    assumption that is valid here for our reference data--the keys of the
-    dataset dictionary are also found in the contained datasets.
-    """
-    return all([condition(ds[key]) for key, ds in dsd.items()])
-
-
-def _load_reference_data(
-    reference_data: pd.DataFrame,
-    variable_id: str,
-    sources: dict[str, str],
-    relationships: dict[str, str] | None = None,
-    transforms: list | None = None,
-) -> xr.Dataset:
-    """
-    Load the reference data into containers and merge if more than 1 variable is
-    used.
-    """
-    # First load all variables defined as `sources` or in `relationships`.
-    if relationships is not None:
-        sources = sources | relationships
-    ref = {
-        key: xr.open_mfdataset(_lookup(reference_data, str(filename)))
-        for key, filename in sources.items()
-    }
-    # Sometimes there is a bounds variable but it isn't in the attributes
-    ref = {key: dset.fix_missing_bounds_attrs(ds) for key, ds in ref.items()}
-    # Merge all the data together
-    if len(ref) > 1:
-        if _is_uniform(dset.is_spatial, ref):
-            grid_variable = variable_id if variable_id in ref else next(iter(ref))
-            ref = cmp.same_spatial_grid(ref[grid_variable], **ref)
-        if _is_uniform(dset.is_temporal, ref):
-            ref = {
-                var: cmp.convert_calendar_monthly_noleap(ds) for var, ds in ref.items()
-            }
-            ref = cmp.trim_time(**ref)
-        ds_ref = xr.merge(
-            [
-                ds if varname == variable_id else ds[varname]
-                for varname, ds in ref.items()
-            ],
-            compat="override",
-        )
-    else:
-        ds_ref = ref[variable_id]
-    # pint can't handle some units like `0.001`, so we have to intercept and fix
-    ds_ref = fix_pint_units(ds_ref)
-    # Finally apply transforms
-    for transform in transforms:
-        ds_ref = transform(ds_ref)
-    if variable_id not in ds_ref:
-        raise VarNotInModel(
-            f"Could not find or create '{variable_id}' from reference data:\n{ds_ref}"
-        )
-    return ds_ref
-
-
-def cmip_cell_measures(ds: xr.Dataset, varname: str) -> xr.Dataset:
-    """
-    Add a DataArray for the `cell_measures` built from CMIP variables if present.
-    """
-    da = ds[varname]
-    if "cell_measures" not in da.attrs:
-        return ds
-    m = re.search(r"area:\s(.*)", da.attrs["cell_measures"])
-    if not m:
-        return ds
-    msr_name = m.group(1)
-    if msr_name not in ds:
-        return ds
-    msr = ds[msr_name]
-    ds = ds.drop_vars(msr_name)
-    if "cell_methods" in da.attrs:
-        if "where land" in da.attrs["cell_methods"] and "sftlf" in ds:
-            msr *= ds["sftlf"] * 0.01
-            ds = ds.drop_vars("sftlf")
-        elif "where sea" in da.attrs["cell_methods"] and "sftof" in ds:
-            msr *= ds["sftof"] * 0.01
-            ds = ds.drop_vars("sftof")
-    msr = xr.where(msr > 0, msr, np.nan)
-    ds["cell_measures"] = msr
-    return ds
-
-
-def _load_comparison_data(
-    df: pd.DataFrame,
-    variable_id: str,
-    alternate_vars: list[str] | None = None,
-    transforms: list | None = None,
-) -> xr.Dataset:
-    """
-    Load the comparison (model) data into containers and merge if more than 1
-    variable is used.
-
-    Parameters
-    ----------
-    df: pd.DataFrame
-        The database of all possible variables and where to load them.
-    variable_id: str
-        The name of the variable that is the focus in the comparison.
-    alternate_vars: list[str], optional
-        A list of acceptable synonyms to be used if `variable_id` is not found.
-    transforms: list, optional
-        A list of functions that operate on the combined dataset.
-    """
-    # First load all variables passed into the input dataframe. This will
-    # include all relationship variables as well as alternates.
-    com = {
-        var: xr.open_mfdataset(
-            sorted((df[df["variable_id"] == var]["path"]).to_list()),
-            preprocess=fix_lndgrid_coords,
-            data_vars="minimal",
-        )
-        for var in df["variable_id"].unique()
-    }
-    # If the variable_id is not present, it may be called something else
-    if alternate_vars is not None and variable_id not in com:
-        found = [v for v in alternate_vars if v in com]
-        if found:
-            found = found[0]
-            com[variable_id] = (
-                com[found].rename_vars({found: variable_id})
-                if found in com[found]
-                else com[found]
-            )
-            com.pop(found)
-    # Fix bounds attributes (there is a bounds variable but it isn't in the
-    # attributes)
-    com = {var: dset.fix_missing_bounds_attrs(ds) for var, ds in com.items()}
-    # Merge all the data together
-    if len(com) > 1:
-        # The grids should be the same, but sometimes models generate output
-        # with very small differences in lat/lon
-        try:
-            com = cmp.same_spatial_grid(com[next(iter(com))], **com)
-        except KeyError:
-            pass
-        ds_com = xr.merge([v for _, v in com.items()], compat="override")
-    else:
-        ds_com = com[next(iter(com))]
-    # pint can't handle some units like `0.001`, so we have to intercept and fix
-    ds_com = fix_pint_units(ds_com)
-    # Finally apply transforms. These may create the needed variable.
-    for transform in transforms:
-        ds_com = transform(ds_com)
-    if variable_id not in ds_com:
-        raise VarNotInModel(
-            f"Could not find or create '{variable_id}' from model variables {list(df['variable_id'].unique())}"
-        )
-    ds_com = cmip_cell_measures(ds_com, variable_id)
-    return ds_com
-
-
 def registry_to_dataframe(registry: pooch.Pooch) -> pd.DataFrame:
     """
     Convert a ILAMB/IOMB registry to a DatasetCollection for use in REF.
@@ -542,14 +326,14 @@ def run_single_block(
 
         try:
             # Load data and run comparison
-            ref = _load_reference_data(
+            ref = ill.load_reference_data(
                 reference_data,
                 variable,
                 setup["sources"],
                 setup["relationships"] if "relationships" in setup else {},
                 transforms=transforms,
             )
-            com = _load_comparison_data(
+            com = ill.load_comparison_data(
                 grp,
                 variable,
                 alternate_vars=setup.get("alternate_vars", []),

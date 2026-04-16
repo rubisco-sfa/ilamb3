@@ -13,7 +13,7 @@ import ilamb3.dataset as dset
 
 
 def extract_sites_closest(
-    ds: xr.Dataset, ds_sites: xr.Dataset, **kwargs: Any
+    ds: xr.Dataset, ds_sites: xr.Dataset, label: str | None = None, **kwargs: Any
 ) -> xr.Dataset:
     """
     Select the closest grid cell in the dataset to each site.
@@ -22,8 +22,11 @@ def extract_sites_closest(
     ----------
     ds: xr.Dataset
         The input dataset from which to extract the closest site.
-    ds_sites: xr.Dataste
+    ds_sites: xr.Dataset
         The source of sites to which we will match `ds`.
+    label: str, optional
+        If given, pick the closest site that matches the `label` in both the
+        `ds` and `ds_sites`. Assumes that `label` is a DataArray in both.
     kwargs:
         Keys and values from the `site_extraction` dictionary of the
         configuration or yaml file.
@@ -43,12 +46,18 @@ def extract_sites_closest(
         window_half_width=width,
         window_shape=kwargs.get("window_shape", "circle"),
     )
+    if label is not None:
+        ds_neighborhood = match_label(ds_neighborhood, ds_sites, label)
     ds_out = neighborhood_closest(ds_neighborhood, ds_sites)
     return ds_out
 
 
 def extract_sites_mean(
-    ds: xr.Dataset, ds_sites: xr.Dataset, weighted: bool, **kwargs: Any
+    ds: xr.Dataset,
+    ds_sites: xr.Dataset,
+    weighted: bool,
+    label: str | None = None,
+    **kwargs: Any,
 ) -> xr.Dataset:
     """
     Compute the mean grid cell in the dataset from a neighborhood around each
@@ -58,8 +67,14 @@ def extract_sites_mean(
     ----------
     ds: xr.Dataset
         The input dataset from which to compute the mean of each site.
-    ds_sites: xr.Dataste
+    ds_sites: xr.Dataset
         The source of sites to which we will match `ds`.
+    weighted: bool
+        Enable to weight the mean by the inverse of the distance to the target
+        site.
+    label: str, optional
+        If given, compute the mean from site that match the `label` in both the
+        `ds` and `ds_sites`. Assumes that `label` is a DataArray in both.
     kwargs:
         Keys and values from the `site_extraction` dictionary of the
         configuration or yaml file.
@@ -79,6 +94,8 @@ def extract_sites_mean(
         window_half_width=width,
         window_shape=kwargs.get("window_shape", "circle"),
     )
+    if label is not None:
+        ds_neighborhood = match_label(ds_neighborhood, ds_sites, label)
     ds_out = neighborhood_mean(ds_neighborhood, ds_sites, weighted=weighted)
     return ds_out
 
@@ -90,6 +107,13 @@ SITE_EXTRACT = {
     "mean": partial(extract_sites_mean, weighted=False),
     "weighted_mean": partial(extract_sites_mean, weighted=True),
 }
+# Create CAVM variants of the above
+SITE_EXTRACT.update(
+    {
+        f"{key}_cavm_match": partial(fcn, label="landCoverCat")
+        for key, fcn in SITE_EXTRACT.items()
+    }
+)
 
 
 def extract_neighbors_by_window(
@@ -273,9 +297,9 @@ def neighborhood_mean(
     for varname in set(ds_mean) and set(ds_std):
         sdname = f"{varname}_sd"
         ds_mean[sdname] = ds_std[varname]
-        anc_vars = ds_mean[varname].attrs.get("ancilliary_variables", "")
+        anc_vars = ds_mean[varname].attrs.get("ancillary_variables", "")
         anc_vars = anc_vars.split() + [sdname]
-        ds_mean[varname].attrs["ancilliary_variables"] = " ".join(anc_vars)
+        ds_mean[varname].attrs["ancillary_variables"] = " ".join(anc_vars)
         ds_mean[sdname].attrs["standard_name"] = f"{varname} standard deviation"
 
     # Restore the variables not part of the mean
@@ -349,10 +373,23 @@ def neighborhood_closest(
 
     # Pick the closest value from each neighborhood
     op_dims = (
-        [lat_name_hood, lon_name_hood] if dset.is_spatial(ds_hood) else [site_name_tar]
+        [lat_name_hood, lon_name_hood]
+        if dset.is_spatial(ds_hood)
+        else [dset.get_dim_name(ds_hood, "site")]
     )
+
+    # If the distance array is all null, then just select 1 lat/lon or site from
+    # the neighborhood and create a nan-array that is the same shape and has the
+    # same dims/coords. Otherwise, pick the closest non-null.
     ds_close = xr.concat(
-        [ds.isel(ds["distance"].argmin(dim=op_dims)) for ds in ds_neighborhood],
+        [
+            (
+                xr.ones_like(ds.isel({key: 0 for key in op_dims})) * np.nan
+                if ds["distance"].isnull().all()
+                else ds.isel(ds["distance"].argmin(dim=op_dims))
+            )
+            for ds in ds_neighborhood
+        ],
         dim=site_name_tar,
         coords="different",
         compat="equals",
