@@ -17,8 +17,7 @@ build:
     - asdf install uv latest
     - asdf global uv latest
     - uv sync --group docs
-    - source .venv/bin/activate
-    - cd docs; python setup_doc_assets.py; myst build --html
+    - cd docs; uv run python setup_doc_assets.py; uv run myst build --html
     - mkdir -p $READTHEDOCS_OUTPUT/html/
     - cp -r _build/html/. "$READTHEDOCS_OUTPUT/html"
     - rm -rf _build
