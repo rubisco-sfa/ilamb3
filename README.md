@@ -1,7 +1,5 @@
 [<img width=250px src=https://www.ilamb.org/assets/images/RUBISCO1.png>](https://www.bgc-feedbacks.org/)
 
-*Experimental version under development*
-
 [![Continuous Integration][ci-badge]][ci-link]
 [![Documentation Status][rtd-badge]][rtd-link]
 [![Code Coverage Status][codecov-badge]][codecov-link]
@@ -12,21 +10,6 @@ The python package designed to help confront earth system models with reference
 data products, and then present the results in a hierarchical set of webpages.
 Please see [ilamb.org](https://www.ilamb.org) where we have details about the
 datasets we use, the results we catalog, and the methods we employ.
-
-This package is being developed and not currently listed in PyPI or conda-forge. You may install it directly from this repository:
-
-```bash
-pip install git+https://github.com/rubisco-sfa/ilamb3
-```
-
-The above command will install the latest code from the repository.
-We will make *releases* as new methods and functionality are ready, updating the documentation as we develop.
-To install a specific version of the code, append it to the URL.
-The following will install the released version v2025.5.20:
-
-```bash
-pip install git+https://github.com/rubisco-sfa/ilamb3@v2025.5.20
-```
 
 Eventually this package will replace the current [ILAMB](https://github.com/rubisco-sfa/ILAMB) package. Consult the [documentation](https://ilamb3.readthedocs.io/) for more information on current status and to see what is functional.
 

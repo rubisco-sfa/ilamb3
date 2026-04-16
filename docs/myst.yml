@@ -1,0 +1,29 @@
+# See docs at: https://mystmd.org/guide/frontmatter
+version: 1
+project:
+  id: c27ca160-5168-45a6-8ac4-6f8e3e2e94f9
+  title: ilamb3 Documentation
+  # description:
+  # keywords: []
+  # authors: []
+  github: https://github.com/rubisco-sfa/ilamb3
+  toc:
+    - file: index.md
+    - title: Getting Started
+      file: getting_started.md
+      children:
+        - file: installation.md
+        - file: quickstart.md
+        - file: datasets.md
+    - title: How Do I...
+      file: how_do_i.md
+      children:
+        - file: configure_yaml.md
+        - file: intake.md
+        - file: organize.md
+        - file: global_options.md
+site:
+  template: book-theme
+  options:
+  #   favicon: favicon.ico
+     logo_text: ilamb3
