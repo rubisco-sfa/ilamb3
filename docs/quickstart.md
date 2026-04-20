@@ -165,8 +165,8 @@ The benchmark dashboard is designed to assist you in discovering patterns in the
 
 In order to solidify these basic `ilamb3` concepts, we recommend that you attempt the following expansions on your own:
 
-1. **Add another model:** This consists of creating another (or expanding the current) CSV file. To keep downloads small, you might choose to add `UKESM1-0-LL` because it is also relatively coarse like CanESM5. If you create a second CSV file, when running `ilamb3`, you can just add it to the `--model-db` option separated by a comma. We will concatenate these files together internally:
+1. **Add another model:** This consists of creating another (or expanding the current) CSV file. To keep downloads small, you might choose to add `UKESM1-0-LL` because it is also relatively coarse like CanESM5. If you create a second CSV file, when running `ilamb3`, you can just add another `--model-db` option. We will concatenate these files together internally:
 ```{code} bash
-ilamb run basic_step1.yaml --model-db CanESM5.csv,UKESM1-0-LL.csv
+ilamb run basic_step1.yaml --model-db CanESM5.csv --model-db UKESM1-0-LL.csv
 ```
 2. **Add another benchmark:** Locate the `ilamb3` registry key for the `Fluxnet-2015` `gpp` data from the [datasets](datasets) page. Add another benchmark block to `my_benchmark_study.yaml` which is also under the `Gross Primary Productivity` heading. Essentially, you need to duplicate the `WECANN-1-0` block and then replace the WECANN-specific information with Fluxnet2015-specific information.
