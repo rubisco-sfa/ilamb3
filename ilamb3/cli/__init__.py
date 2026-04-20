@@ -184,10 +184,6 @@ def run(
         meta.generate_dashboard_page(output_path, page_title=title)
     except Exception:
         pass
-    try:
-        meta.generate_directory_of_dashboards(output_path.parent)
-    except Exception:
-        pass
 
 
 @app.command(help="Fetch reference data if part of an ILAMB catalog.")
