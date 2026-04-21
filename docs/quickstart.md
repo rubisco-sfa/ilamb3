@@ -134,14 +134,18 @@ _build/
 └── scalar_database.json
 ```
 
-Let's unpack what `ilamb3 run` has saved in the `_build` directory. We can see that the output has been stored in subdirectories that mirror the organization found in `my_benchmark_study.yaml`. `EcosystemandCarbonCycle/GrossPrimaryProductivity/WECANN-1-0` contains the benchmarking study results for `WECANN-1-0`. Within that directory, you will find the following files:
-- The `ilamb3` software executes in two phases. In the first, it performs all the comparisons and writes out intermediate files:
-  - `CanESM5.csv` stores all comparison scalars that were generated
-  - `CanESM5.nc` contains the data used for the plots (the .pngs)
-- `CanESM5.log` contains errors (if any) that occured during the run
-4. In the second phase, plots are generated following a naming convention of `{DATA}_{REGION}_{PLOT}.png`, where `{DATA}` is the model name or "Reference" for the reference data. If a plot is composited across all models, then `{DATA}` may appear as `None`
-5. `post.log` contains errors that occured during the second (post-processing) phase of the `ilamb3` run.
-6. `WECANN-1-0.html` is the results dashboard that you can open in a browser. The page will look something like [this](https://www.ilamb.org/dev/Land/EcosystemandCarbonCycle/GrossPrimaryProductivity/WECANN-1-0/WECANN-1-0.html).
+Let's unpack what `ilamb3 run` has saved in the `_build` directory. We can see that the output has been stored in subdirectories that mirror the organization found in `my_benchmark_study.yaml`. The directory `EcosystemandCarbonCycle/GrossPrimaryProductivity/WECANN-1-0` contains the benchmarking study results for `WECANN-1-0`. Within that directory, you will find the files generated from 2 phases of the `ilamb run` process. In the first phase, we perform all the comparisons and writes out intermediate files:
+
+- `CanESM5.csv` stores all comparison scalars that were generated.
+- `CanESM5.nc` contains the data used for the plots (the .pngs)
+- `CanESM5.log` contains errors (if any) that occured during the run.
+- `Reference.nc` contains the data to plot but from whatever reference data product was used. In this case that is `WECANN-1-0`.
+
+In the second phase, `ilamb run` will post-process these files and generate plots and a web page.
+
+- Images following a naming convention of `{DATA}_{REGION}_{PLOT}.png`, where `{DATA}` is the model name or "Reference" for the reference data. If a plot is composited across all models, then `{DATA}` may appear as `None`.
+- `post.log` contains errors that occured during the second phase of the `ilamb3 run`.
+- `WECANN-1-0.html` is a data dashboard that you can open in a browser to explore the results. The page should look something like [this](https://www.ilamb.org/dev/Land/EcosystemandCarbonCycle/GrossPrimaryProductivity/WECANN-1-0/WECANN-1-0.html).
 
 There are also several files located at the root of the `_build` directory. The file `run.yaml` is a copy of the benchmark configuration file. This is for reproducibility so that you can always tell what produced any given `ilamb3` build. The remaining files were produced as a synopsis of the full `ilamb3` run:
 
@@ -157,7 +161,7 @@ Since `index.html` will load a data file, you cannot simply open it in a browser
 python -m http.server
 ```
 
-Click on the link this command generates or copy and paste it into a browser. As this tutorial sample contains a single model and benchmark, but as this is increased (see this [example](https://www.ilamb.org/dev/Land/)) it will become a useful tool in navigating the different benchmarks. By clicking on the row labeled `GrossPrimaryProductivity`, you will expand the row to show the underlying datasets. Clicking on the `WECANN-1-0` label will load a data dashboard page for that benchmark.
+Click on the link this command generates or copy and paste it into a browser. As this tutorial sample contains a single model and benchmark, the portrait plot is minimal. However as more models and benchmarks are included (see this [example](https://www.ilamb.org/dev/Land/)) it will become a useful tool in navigating the different benchmarks. By clicking on the row labeled `GrossPrimaryProductivity`, you will expand the row to show the underlying datasets. Clicking on the `WECANN-1-0` label will load a data dashboard page for that benchmark.
 
 The benchmark dashboard is designed to assist you in discovering patterns in the results. It contains a series of plots that are generated for each model and reference dataset. The plots include maps of bias, RMSE, Taylor diagrams, time series, annual cycles, and more. Each plot is designed to highlight different aspects of the model performance.
 
