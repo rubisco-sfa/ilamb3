@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 import xarray as xr
 
 import ilamb3
@@ -33,3 +34,9 @@ def test_netcdf():
     assert np.isclose(ds["da"].mean(), 4.28285108e-09)
 
     Path("tmp.nc").unlink()
+
+
+@pytest.mark.xfail
+def test_validate():
+    reg = Regions()
+    reg._validate_label("not_a_region")
