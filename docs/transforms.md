@@ -48,6 +48,8 @@ Your function should follow these guidelines:
 For example, a simple version of the above `tsl` to `permafrost_extent` example might look like:
 
 ```{code-cell} python
+import xarray as xr
+
 def permafrost_extent(ds: xr.Dataset) -> xr.Dataset:
     if "tsl" not in ds:
         return ds
