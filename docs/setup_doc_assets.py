@@ -52,7 +52,7 @@ def basic_canesm5():
             experiment_id="historical",
             source_id="CanESM5",
             variable_id=["gpp", "areacella", "sftlf"],
-            table_id=["Lmon", "fx"],
+            frequency=["mon", "fx"],
             file_start="1980-01",
             file_end="2016-01",
         )

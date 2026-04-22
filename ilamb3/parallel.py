@@ -12,6 +12,7 @@ from mpi4py.futures import MPIPoolExecutor, get_comm_workers
 from tqdm import tqdm
 
 import ilamb3
+import ilamb3.load as ill
 import ilamb3.regions as ilr
 import ilamb3.run as run
 
@@ -59,14 +60,14 @@ def _perform_work_phase1(work, reference_data, output_path):
 
     # try to run the comparison
     try:
-        ref = run._load_reference_data(
+        ref = ill.load_reference_data(
             reference_data,
             variable,
             setup["sources"],
             setup["relationships"] if "relationships" in setup else {},
             transforms=transforms,
         )
-        com = run._load_comparison_data(
+        com = ill.load_comparison_data(
             grp,
             variable,
             alternate_vars=setup.get("alternate_vars", []),

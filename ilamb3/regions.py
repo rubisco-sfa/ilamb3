@@ -95,6 +95,12 @@ class Regions:
         """Return a list of region identifiers."""
         return Regions._regions.keys()
 
+    def _validate_label(self, label: str) -> None:
+        if label not in Regions._regions:
+            raise ValueError(
+                f"The region {label=} is not in the registered ilamb3 regions: {list(self.regions)}"
+            )
+
     def add_latlon_bounds(
         self,
         label: str,
@@ -178,10 +184,12 @@ class Regions:
 
     def get_name(self, label: str) -> str:
         """Return the region name given its label."""
+        self._validate_label(label)
         return Regions._regions[label][1]
 
     def get_source(self, label: str):
         """Return the source of the region given its label."""
+        self._validate_label(label)
         return Regions._sources[label]
 
     def restrict_to_region(
@@ -197,6 +205,7 @@ class Regions:
         """
         if label is None:
             return var
+        self._validate_label(label)
         rdata = Regions._regions[label]
         rtype = rdata[0]
         if rtype == 0:
