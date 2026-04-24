@@ -237,21 +237,6 @@ def registry_to_dataframe(registry: pooch.Pooch) -> pd.DataFrame:
     return df.set_index("key")
 
 
-def remove_irrelevant_variables(df: pd.DataFrame, **setup: Any) -> pd.DataFrame:
-    """
-    Remove unused variables from the dataframe.
-    """
-    reduce = df[
-        df["variable_id"].isin(
-            list(setup["sources"].keys())
-            + list(setup.get("relationships", {}).keys())
-            + setup.get("alternate_vars", [])
-            + setup.get("related_vars", [])
-        )
-    ]
-    return reduce
-
-
 def _load_local_assets(
     csv_file: Path, ref_file: Path, com_file: Path
 ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
