@@ -237,21 +237,6 @@ def registry_to_dataframe(registry: pooch.Pooch) -> pd.DataFrame:
     return df.set_index("key")
 
 
-def remove_irrelevant_variables(df: pd.DataFrame, **setup: Any) -> pd.DataFrame:
-    """
-    Remove unused variables from the dataframe.
-    """
-    reduce = df[
-        df["variable_id"].isin(
-            list(setup["sources"].keys())
-            + list(setup.get("relationships", {}).keys())
-            + setup.get("alternate_vars", [])
-            + setup.get("related_vars", [])
-        )
-    ]
-    return reduce
-
-
 def _load_local_assets(
     csv_file: Path, ref_file: Path, com_file: Path
 ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
@@ -296,6 +281,9 @@ def run_single_block(
         )
     ]
 
+    # Add a 'frequency' column if one does not exist
+    comparison_data = ill.add_frequency_column(comparison_data)
+
     # Phase I: loop over each model in the group and run an analysis function
     df_all = []
     ds_com = {}
@@ -324,8 +312,8 @@ def run_single_block(
             except Exception:
                 pass
 
+        # Load the reference data
         try:
-            # Load data and run comparison
             ref = ill.load_reference_data(
                 reference_data,
                 variable,
@@ -333,6 +321,16 @@ def run_single_block(
                 setup["relationships"] if "relationships" in setup else {},
                 transforms=transforms,
             )
+        except Exception:  # pragma: no cover
+            logger.exception(
+                f"ILAMB analysis '{block_name}' failed for '{source_name}' when loading the reference data."
+            )
+            logger.remove(log_id)
+            continue
+
+        # Now that we have the reference data,
+
+        try:
             com = ill.load_comparison_data(
                 grp,
                 variable,

@@ -101,7 +101,7 @@ def _pre_merge(ds: xr.Dataset, keep: list[str]) -> xr.Dataset:
     return ds
 
 
-def _lookup(df: xr.Dataset, key: str) -> list[str]:
+def _lookup(df: pd.DataFrame, key: str) -> list[str]:
     """
     Lookup the key in the dataframe.
 
@@ -273,3 +273,20 @@ def load_comparison_data(
         )
     ds_com = dset.cmip_cell_measures(ds_com, variable_id)
     return ds_com
+
+
+def add_frequency_column(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add a time frequency column if one does not exist using CMIP labels.
+    """
+
+    def _add_frequency(row) -> str:
+        ds = xr.open_dataset(row["path"])
+        if row["frequency"] in list(dset.CMIP_TIME_FREQUENCY.keys()) + ["fx"]:
+            return row["frequency"]
+        return dset.get_frequency_label(ds)
+
+    if "frequency" not in df.columns:
+        df["frequency"] = None
+    df["frequency"] = df.apply(_add_frequency, axis=1)
+    return df
