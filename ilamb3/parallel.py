@@ -52,8 +52,10 @@ def _perform_work_phase1(work, reference_data, output_path):
             run.find_related_variables(
                 analyses, transforms, setup.get("alternate_vars", [])
             )
+            + ["areacella", "sftlf", "areacello", "sftof"]
         )
     ]
+
     # if we didn't find anything, just leave
     if len(grp) < 1:
         return
