@@ -60,6 +60,9 @@ def _perform_work_phase1(work, reference_data, output_path):
     if len(grp) < 1:
         return
 
+    # Add a 'frequency' column if one does not exist
+    grp = ill.add_frequency_column(grp)
+
     # try to run the comparison
     try:
         ref = ill.load_reference_data(
@@ -69,6 +72,15 @@ def _perform_work_phase1(work, reference_data, output_path):
             setup["relationships"] if "relationships" in setup else {},
             transforms=transforms,
         )
+    except Exception:
+        with open(log_file, "a") as log:
+            log.write(
+                f"ILAMB analysis '{block_name}' failed for '{source_name}' when loading reference data on {process_name} ({rank}/{size})\n"
+            )
+            log.write(format_exc())
+        return
+
+    try:
         com = ill.load_comparison_data(
             grp,
             variable,
