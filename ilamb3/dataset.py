@@ -12,6 +12,8 @@ from scipy.interpolate import NearestNDInterpolator
 import ilamb3.regions as ilreg
 from ilamb3.exceptions import NoSiteDimension, NoUncertainty
 
+CMIP_TIME_FREQUENCY = {"3hr": 0.125, "6hr": 0.25, "day": 1.0, "mon": 30.0, "yr": 365.0}
+
 
 def _get_bnds_dims(dset: xr.Dataset | xr.DataArray) -> list[str]:
     """ """
@@ -1149,6 +1151,17 @@ def get_mean_time_frequency(ds: xr.Dataset) -> float:
     """
     tm = compute_time_measures(ds)
     return float(tm.mean())
+
+
+def get_frequency_label(ds: xr.Dataset) -> str | None:
+    """
+    Return the CMIP time frequency label of the dataset.
+    """
+    if not is_temporal(ds):
+        return "fx"
+    dt = get_mean_time_frequency(ds)
+    distance = {key: np.abs(value - dt) for key, value in CMIP_TIME_FREQUENCY.items()}
+    return min(distance, key=distance.get)
 
 
 def compute_monthly_mean(ds: xr.Dataset) -> xr.Dataset:
