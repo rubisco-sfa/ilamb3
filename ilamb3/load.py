@@ -101,7 +101,7 @@ def _pre_merge(ds: xr.Dataset, keep: list[str]) -> xr.Dataset:
     return ds
 
 
-def _lookup(df: xr.Dataset, key: str) -> list[str]:
+def _lookup(df: pd.DataFrame, key: str) -> list[str]:
     """
     Lookup the key in the dataframe.
 
