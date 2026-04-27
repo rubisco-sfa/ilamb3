@@ -1,4 +1,6 @@
-"""Functions for rendering ilamb3 output."""
+"""
+Functions which implement the serial algorithm for running ILAMB.
+"""
 
 import importlib
 import re

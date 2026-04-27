@@ -1,3 +1,7 @@
+"""
+Functions which implement the parallel algorithm for running ILAMB.
+"""
+
 import itertools
 import shutil
 from functools import partial
@@ -19,7 +23,14 @@ import ilamb3.run as run
 
 
 def _perform_work_phase1(work, reference_data, output_path):
-    """ """
+    """
+    Run the first phase of ILAMB where analyses are run and intermediate netCDF
+    and CSV files are generated.
+
+    Note
+    ----
+    This function is called from a MPIThreadPool to achieve parallelism.
+    """
     # unpack work
     setup, grp = work
     block_name = setup["path"].split("/")[-1]
@@ -64,7 +75,7 @@ def _perform_work_phase1(work, reference_data, output_path):
     # Add a 'frequency' column if one does not exist
     grp = ill.add_frequency_column(grp)
 
-    # try to run the comparison
+    # load reference data
     try:
         ref = ill.load_reference_data(
             reference_data,
@@ -81,17 +92,28 @@ def _perform_work_phase1(work, reference_data, output_path):
             log.write(format_exc())
         return
 
-    # Match the reference time frequency if possible
-    cmip_time_lbl = ild.get_frequency_label(ref[variable])
-    grp = ill.match_frequency(grp, cmip_time_lbl)
-
+    # load comparison data
     try:
+        # Match the reference time frequency if possible
+        cmip_time_lbl = ild.get_frequency_label(ref[variable])
+        grp = ill.match_frequency(grp, cmip_time_lbl)
+
         com = ill.load_comparison_data(
             grp,
             variable,
             alternate_vars=setup.get("alternate_vars", []),
             transforms=transforms,
         )
+    except Exception:
+        with open(log_file, "a") as log:
+            log.write(
+                f"ILAMB analysis '{block_name}' failed for '{source_name}' when loading comparison data on {process_name} ({rank}/{size})\n"
+            )
+            log.write(format_exc())
+        return
+
+    # run the analyses
+    try:
         dfs, ds_ref, ds_com = run.run_analyses(ref, com, analyses)
         dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
 
@@ -125,6 +147,14 @@ def _perform_work_phase1(work, reference_data, output_path):
 
 
 def _perform_work_phase2(setup, output_path):
+    """
+    Run the first phase of ILAMB where analyses are run and intermediate netCDF
+    and CSV files are generated.
+
+    Note
+    ----
+    This function is called from a MPIThreadPool to achieve parallelism.
+    """
     # unpack work
     block_name = setup["path"].replace("/", " | ")
     local_path = output_path / setup["path"]
