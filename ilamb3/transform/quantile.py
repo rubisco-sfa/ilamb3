@@ -9,7 +9,7 @@ import xarray as xr
 from ilamb3.transform.base import ILAMBTransform
 
 
-class Quantiles(ILAMBTransform):
+class quantiles(ILAMBTransform):
     """
     Compute quantiles of a variable over one or more dimensions.
 
@@ -29,14 +29,10 @@ class Quantiles(ILAMBTransform):
         self,
         quantiles: float | Sequence[float],
         dims: str | Sequence[str],
-        variable: str,
-        skipna: bool = True,
         keep_attrs: bool = True,
     ):
         self.quantiles = quantiles
         self.dims = dims
-        self.variable = variable
-        self.skipna = skipna
         self.keep_attrs = keep_attrs
 
     def required_variables(self) -> list[str]:
@@ -46,39 +42,33 @@ class Quantiles(ILAMBTransform):
         pass
 
     def __call__(self, ds: xr.Dataset) -> xr.Dataset:
-        if self.variable not in ds:
-            # raise KeyError(f"Variable '{self.variable}' not found in dataset")
-            print(f"Variable '{self.variable}' not found in dataset")
-            return ds
-
-        da = ds[self.variable]
-
+        """
+        Compute quantiles of all varaibles in dataset
+        along dimensions.
+        """
         # normalize dims
         reduce_dims = self.dims if isinstance(self.dims, list) else [self.dims]
 
-        # validate dims
-        missing = [
-            d
-            for d in (reduce_dims if isinstance(reduce_dims, list) else [reduce_dims])
-            if d not in da.dims
-        ]
-        if missing:
-            # raise ValueError(f"Dimension(s) not found in variable: {missing}")
-            print(f"Dimension(s) not found in variable: {missing}")
-            return ds
+        out_vars: dict[str, xr.DataArray] = {}
 
-        quantile_da = da.quantile(
-            q=self.quantiles,
-            dim=reduce_dims,
-            skipna=self.skipna,
-            keep_attrs=self.keep_attrs,
-        )
+        for name, da in ds.data_vars.items():
+            dims_to_use = [d for d in reduce_dims if d in da.dims]
 
-        quantile = quantile_da.to_dataset(name=self.variable)
-        quantile.attrs.update(ds.attrs)
+            if not dims_to_use:
+                continue
 
-        quantile[self.variable].attrs["transform"] = "quantiles"
-        quantile[self.variable].attrs["quantiles"] = self.quantiles
-        quantile[self.variable].attrs["reduced_dims"] = reduce_dims
+            qda = da.quantile(
+                q=self.quantiles,
+                dim=dims_to_use,
+                skipna=True,
+                keep_attrs=self.keep_attrs,
+            )
 
-        return quantile
+            qda.attrs["transform"] = "quantiles"
+            qda.attrs["quantiles"] = self.quantiles
+            qda.attrs["reduced_dims"] = dims_to_use
+
+            out_vars[name] = qda
+
+        ds_quantile = xr.Dataset(out_vars, attrs=ds.attrs)
+        return ds_quantile
