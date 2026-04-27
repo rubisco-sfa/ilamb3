@@ -44,7 +44,9 @@ def parse_registry_keys(config: Path) -> list[str]:
     """
     setup = parse_benchmark_setup(config)
     keys = list(
-        set([val for _, val in flatten_dict(setup).items()]).intersection(
+        set(
+            [val for _, val in flatten_dict(setup).items() if isinstance(val, str)]
+        ).intersection(
             set(
                 ilamb3.ilamb_catalog().registry_files
                 + ilamb3.iomb_catalog().registry_files
