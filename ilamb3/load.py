@@ -290,3 +290,33 @@ def add_frequency_column(df: pd.DataFrame) -> pd.DataFrame:
         df["frequency"] = None
     df["frequency"] = df.apply(_add_frequency, axis=1)
     return df
+
+
+def match_frequency(df: pd.DataFrame, target_frequency: str) -> pd.DataFrame:
+    """
+    Remove rows of the dataframe that do not match the target frequency.
+
+    Note
+    ----
+    This will not completely remove a variable from the dataframe. It only
+    removes additional frequencies so that xr.open_mfdataset does not fail. If
+    your dataframe has `mon` and `6hr` and you ask for `day`, you will get the
+    `6hr` data.
+    """
+    if "frequency" not in df.columns:
+        df = add_frequency_column(df)
+    drop_indices = []
+    for _, grp in df.groupby("variable_id"):
+        freqs = pd.unique(grp["frequency"])
+        # If only 1 time frequency, then we go with that
+        if len(freqs) == 1:
+            continue
+        # Otherwise, find the closest frequency we have and drop others
+        distance = {
+            key: np.abs(value - dset.CMIP_TIME_FREQUENCY[target_frequency])
+            for key, value in dset.CMIP_TIME_FREQUENCY.items()
+        }
+        closest_label = min(distance, key=distance.get)
+        drop_indices += grp[grp["frequency"] != closest_label].index.to_list()
+    df = df.drop(drop_indices)
+    return df

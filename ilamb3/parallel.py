@@ -12,6 +12,7 @@ from mpi4py.futures import MPIPoolExecutor, get_comm_workers
 from tqdm import tqdm
 
 import ilamb3
+import ilamb3.dataset as ild
 import ilamb3.load as ill
 import ilamb3.regions as ilr
 import ilamb3.run as run
@@ -79,6 +80,10 @@ def _perform_work_phase1(work, reference_data, output_path):
             )
             log.write(format_exc())
         return
+
+    # Match the reference time frequency if possible
+    cmip_time_lbl = ild.get_frequency_label(ref[variable])
+    grp = ill.match_frequency(grp, cmip_time_lbl)
 
     try:
         com = ill.load_comparison_data(

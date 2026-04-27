@@ -17,6 +17,7 @@ from loguru import logger
 
 import ilamb3
 import ilamb3.analysis as anl
+import ilamb3.dataset as ild
 import ilamb3.load as ill
 import ilamb3.plot as ilp
 import ilamb3.regions as ilr
@@ -328,8 +329,11 @@ def run_single_block(
             logger.remove(log_id)
             continue
 
-        # Now that we have the reference data,
+        # Match the reference time frequency if possible
+        cmip_time_lbl = ild.get_frequency_label(ref)
+        grp = ill.match_frequency(grp, cmip_time_lbl)
 
+        #
         try:
             com = ill.load_comparison_data(
                 grp,
