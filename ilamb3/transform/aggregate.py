@@ -3,14 +3,14 @@ import re
 from collections.abc import Callable
 from typing import Any
 
-import pint
 import xarray as xr
 
+import ilamb3.dataset as dset
 from ilamb3.transform.base import (
-    _OP_SYMBOLS,
     MIP_FREQ_TO_ALIAS,
+    OP_SYMBOLS,
     ILAMBTransform,
-    _split_by_op,
+    split_by_op,
 )
 
 _RHS_PATTERN = re.compile(
@@ -93,18 +93,6 @@ def _unit_from_rhs(rhs: str) -> tuple[str, str]:
     return constant, unit
 
 
-def _convert_unit(da: xr.DataArray, target_unit: str) -> xr.DataArray:
-    """
-    Convert a DataArray to the target unit using xarray's pint integration.
-    """
-    try:
-        return da.pint.to(target_unit).pint.dequantify()
-    except (pint.DimensionalityError, pint.UndefinedUnitError) as e:
-        raise ValueError(
-            f"Error converting variable {da.name!r} to target unit {target_unit!r}: {e}"
-        ) from e
-
-
 class agg_time_on_condition(ILAMBTransform):
     """
     Aggregate a per-timestep condition along the time dimension.
@@ -155,10 +143,10 @@ class agg_time_on_condition(ILAMBTransform):
         variable_cmap: Blues
         transforms:
         - agg_time_on_condition:
-            condname: wet_days
+            condname: wet_months
             cond: "pr >= 1 [mm/day]"
             agg: sum
-            freq: mon
+            freq: year
 
     """
 
@@ -170,7 +158,7 @@ class agg_time_on_condition(ILAMBTransform):
         freq: str,
     ):
         # Parse and validate attributes
-        lhs, op, rhs = _split_by_op(cond)
+        lhs, op, rhs = split_by_op(cond)
         constant, unit = _unit_from_rhs(rhs)
 
         # Ensure the operator is sum or mean
@@ -196,7 +184,7 @@ class agg_time_on_condition(ILAMBTransform):
         self._freq_alias = MIP_FREQ_TO_ALIAS[freq]
         self._op_name = op
         self._op_func = _OP_FUNCS[op]
-        self._op_symbol = _OP_SYMBOLS[op]
+        self._op_symbol = OP_SYMBOLS[op]
 
     def required_variables(self) -> list[str]:
         return [self.var]
@@ -208,11 +196,12 @@ class agg_time_on_condition(ILAMBTransform):
             return ds
 
         # Convert the input variable to the target unit
-        da_converted = _convert_unit(ds[self.var], self.unit)
+        da_converted = dset.convert(ds[self.var], self.unit)
 
         # Evaluate the condition at every timestep, resample, and reduce
         condition_met = self._op_func(da_converted, float(self.constant))
-        resampled = condition_met.resample(time=self._freq_alias)
+        time_dim = dset.get_dim_name(da_converted, "time")
+        resampled = condition_met.resample({time_dim: self._freq_alias})
         result = getattr(resampled, self.agg)()
 
         # Assign new attrs to the resultant variable, describing the transformation
@@ -225,4 +214,4 @@ class agg_time_on_condition(ILAMBTransform):
             "units": self.unit,
         }
 
-        return ds.assign({self.condname: result})
+        return ds.drop_dims(time_dim).assign({self.condname: result})

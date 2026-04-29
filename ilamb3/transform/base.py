@@ -58,7 +58,7 @@ MIP_FREQ_TO_ALIAS = {
 # Expression operators mapped to their Python operator names
 OPERATORS = ("lt", "le", "eq", "ne", "ge", "gt")
 MATH_MAP = {"<=": "le", ">=": "ge", "==": "eq", "!=": "ne", "<": "lt", ">": "gt"}
-_OP_SYMBOLS = {v: k for k, v in MATH_MAP.items()}
+OP_SYMBOLS = {v: k for k, v in MATH_MAP.items()}
 
 # Word-boundary-aware match for textual operators in either ' lt ' or '.lt.' form.
 # Using \b avoids false hits on 'lt' inside identifiers like 'lt_value' or 'altitude'.
@@ -73,7 +73,7 @@ _MATH_OP_RE = re.compile(
 )
 
 
-def _split_by_op(condition: str) -> tuple[str, str, str]:
+def split_by_op(condition: str) -> tuple[str, str, str]:
     """
     Parse a condition string into ``(lhs, operator_name, rhs)``.
 

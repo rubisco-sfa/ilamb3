@@ -1,5 +1,6 @@
 import inspect
 
+from ilamb3.transform.aggregate import agg_time_on_condition  # noqa
 from ilamb3.transform.amoc import msftmz_to_rapid  # noqa
 from ilamb3.transform.base import ILAMBTransform
 from ilamb3.transform.expression import expression  # noqa

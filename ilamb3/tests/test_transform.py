@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
+import ilamb3.transform.aggregate as agg
 from ilamb3.tests.test_run import generate_test_dset
 from ilamb3.transform import ALL_TRANSFORMS
 
@@ -122,6 +123,9 @@ DATA = {
     "mask_condition": generate_test_dset(
         "hfls", "W m-2", nyear=2, nlat=2, nlon=4, scale=200.0, shift=-100.0
     ),
+    "agg_time_on_condition": generate_test_dset(
+        "pr", "kg m-2 s-1", nyear=3, nlat=2, nlon=4, scale=5e-4, shift=0.0
+    ),
 }
 
 
@@ -143,6 +147,17 @@ DATA = {
         ),
         ("expression", {"expr": "net_rs = rsds - rsus"}, "net_rs", 72.64174767520022),
         ("mask_condition", {"condition": "hfls < 0"}, "hfls", 48.61691532636269),
+        (
+            "agg_time_on_condition",
+            {
+                "condname": "wet_months",
+                "cond": "pr > 4 [mm d-1]",
+                "agg": "sum",
+                "freq": "yr",
+            },
+            "wet_months",
+            10.708333333333334,
+        ),
     ],
 )
 def test_transform(name, kwargs, out, value):
@@ -170,11 +185,19 @@ def test_integrate_common(name, out):
     for var in [out, out_list]:
         # Test mean=False (sum)
         transform = ALL_TRANSFORMS[name](varname=var, mean=False)
-        integral = transform(list_ds.copy()) if isinstance(var, list) else transform(original_ds.copy()) 
+        integral = (
+            transform(list_ds.copy())
+            if isinstance(var, list)
+            else transform(original_ds.copy())
+        )
 
         # Test mean=True (mean)
         transform_mean = ALL_TRANSFORMS[name](varname=var, mean=True)
-        integral_mean = transform_mean(list_ds.copy()) if isinstance(var, list) else transform_mean(original_ds.copy())
+        integral_mean = (
+            transform_mean(list_ds.copy())
+            if isinstance(var, list)
+            else transform_mean(original_ds.copy())
+        )
 
         # Dim(s) should be removed for spatial integration
         if name == "integrate_space":
@@ -195,3 +218,20 @@ def test_integrate_common(name, out):
 
         # Sum and Mean values should differ
         assert not np.allclose(integral[out].values, integral_mean[out].values)
+
+
+@pytest.mark.parametrize(
+    "rhs,constant,unit",
+    [
+        pytest.param("1", None, None, marks=pytest.mark.xfail),
+        pytest.param("1 (mm d-1)", None, None, marks=pytest.mark.xfail),
+        pytest.param("1 {mm d-1}", None, None, marks=pytest.mark.xfail),
+        pytest.param("1[mm d-1]", None, None, marks=pytest.mark.xfail),
+        pytest.param("[mm d-1]", None, None, marks=pytest.mark.xfail),
+        pytest.param("1 [mm d-1]", 1, "mm d-1"),
+    ],
+)
+def test_unit_from_rhs(rhs, constant, unit):
+    c, u = agg._unit_from_rhs(rhs)
+    assert np.allclose(float(c), constant)
+    assert u == unit

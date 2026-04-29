@@ -4,7 +4,7 @@ from typing import Any
 import numpy as np
 import xarray as xr
 
-from ilamb3.transform.base import ILAMBTransform, _split_by_op
+from ilamb3.transform.base import ILAMBTransform, split_by_op
 
 
 class mask_condition(ILAMBTransform):
@@ -31,7 +31,7 @@ class mask_condition(ILAMBTransform):
         condition: str,
         **kwargs: Any,
     ):
-        lhs, op, rhs = _split_by_op(condition)
+        lhs, op, rhs = split_by_op(condition)
         self.lhs = lhs
         self.rhs = float(rhs)
         self.operator = getattr(operator, op)
