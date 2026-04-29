@@ -6,6 +6,7 @@ from ilamb3.transform.label import apply_label
 from ilamb3.transform.mask import mask_condition
 from ilamb3.transform.ohc import ocean_heat_content
 from ilamb3.transform.permafrost import active_layer_thickness, permafrost_extent
+from ilamb3.transform.quantile import quantile
 from ilamb3.transform.runoff_sensitivity import runoff_sensitivity
 from ilamb3.transform.select import select_depth, select_lat, select_lon, select_time
 from ilamb3.transform.soilmoisture import soil_moisture_to_vol_fraction
@@ -16,9 +17,14 @@ ALL_TRANSFORMS = {
     "apply_label": apply_label,
     "depth_gradient": depth_gradient,
     "expression": expression,
+    "integrate_depth": integrate_depth,
+    "integrate_space": integrate_space,
+    "integrate_time": integrate_time,
+    "mask_condition": mask_condition,
     "msftmz_to_rapid": msftmz_to_rapid,
     "ocean_heat_content": ocean_heat_content,
     "permafrost_extent": permafrost_extent,
+    "quantile": quantile,
     "runoff_sensitivity": runoff_sensitivity,
     "select_depth": select_depth,
     "select_lat": select_lat,
@@ -26,9 +32,5 @@ ALL_TRANSFORMS = {
     "select_time": select_time,
     "soil_moisture_to_vol_fraction": soil_moisture_to_vol_fraction,
     "stratification_index": stratification_index,
-    "integrate_time": integrate_time,
-    "integrate_depth": integrate_depth,
-    "integrate_space": integrate_space,
-    "mask_condition": mask_condition,
 }
 __all__ = list(ALL_TRANSFORMS.keys())

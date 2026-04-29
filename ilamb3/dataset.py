@@ -125,6 +125,15 @@ def get_coord_name(
     return str(coord_name.pop())
 
 
+def get_all_bounds_vars(ds: xr.Dataset) -> list[str]:
+    """
+    Return the data variables that are listed as 'bounds' in the dimensions.
+    """
+    possible_bounds = [ds[d].attrs.get("bounds") for d in ds.dims if d in ds]
+    bounds = [b for b in possible_bounds if b is not None and b in ds]
+    return bounds
+
+
 def is_temporal(da: xr.DataArray) -> bool:
     """
     Return if the dataarray is temporal.

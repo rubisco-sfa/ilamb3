@@ -6,7 +6,6 @@ import xarray as xr
 from ilamb3.tests.test_run import generate_test_dset
 from ilamb3.transform import ALL_TRANSFORMS
 
-ALL_TRANSFORMS
 PYTHON_VARIABLE = r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"
 
 
@@ -122,6 +121,9 @@ DATA = {
     "mask_condition": generate_test_dset(
         "hfls", "W m-2", nyear=2, nlat=2, nlon=4, scale=200.0, shift=-100.0
     ),
+    "quantile": generate_test_dset(
+        "gpp", "g m-2 d-1", nyear=2, nlat=2, nlon=4, scale=4
+    ),
 }
 
 
@@ -143,6 +145,12 @@ DATA = {
         ),
         ("expression", {"expr": "net_rs = rsds - rsus"}, "net_rs", 72.64174767520022),
         ("mask_condition", {"condition": "hfls < 0"}, "hfls", 48.61691532636269),
+        (
+            "quantile",
+            {"quantiles": [0.25, 0.75], "dims": "time"},
+            "gpp",
+            1.900311397084699,
+        ),
     ],
 )
 def test_transform(name, kwargs, out, value):
@@ -170,11 +178,19 @@ def test_integrate_common(name, out):
     for var in [out, out_list]:
         # Test mean=False (sum)
         transform = ALL_TRANSFORMS[name](varname=var, mean=False)
-        integral = transform(list_ds.copy()) if isinstance(var, list) else transform(original_ds.copy()) 
+        integral = (
+            transform(list_ds.copy())
+            if isinstance(var, list)
+            else transform(original_ds.copy())
+        )
 
         # Test mean=True (mean)
         transform_mean = ALL_TRANSFORMS[name](varname=var, mean=True)
-        integral_mean = transform_mean(list_ds.copy()) if isinstance(var, list) else transform_mean(original_ds.copy())
+        integral_mean = (
+            transform_mean(list_ds.copy())
+            if isinstance(var, list)
+            else transform_mean(original_ds.copy())
+        )
 
         # Dim(s) should be removed for spatial integration
         if name == "integrate_space":
