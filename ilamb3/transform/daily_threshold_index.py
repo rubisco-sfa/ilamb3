@@ -236,7 +236,7 @@ class get_wet_days(daily_threshold_index):
 
 class get_summer_days(daily_threshold_index):
     """
-    Count of days with daily maximum temperature > 25 degC.
+    Count of days with daily maximum temperature >= 25 degC.
 
     Sub-daily temperature input is reduced to a daily maximum before the threshold is
     applied, so the transform accepts any cadence from sub-hourly through daily. Monthly

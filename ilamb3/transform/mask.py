@@ -4,8 +4,7 @@ from typing import Any
 import numpy as np
 import xarray as xr
 
-from ilamb3.transform.base import ILAMBTransform
-from ilamb3.transform.condition import _split_by_op
+from ilamb3.transform.base import ILAMBTransform, _split_by_op
 
 
 class mask_condition(ILAMBTransform):
