@@ -28,11 +28,11 @@ After you have learned the basics, examples of more advanced usage.
 :::
 
 :::{card} 🤿 Deep dive
-:link: ./datasets.md
+:link: ./deep_dive.md
 Expanded descriptions of how key functionality works in the `ilamb3` internals.
 - Datasets package
 - Compare package
-- Transforms
+- [Transforms](transforms)
 - Analysis class
 - Meta analysis
 :::
