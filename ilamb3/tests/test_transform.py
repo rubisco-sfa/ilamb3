@@ -148,7 +148,7 @@ DATA = {
         (
             "quantile",
             {"quantiles": [0.25, 0.75], "dims": "time"},
-            "gpp",
+            "gpp_quantile",
             1.900311397084699,
         ),
     ],

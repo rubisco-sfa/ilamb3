@@ -48,7 +48,8 @@ class quantile(ILAMBTransform):
         for name, da in ds.data_vars.items():
             if not set(reduce_dims).issubset(da.dims) or name in bounds_vars:
                 continue
-            ds[name] = da.quantile(q=self.quantiles, dim=reduce_dims)
-            ds[name].attrs["transform"] = "quantiles"
-            ds[name].attrs["reduced_dims"] = reduce_dims
+            qname = f"{name}_quantile"
+            ds[qname] = da.quantile(q=self.quantiles, dim=reduce_dims)
+            ds[qname].attrs["transform"] = "quantiles"
+            ds[qname].attrs["reduced_dims"] = reduce_dims
         return ds
