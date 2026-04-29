@@ -52,19 +52,3 @@ class quantile(ILAMBTransform):
             ds[name].attrs["transform"] = "quantiles"
             ds[name].attrs["reduced_dims"] = reduce_dims
         return ds
-
-
-"""
-- I have removed Sequence because strings are also sequences...
-- We also cast tihngs as lists, let's just make the types lists especially since they will be imported from yamls
-- I moved the checking if things are a list to the constructor and added one for quantiles also
-- I added a empty list to `required_variables()` instead of pass
-- I added calls to ilamb3.dataset.get_dim_name for each dim
-- It isn't necessary to store the quantiles because they will be a dimension in the returned dataset
-- I dropped the 's' from quantiles so it matches the name of the file. Eventually we may want to load transforms programmatically and this may be helpful.
-- We want the transform to work slightly differently, only working on arrays that have all the dimensions. This will make it skip bounds variables but also leave them there.
-- Let's detect if the data variables are actually bounds of some dims and also skip these.
-- We will just overwrite the dataset array if it qualifies for quantiles
-- In the first version of the tutorial, I didn't have the bit about how to add this transform to the library. This has been added in __init__.
-- I added a basic test
-"""
