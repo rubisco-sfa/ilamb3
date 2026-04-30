@@ -198,10 +198,6 @@ class get_wet_days(daily_threshold_index):
 
     Parameters
     ----------
-    condname : str, optional
-        Output variable name. Default ``"wet_days"``.
-    var : str, optional
-        Input variable name. Default ``"pr"``.
     freq : str, optional
         MIP frequency to resample the count to. Default ``"mon"``.
     agg : str, optional
@@ -220,14 +216,12 @@ class get_wet_days(daily_threshold_index):
 
     def __init__(
         self,
-        condname: str = "wet_days",
-        var: str = "pr",
         freq: str = "mon",
         agg: str = "sum",
     ):
         super().__init__(
-            condname=condname,
-            var=var,
+            condname="wet_days",
+            var="pr",
             threshold="1 [mm/day]",
             operator=">=",
             daily_reduction="mean",
@@ -246,10 +240,6 @@ class get_summer_days(daily_threshold_index):
 
     Parameters
     ----------
-    condname : str, optional
-        Output variable name. Default ``"summer_days"``.
-    var : str, optional
-        Input variable name. Default ``"tasmax"``.
     freq : str, optional
         MIP frequency to resample the count to. Default ``"mon"``.
     agg : str, optional
@@ -268,14 +258,12 @@ class get_summer_days(daily_threshold_index):
 
     def __init__(
         self,
-        condname: str = "summer_days",
-        var: str = "tasmax",
         freq: str = "mon",
         agg: str = "sum",
     ):
         super().__init__(
-            condname=condname,
-            var=var,
+            condname="summer_days",
+            var="tasmax",
             threshold="25 [degC]",
             operator=">=",
             daily_reduction="max",
@@ -294,10 +282,6 @@ class get_ice_days(daily_threshold_index):
 
     Parameters
     ----------
-    condname : str, optional
-        Output variable name. Default ``"ice_days"``.
-    var : str, optional
-        Input variable name. Default ``"tasmax"``.
     freq : str, optional
         MIP frequency to resample the count to. Default ``"mon"``.
     agg : str, optional
@@ -316,14 +300,12 @@ class get_ice_days(daily_threshold_index):
 
     def __init__(
         self,
-        condname: str = "ice_days",
-        var: str = "tasmax",
         freq: str = "mon",
         agg: str = "sum",
     ):
         super().__init__(
-            condname=condname,
-            var=var,
+            condname="ice_days",
+            var="tasmax",
             threshold="0 [degC]",
             operator="<",
             daily_reduction="max",
@@ -342,10 +324,6 @@ class get_tropical_nights(daily_threshold_index):
 
     Parameters
     ----------
-    condname : str, optional
-        Output variable name. Default ``"tropical_nights"``.
-    var : str, optional
-        Input variable name. Default ``"tasmin"``.
     freq : str, optional
         MIP frequency to resample the count to. Default ``"mon"``.
     agg : str, optional
@@ -364,14 +342,12 @@ class get_tropical_nights(daily_threshold_index):
 
     def __init__(
         self,
-        condname: str = "tropical_nights",
-        var: str = "tasmin",
         freq: str = "mon",
         agg: str = "sum",
     ):
         super().__init__(
-            condname=condname,
-            var=var,
+            condname="tropical_nights",
+            var="tasmin",
             threshold="20 [degC]",
             operator=">",
             daily_reduction="min",
@@ -390,10 +366,6 @@ class get_frost_days(daily_threshold_index):
 
     Parameters
     ----------
-    condname : str, optional
-        Output variable name. Default ``"frost_days"``.
-    var : str, optional
-        Input variable name. Default ``"tasmin"``.
     freq : str, optional
         MIP frequency to resample the count to. Default ``"mon"``.
     agg : str, optional
@@ -412,14 +384,12 @@ class get_frost_days(daily_threshold_index):
 
     def __init__(
         self,
-        condname: str = "frost_days",
-        var: str = "tasmin",
         freq: str = "mon",
         agg: str = "sum",
     ):
         super().__init__(
-            condname=condname,
-            var=var,
+            condname="frost_days",
+            var="tasmin",
             threshold="0 [degC]",
             operator="<",
             daily_reduction="min",
