@@ -1,4 +1,5 @@
 import warnings
+from typing import Literal, TypeAlias, get_args
 
 import pandas as pd
 import xarray as xr
@@ -9,11 +10,11 @@ from ilamb3.transform.aggregate import agg_time_on_condition
 # Distinct from condition_aggregator._VALID_AGG (sum, mean) because the
 # operations are different: here we're reducing physical values (mean for
 # fluxes, max/min for extremes), not counting boolean hits.
-_VALID_DAILY_REDUCTION = ("mean", "max", "min", "sum")
+DailyReductionType: TypeAlias = Literal["mean", "max", "min", "sum"]
 _SECONDS_PER_DAY = 86_400
 
 
-def _ensure_daily(da: xr.DataArray, reduction: str) -> xr.DataArray:
+def _ensure_daily(da: xr.DataArray, reduction: DailyReductionType) -> xr.DataArray:
     """
     Return ``da`` at daily cadence, reducing sub-daily input via ``reduction``.
 
@@ -21,10 +22,11 @@ def _ensure_daily(da: xr.DataArray, reduction: str) -> xr.DataArray:
     from monthly (or coarser) means.
     """
     # Validate reduction method before doing any work
-    if reduction not in _VALID_DAILY_REDUCTION:
+    valid_daily_reduction_types = list(get_args(DailyReductionType))
+    if reduction not in valid_daily_reduction_types:
         raise ValueError(
             f"Invalid daily reduction {reduction!r}. Must be one of "
-            f"{list(_VALID_DAILY_REDUCTION)}."
+            f"{valid_daily_reduction_types}."
         )
 
     # Infer the input cadence. If we can't infer it, warn and pass through
