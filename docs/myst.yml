@@ -22,6 +22,10 @@ project:
         - file: intake.md
         - file: organize.md
         - file: global_options.md
+    - title: Deep Dive
+      file: deep_dive.md
+      children:
+        - file: transforms.md
 site:
   template: book-theme
   options:

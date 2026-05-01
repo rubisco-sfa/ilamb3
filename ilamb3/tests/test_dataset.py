@@ -211,3 +211,9 @@ def test_cell_measures():
     ds["lat"].attrs["bounds"] = "lat_bnds"
     ds["lon"].attrs["bounds"] = "lon_bnds"
     assert np.allclose(dset.compute_cell_measures(ds).mean(), 2.83369151e13)
+
+
+def test_get_frequency_label():
+    ds = generate_test_dset()
+    lbl = dset.get_frequency_label(ds)
+    assert lbl == "mon"
