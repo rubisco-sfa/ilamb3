@@ -281,13 +281,16 @@ def add_frequency_column(df: pd.DataFrame) -> pd.DataFrame:
     """
 
     def _add_frequency(row) -> str:
-        if row["frequency"] in list(dset.CMIP_TIME_FREQUENCY.keys()) + ["fx"]:
+        if "frequency" in row and row["frequency"] in (
+            list(dset.CMIP_TIME_FREQUENCY.keys())
+            + [
+                "fx",
+            ]
+        ):
             return row["frequency"]
         ds = xr.open_dataset(row["path"])
         return dset.get_frequency_label(ds)
 
-    if "frequency" not in df.columns:
-        df["frequency"] = None
     df["frequency"] = df.apply(_add_frequency, axis=1)
     return df
 

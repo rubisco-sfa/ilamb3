@@ -7,6 +7,7 @@ import pooch
 import typer
 
 import ilamb3
+import ilamb3.load as ill
 import ilamb3.meta as meta
 import ilamb3.regions as ilr
 from ilamb3.run import parse_benchmark_setup, run_study
@@ -166,6 +167,7 @@ def run(
             f"Some of the reference data keys you specify in {config=} is not locally available: {list(df_ref[df_ref['path'].isnull()].index)}.\nRun `ilamb fetch {config}` to download files locally."
         )
     df_com = pd.concat([pd.read_csv(f) for f in model_db])
+    df_com = ill.add_frequency_column(df_com)
 
     # execute
     if HAS_MPI4PY:

@@ -72,9 +72,6 @@ def _perform_work_phase1(work, reference_data, output_path):
     if len(grp) < 1:
         return
 
-    # Add a 'frequency' column if one does not exist
-    grp = ill.add_frequency_column(grp)
-
     # load reference data
     try:
         ref = ill.load_reference_data(
