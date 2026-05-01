@@ -1,7 +1,16 @@
 import inspect
 
+from ilamb3.transform.aggregate import agg_time_on_condition  # noqa
 from ilamb3.transform.amoc import msftmz_to_rapid  # noqa
 from ilamb3.transform.base import ILAMBTransform
+from ilamb3.transform.daily_threshold_index import (  # noqa
+    count_frost_days,
+    count_ice_days,
+    count_summer_days,
+    count_tropical_nights,
+    count_wet_days,
+    daily_threshold_index,
+)
 from ilamb3.transform.expression import expression  # noqa
 from ilamb3.transform.gradient import depth_gradient  # noqa
 from ilamb3.transform.integrate import (  # noqa
