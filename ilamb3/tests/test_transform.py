@@ -2,6 +2,7 @@ from datetime import datetime
 
 import cftime as cf
 import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 
@@ -76,6 +77,26 @@ def gen_permafrost_dset(seed: int = 1):
     return ds
 
 
+def gen_daily_ds(
+    name: str, unit: str, scale: float = 1.0, shift: float = 0.0, seed: int = 0
+) -> xr.Dataset:
+    rs = np.random.RandomState(seed)
+    ds = xr.Dataset(
+        data_vars={
+            name: xr.DataArray(
+                rs.rand(365) * scale + shift,
+                coords={
+                    "time": pd.date_range(start="2000-01-01", periods=365, freq="D")
+                },
+                dims=["time"],
+                name=name,
+                attrs={"units": unit},
+            ),
+        }
+    )
+    return ds
+
+
 # Synthetic datasets for testing
 DATA = {
     "soil_moisture_to_vol_fraction": generate_test_dset(
@@ -129,6 +150,11 @@ DATA = {
     "agg_time_on_condition": generate_test_dset(
         "pr", "kg m-2 s-1", nyear=3, nlat=2, nlon=4, scale=5e-4, shift=0.0
     ),
+    "count_frost_days": gen_daily_ds("tasmin", "degC", scale=10.0, shift=-5.0),
+    "count_ice_days": gen_daily_ds("tasmax", "degC", scale=10.0, shift=-5.0),
+    "count_summer_days": gen_daily_ds("tasmax", "degC", scale=30.0),
+    "count_tropical_nights": gen_daily_ds("tasmin", "degC", scale=30.0),
+    "count_wet_days": gen_daily_ds("pr", "mm d-1", scale=2.0),
 }
 
 
@@ -161,6 +187,11 @@ DATA = {
             "wet_months",
             10.708333333333334,
         ),
+        ("count_frost_days", {}, "frost_days", 15.166666666666666),
+        ("count_ice_days", {}, "ice_days", 15.166666666666666),
+        ("count_summer_days", {}, "summer_days", 4.75),
+        ("count_tropical_nights", {}, "tropical_nights", 9.833333333333334),
+        ("count_wet_days", {}, "wet_days", 15.25),
     ],
 )
 def test_transform(name, kwargs, out, value):

@@ -4,6 +4,7 @@ from typing import Literal, TypeAlias, get_args
 import pandas as pd
 import xarray as xr
 
+import ilamb3.dataset as dset
 from ilamb3.transform.aggregate import agg_time_on_condition
 
 # How to reduce sub-daily input to daily before applying the threshold.
@@ -179,10 +180,11 @@ class daily_threshold_index(agg_time_on_condition):
 
         # Run the parent transform on a minimal dataset, then merge the output back
         result_ds = super().__call__(xr.Dataset({self.var: daily_da}))
-        return ds.assign({self.condname: result_ds[self.condname]})
+        time_dim = dset.get_dim_name(result_ds, "time")
+        return ds.drop_dims(time_dim).assign({self.condname: result_ds[self.condname]})
 
 
-class get_wet_days(daily_threshold_index):
+class count_wet_days(daily_threshold_index):
     """
     Count of days with daily precipitation >= 1 mm/day.
 
@@ -224,7 +226,7 @@ class get_wet_days(daily_threshold_index):
         )
 
 
-class get_summer_days(daily_threshold_index):
+class count_summer_days(daily_threshold_index):
     """
     Count of days with daily maximum temperature >= 25 degC.
 
@@ -266,7 +268,7 @@ class get_summer_days(daily_threshold_index):
         )
 
 
-class get_ice_days(daily_threshold_index):
+class count_ice_days(daily_threshold_index):
     """
     Count of days with daily maximum temperature < 0 degC.
 
@@ -308,7 +310,7 @@ class get_ice_days(daily_threshold_index):
         )
 
 
-class get_tropical_nights(daily_threshold_index):
+class count_tropical_nights(daily_threshold_index):
     """
     Count of days with daily minimum temperature > 20 degC.
 
@@ -350,7 +352,7 @@ class get_tropical_nights(daily_threshold_index):
         )
 
 
-class get_frost_days(daily_threshold_index):
+class count_frost_days(daily_threshold_index):
     """
     Count of days with daily minimum temperature < 0 degC.
 

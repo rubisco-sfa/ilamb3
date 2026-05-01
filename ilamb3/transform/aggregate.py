@@ -213,5 +213,4 @@ class agg_time_on_condition(ILAMBTransform):
             "standard_name": self.condname,
             "units": self.unit,
         }
-
         return ds.drop_dims(time_dim).assign({self.condname: result})
