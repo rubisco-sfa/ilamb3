@@ -34,6 +34,7 @@ from ilamb3.transform.select import (  # noqa
 )
 from ilamb3.transform.soilmoisture import soil_moisture_to_vol_fraction  # noqa
 from ilamb3.transform.stratification_index import stratification_index  # noqa
+from ilamb3.transform.quantile import quantile # noqa
 
 ALL_TRANSFORMS = {
     key: fnc

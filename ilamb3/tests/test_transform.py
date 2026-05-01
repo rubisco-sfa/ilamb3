@@ -11,7 +11,6 @@ from ilamb3.tests.test_run import generate_test_dset
 from ilamb3.transform import ALL_TRANSFORMS
 from ilamb3.transform.daily_threshold_index import _ensure_daily
 
-ALL_TRANSFORMS
 PYTHON_VARIABLE = r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"
 
 
@@ -147,6 +146,9 @@ DATA = {
     "mask_condition": generate_test_dset(
         "hfls", "W m-2", nyear=2, nlat=2, nlon=4, scale=200.0, shift=-100.0
     ),
+    "quantile": generate_test_dset(
+        "gpp", "g m-2 d-1", nyear=2, nlat=2, nlon=4, scale=4
+    ),
     "agg_time_on_condition": generate_test_dset(
         "pr", "kg m-2 s-1", nyear=3, nlat=2, nlon=4, scale=5e-4, shift=0.0
     ),
@@ -177,7 +179,12 @@ DATA = {
         ("expression", {"expr": "net_rs = rsds - rsus"}, "net_rs", 72.64174767520022),
         ("mask_condition", {"condition": "hfls < 0"}, "hfls", 48.61691532636269),
         (
-            "agg_time_on_condition",
+            "quantile",
+            {"quantiles": [0.25, 0.75], "dims": "time"},
+            "gpp_quantile",
+            1.900311397084699,
+        ),
+        ("agg_time_on_condition",
             {
                 "condname": "wet_months",
                 "cond": "pr > 4 [mm d-1]",
