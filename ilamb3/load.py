@@ -281,9 +281,9 @@ def add_frequency_column(df: pd.DataFrame) -> pd.DataFrame:
     """
 
     def _add_frequency(row) -> str:
-        ds = xr.open_dataset(row["path"])
         if row["frequency"] in list(dset.CMIP_TIME_FREQUENCY.keys()) + ["fx"]:
             return row["frequency"]
+        ds = xr.open_dataset(row["path"])
         return dset.get_frequency_label(ds)
 
     if "frequency" not in df.columns:
@@ -295,6 +295,9 @@ def add_frequency_column(df: pd.DataFrame) -> pd.DataFrame:
 def match_frequency(df: pd.DataFrame, target_frequency: str) -> pd.DataFrame:
     """
     Remove rows of the dataframe that do not match the target frequency.
+
+    This function assumes that the input dataframe has already been reduced to a
+    single model's output.
 
     Note
     ----
