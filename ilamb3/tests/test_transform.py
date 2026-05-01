@@ -1,10 +1,15 @@
+from datetime import datetime
+
 import cftime as cf
 import numpy as np
+import pandas as pd
 import pytest
 import xarray as xr
 
+import ilamb3.transform.aggregate as agg
 from ilamb3.tests.test_run import generate_test_dset
 from ilamb3.transform import ALL_TRANSFORMS
+from ilamb3.transform.daily_threshold_index import _ensure_daily
 
 ALL_TRANSFORMS
 PYTHON_VARIABLE = r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"
@@ -72,6 +77,26 @@ def gen_permafrost_dset(seed: int = 1):
     return ds
 
 
+def gen_daily_ds(
+    name: str, unit: str, scale: float = 1.0, shift: float = 0.0, seed: int = 0
+) -> xr.Dataset:
+    rs = np.random.RandomState(seed)
+    ds = xr.Dataset(
+        data_vars={
+            name: xr.DataArray(
+                rs.rand(365) * scale + shift,
+                coords={
+                    "time": pd.date_range(start="2000-01-01", periods=365, freq="D")
+                },
+                dims=["time"],
+                name=name,
+                attrs={"units": unit},
+            ),
+        }
+    )
+    return ds
+
+
 # Synthetic datasets for testing
 DATA = {
     "soil_moisture_to_vol_fraction": generate_test_dset(
@@ -122,6 +147,14 @@ DATA = {
     "mask_condition": generate_test_dset(
         "hfls", "W m-2", nyear=2, nlat=2, nlon=4, scale=200.0, shift=-100.0
     ),
+    "agg_time_on_condition": generate_test_dset(
+        "pr", "kg m-2 s-1", nyear=3, nlat=2, nlon=4, scale=5e-4, shift=0.0
+    ),
+    "count_frost_days": gen_daily_ds("tasmin", "degC", scale=10.0, shift=-5.0),
+    "count_ice_days": gen_daily_ds("tasmax", "degC", scale=10.0, shift=-5.0),
+    "count_summer_days": gen_daily_ds("tasmax", "degC", scale=30.0),
+    "count_tropical_nights": gen_daily_ds("tasmin", "degC", scale=30.0),
+    "count_wet_days": gen_daily_ds("pr", "mm d-1", scale=2.0),
 }
 
 
@@ -143,6 +176,22 @@ DATA = {
         ),
         ("expression", {"expr": "net_rs = rsds - rsus"}, "net_rs", 72.64174767520022),
         ("mask_condition", {"condition": "hfls < 0"}, "hfls", 48.61691532636269),
+        (
+            "agg_time_on_condition",
+            {
+                "condname": "wet_months",
+                "cond": "pr > 4 [mm d-1]",
+                "agg": "sum",
+                "freq": "yr",
+            },
+            "wet_months",
+            10.708333333333334,
+        ),
+        ("count_frost_days", {}, "frost_days", 15.166666666666666),
+        ("count_ice_days", {}, "ice_days", 15.166666666666666),
+        ("count_summer_days", {}, "summer_days", 4.75),
+        ("count_tropical_nights", {}, "tropical_nights", 9.833333333333334),
+        ("count_wet_days", {}, "wet_days", 15.25),
     ],
 )
 def test_transform(name, kwargs, out, value):
@@ -170,11 +219,19 @@ def test_integrate_common(name, out):
     for var in [out, out_list]:
         # Test mean=False (sum)
         transform = ALL_TRANSFORMS[name](varname=var, mean=False)
-        integral = transform(list_ds.copy()) if isinstance(var, list) else transform(original_ds.copy()) 
+        integral = (
+            transform(list_ds.copy())
+            if isinstance(var, list)
+            else transform(original_ds.copy())
+        )
 
         # Test mean=True (mean)
         transform_mean = ALL_TRANSFORMS[name](varname=var, mean=True)
-        integral_mean = transform_mean(list_ds.copy()) if isinstance(var, list) else transform_mean(original_ds.copy())
+        integral_mean = (
+            transform_mean(list_ds.copy())
+            if isinstance(var, list)
+            else transform_mean(original_ds.copy())
+        )
 
         # Dim(s) should be removed for spatial integration
         if name == "integrate_space":
@@ -195,3 +252,61 @@ def test_integrate_common(name, out):
 
         # Sum and Mean values should differ
         assert not np.allclose(integral[out].values, integral_mean[out].values)
+
+
+@pytest.mark.parametrize(
+    "rhs,constant,unit",
+    [
+        pytest.param("1", None, None, marks=pytest.mark.xfail),
+        pytest.param("1 (mm d-1)", None, None, marks=pytest.mark.xfail),
+        pytest.param("1 {mm d-1}", None, None, marks=pytest.mark.xfail),
+        pytest.param("1[mm d-1]", None, None, marks=pytest.mark.xfail),
+        pytest.param("[mm d-1]", None, None, marks=pytest.mark.xfail),
+        pytest.param("1 [mm d-1]", 1, "mm d-1"),
+    ],
+)
+def test_unit_from_rhs(rhs, constant, unit):
+    c, u = agg._unit_from_rhs(rhs)
+    assert np.allclose(float(c), constant)
+    assert u == unit
+
+
+@pytest.mark.parametrize(
+    "calendar",
+    [
+        cf.DatetimeProlepticGregorian,
+        cf.Datetime360Day,
+        cf.DatetimeAllLeap,
+        cf.DatetimeNoLeap,
+        cf.DatetimeGregorian,
+        datetime,
+    ],
+)
+@pytest.mark.parametrize(
+    "freq",
+    ["day", "6hr", "mon"],
+)
+def test_ensure_daily(calendar, freq):
+    time = (
+        [
+            calendar(2000, 1, 1),
+            calendar(2000, 1, 2),
+            calendar(2000, 1, 3),
+        ]
+        if freq == "day"
+        else [
+            calendar(2000, 1, 1, 0),
+            calendar(2000, 1, 1, 6),
+            calendar(2000, 1, 1, 12),
+        ]
+    )
+    ds = xr.Dataset(
+        data_vars={
+            "da": xr.DataArray(
+                np.random.rand(3),
+                coords={"time": time},
+                dims=["time"],
+            ),
+        }
+    )
+    _ensure_daily(ds["da"], "max")
