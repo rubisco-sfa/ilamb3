@@ -310,9 +310,6 @@ def run_single_block(
         )
     ]
 
-    # Add a 'frequency' column if one does not exist
-    comparison_data = ill.add_frequency_column(comparison_data)
-
     # Phase I: loop over each model in the group and run all analysis functions
     df_all = []
     ds_com = {}
