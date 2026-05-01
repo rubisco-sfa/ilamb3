@@ -1,10 +1,13 @@
-"""Functions for rendering ilamb3 output."""
+"""
+Functions which implement the serial algorithm for running ILAMB.
+"""
 
 import importlib
 import re
 import shutil
 from itertools import chain
 from pathlib import Path
+from traceback import format_exc
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -17,6 +20,7 @@ from loguru import logger
 
 import ilamb3
 import ilamb3.analysis as anl
+import ilamb3.dataset as ild
 import ilamb3.load as ill
 import ilamb3.plot as ilp
 import ilamb3.regions as ilr
@@ -187,6 +191,18 @@ def augment_setup_with_options(
 ) -> dict[str, Any]:
     """
     Augment the configure block with global ilamb3 options.
+
+    Parameters
+    ----------
+    setup: dict
+        A dictionary of keywords parsed from the configure files.
+    reference_data: pd.DataFrame
+        The dataframe containing the reference keys and paths.
+
+    Returns
+    -------
+    dict[str,Any]
+        The setup block augmented with global options.
     """
     # Augment options with things in the global options
     if "regions" not in setup:
@@ -237,24 +253,12 @@ def registry_to_dataframe(registry: pooch.Pooch) -> pd.DataFrame:
     return df.set_index("key")
 
 
-def remove_irrelevant_variables(df: pd.DataFrame, **setup: Any) -> pd.DataFrame:
-    """
-    Remove unused variables from the dataframe.
-    """
-    reduce = df[
-        df["variable_id"].isin(
-            list(setup["sources"].keys())
-            + list(setup.get("relationships", {}).keys())
-            + setup.get("alternate_vars", [])
-            + setup.get("related_vars", [])
-        )
-    ]
-    return reduce
-
-
 def _load_local_assets(
     csv_file: Path, ref_file: Path, com_file: Path
 ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
+    """
+    Load the model intermediate assets if present.
+    """
     if not (csv_file.is_file() and ref_file.is_file() and com_file.is_file()):
         raise ValueError()
     df = pd.read_csv(str(csv_file))
@@ -270,13 +274,23 @@ def run_single_block(
     comparison_data: pd.DataFrame,
     output_path: Path,
     **setup: Any,
-):
+) -> None:
     """
     Run a configuration block.
 
     Parameters
     ----------
-
+    block_name: str
+        The name of the block to be run, used in error reporting.
+    reference_data: pd.DataFrame
+        The dataframe containing the reference keys and paths.
+    comparison_data: pd.DataFrame
+        The dataframe containing the comparison description columns and paths to
+        the local files.
+    output_path: Path
+        The path to save all benchmark data for this block.
+    setup: Any
+        The keyword arguments of the benchmark setup block.
     """
     # Initialize
     if reference_data.index.name != "key":
@@ -296,7 +310,10 @@ def run_single_block(
         )
     ]
 
-    # Phase I: loop over each model in the group and run an analysis function
+    # Add a 'frequency' column if one does not exist
+    comparison_data = ill.add_frequency_column(comparison_data)
+
+    # Phase I: loop over each model in the group and run all analysis functions
     df_all = []
     ds_com = {}
     ds_ref = None
@@ -324,8 +341,8 @@ def run_single_block(
             except Exception:
                 pass
 
+        # Load the reference data
         try:
-            # Load data and run comparison
             ref = ill.load_reference_data(
                 reference_data,
                 variable,
@@ -333,12 +350,33 @@ def run_single_block(
                 setup["relationships"] if "relationships" in setup else {},
                 transforms=transforms,
             )
+        except Exception:  # pragma: no cover
+            logger.exception(
+                f"ILAMB analysis '{block_name}' failed for '{source_name}' when loading the reference data."
+            )
+            logger.remove(log_id)
+            continue
+
+        # Load the comparison data
+        try:
+            # Match the reference time frequency if possible
+            cmip_time_lbl = ild.get_frequency_label(ref)
+            grp = ill.match_frequency(grp, cmip_time_lbl)
             com = ill.load_comparison_data(
                 grp,
                 variable,
                 alternate_vars=setup.get("alternate_vars", []),
                 transforms=transforms,
             )
+        except Exception:  # pragma: no cover
+            logger.exception(
+                f"ILAMB analysis '{block_name}' failed for '{source_name}' when loading the comparison data."
+            )
+            logger.remove(log_id)
+            continue
+
+        # Run the analyses
+        try:
             dfs, ds_ref, ds_com[source_name] = run_analyses(ref, com, analyses)
             ds_ref = ds_ref.assign_attrs(ref.attrs)  # Retain global attrs
             dfs["source"] = dfs["source"].str.replace("Comparison", source_name)
@@ -382,7 +420,7 @@ def run_single_block(
     log_file = output_path / "post.log"
     log_id = logger.add(log_file, backtrace=True, diagnose=True)
 
-    # Phase 2: get plots and combine scalars and save
+    # Phase II: get plots and combine scalars and save
     try:
         plt.rcParams.update({"figure.max_open_warning": 0})
         df = pd.concat(df_all).drop_duplicates(
@@ -435,7 +473,7 @@ def run_analyses(
     dfs = []
     ds_refs = []
     ds_coms = []
-    for aname, a in analyses.items():
+    for _, a in analyses.items():
         try:
             df, ds_ref, ds_com = a(ref, com)
         except AnalysisNotAppropriate:
@@ -543,7 +581,7 @@ def generate_html_page(
     Returns
     -------
     str
-        The html page.
+        The benchmark data dashboard as html.
     """
     ilamb_regions = ilr.Regions()
     # Setup template analyses and plots
@@ -600,6 +638,9 @@ def generate_html_page(
 
 
 def _flatten_dict(d: dict, parent_key: str = "", sep: str = "/") -> dict:
+    """
+    Return the setup dictionary de-nested with the paths expanded.
+    """
     items = []
     for k, v in d.items():
         new_key = parent_key + sep + k if parent_key else k
@@ -611,14 +652,18 @@ def _flatten_dict(d: dict, parent_key: str = "", sep: str = "/") -> dict:
 
 
 def _clean_pathname(filename: str) -> str:
-    """Removes characters we do not want in our paths."""
+    """
+    Removes characters we do not want in our paths.
+    """
     invalid_chars = r'[\\/:*?"<>|\s]'
     cleaned_filename = re.sub(invalid_chars, "", filename)
     return cleaned_filename
 
 
 def _is_leaf(current: dict) -> bool:
-    """Is the current item in the nested dictionary a leaf?"""
+    """
+    Is the current item in the nested dictionary a leaf?
+    """
     if not isinstance(current, dict):
         return False
     if "sources" in current:
@@ -627,7 +672,9 @@ def _is_leaf(current: dict) -> bool:
 
 
 def _add_path(current: dict, path: Path | None = None) -> dict:
-    """Recursively add the nested dictionary headings as a `path` in the leaves."""
+    """
+    Recursively add the nested dictionary headings as a `path` in the leaves.
+    """
     path = Path() if path is None else path
     for key, val in current.items():
         if not isinstance(val, dict):
@@ -641,7 +688,9 @@ def _add_path(current: dict, path: Path | None = None) -> dict:
 
 
 def _to_leaf_list(current: dict, leaf_list: list | None = None) -> list:
-    """Recursively flatten the nested dictionary only returning the leaves."""
+    """
+    Recursively flatten the nested dictionary only returning the leaves.
+    """
     leaf_list = [] if leaf_list is None else leaf_list
     for _, val in current.items():
         if not isinstance(val, dict):
@@ -654,7 +703,9 @@ def _to_leaf_list(current: dict, leaf_list: list | None = None) -> list:
 
 
 def _create_paths(current: dict, root: Path):
-    """Recursively ensure paths in the leaves are created."""
+    """
+    Recursively ensure paths in the leaves are created.
+    """
     for _, val in current.items():
         if not isinstance(val, dict):
             continue
@@ -666,7 +717,9 @@ def _create_paths(current: dict, root: Path):
 
 
 def parse_benchmark_setup(yaml_file: str | Path) -> dict:
-    """Parse the file which is analagous to the old configure file."""
+    """
+    Parse the benchmark setup file.
+    """
     yaml_file = Path(yaml_file)
     with open(yaml_file) as fin:
         analyses = yaml.safe_load(fin)
@@ -699,7 +752,22 @@ def run_study(
     df_datasets: pd.DataFrame,
     ref_datasets: pd.DataFrame | None = None,
     output_path: str | Path = "_build",
-):
+) -> None:
+    """
+    Run the benchmark study specified by the setup file using the serial
+    algorithm.
+
+    Parameters
+    ----------
+    study_setup: str
+        The path to the benchmark setup yaml file.
+    df_datasets: pd.DataFrame
+        The comparison dataset DataFrame.
+    ref_datasets: pd.DataFrame
+        The reference datasets DataFrame, optional.
+    output_path: str or Path
+        The path in which the study output will be saved.
+    """
     ilamb3.conf["run_mode"] = "batch"
     output_path = Path(output_path)
     # Some yaml text that would get parsed like a dictionary.
@@ -713,12 +781,7 @@ def run_study(
         raise ValueError("Unsupported registry.")
     set_model_colors(df_datasets)
 
-    # The yaml analysis setup can be as structured as the user needs. We are no longer
-    # limited to the `h1` and `h2` headers from ILAMB 2.x. We will detect leaf nodes by
-    # the presence of a `sources` dictionary.
     analyses = _add_path(analyses)
-
-    # Various traversal actions
     _create_paths(analyses, output_path)
 
     # Save configure
@@ -745,3 +808,4 @@ def run_study(
             )
         except Exception as exc:
             logger.debug(f"Uncaught error when running {block_name}: {exc}")
+            logger.debug(format_exc())

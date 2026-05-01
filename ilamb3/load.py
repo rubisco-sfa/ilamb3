@@ -101,7 +101,7 @@ def _pre_merge(ds: xr.Dataset, keep: list[str]) -> xr.Dataset:
     return ds
 
 
-def _lookup(df: xr.Dataset, key: str) -> list[str]:
+def _lookup(df: pd.DataFrame, key: str) -> list[str]:
     """
     Lookup the key in the dataframe.
 
@@ -273,3 +273,53 @@ def load_comparison_data(
         )
     ds_com = dset.cmip_cell_measures(ds_com, variable_id)
     return ds_com
+
+
+def add_frequency_column(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add a time frequency column if one does not exist using CMIP labels.
+    """
+
+    def _add_frequency(row) -> str:
+        if row["frequency"] in list(dset.CMIP_TIME_FREQUENCY.keys()) + ["fx"]:
+            return row["frequency"]
+        ds = xr.open_dataset(row["path"])
+        return dset.get_frequency_label(ds)
+
+    if "frequency" not in df.columns:
+        df["frequency"] = None
+    df["frequency"] = df.apply(_add_frequency, axis=1)
+    return df
+
+
+def match_frequency(df: pd.DataFrame, target_frequency: str) -> pd.DataFrame:
+    """
+    Remove rows of the dataframe that do not match the target frequency.
+
+    This function assumes that the input dataframe has already been reduced to a
+    single model's output.
+
+    Note
+    ----
+    This will not completely remove a variable from the dataframe. It only
+    removes additional frequencies so that xr.open_mfdataset does not fail. If
+    your dataframe has `mon` and `6hr` and you ask for `day`, you will get the
+    `6hr` data.
+    """
+    if "frequency" not in df.columns:
+        df = add_frequency_column(df)
+    drop_indices = []
+    for _, grp in df.groupby("variable_id"):
+        freqs = pd.unique(grp["frequency"])
+        # If only 1 time frequency, then we go with that
+        if len(freqs) == 1:
+            continue
+        # Otherwise, find the closest frequency we have and drop others
+        distance = {
+            key: np.abs(value - dset.CMIP_TIME_FREQUENCY[target_frequency])
+            for key, value in dset.CMIP_TIME_FREQUENCY.items()
+        }
+        closest_label = min(distance, key=distance.get)
+        drop_indices += grp[grp["frequency"] != closest_label].index.to_list()
+    df = df.drop(drop_indices)
+    return df
