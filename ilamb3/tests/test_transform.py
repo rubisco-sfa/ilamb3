@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import cftime as cf
 import numpy as np
 import pytest
@@ -6,6 +8,7 @@ import xarray as xr
 import ilamb3.transform.aggregate as agg
 from ilamb3.tests.test_run import generate_test_dset
 from ilamb3.transform import ALL_TRANSFORMS
+from ilamb3.transform.daily_threshold_index import _ensure_daily
 
 ALL_TRANSFORMS
 PYTHON_VARIABLE = r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"
@@ -235,3 +238,44 @@ def test_unit_from_rhs(rhs, constant, unit):
     c, u = agg._unit_from_rhs(rhs)
     assert np.allclose(float(c), constant)
     assert u == unit
+
+
+@pytest.mark.parametrize(
+    "calendar",
+    [
+        cf.DatetimeProlepticGregorian,
+        cf.Datetime360Day,
+        cf.DatetimeAllLeap,
+        cf.DatetimeNoLeap,
+        cf.DatetimeGregorian,
+        datetime,
+    ],
+)
+@pytest.mark.parametrize(
+    "freq",
+    ["day", "6hr", "mon"],
+)
+def test_ensure_daily(calendar, freq):
+    time = (
+        [
+            calendar(2000, 1, 1),
+            calendar(2000, 1, 2),
+            calendar(2000, 1, 3),
+        ]
+        if freq == "day"
+        else [
+            calendar(2000, 1, 1, 0),
+            calendar(2000, 1, 1, 6),
+            calendar(2000, 1, 1, 12),
+        ]
+    )
+    ds = xr.Dataset(
+        data_vars={
+            "da": xr.DataArray(
+                np.random.rand(3),
+                coords={"time": time},
+                dims=["time"],
+            ),
+        }
+    )
+    _ensure_daily(ds["da"], "max")

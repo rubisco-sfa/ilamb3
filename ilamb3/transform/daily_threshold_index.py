@@ -46,22 +46,16 @@ def _ensure_daily(da: xr.DataArray, reduction: DailyReductionType) -> xr.DataArr
         seconds = pd.Timedelta(
             pd.tseries.frequencies.to_offset(freq_str)  # type: ignore
         ).total_seconds()
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as exc:
         raise ValueError(
             f"Variable {da.name!r} has frequency {freq_str!r} which is coarser "
             f"than daily; cannot compute a daily threshold index from it."
-        ) from None
+        ) from exc
 
-        # If daily, return as-is; if sub-daily, resample to daily using specified reduction
-        return da
+    # If daily, return as-is; if sub-daily, resample to daily using specified reduction
     if seconds < _SECONDS_PER_DAY:
         return getattr(da.resample(time="D"), reduction)()
-
-    # If we get here, the input is coarser than daily, so we can't compute the index
-    raise ValueError(
-        f"Variable {da.name!r} has frequency {freq_str!r} ({seconds}s per step) "
-        f"which is coarser than daily; cannot compute a daily threshold index."
-    )
+    return da
 
 
 class daily_threshold_index(agg_time_on_condition):
