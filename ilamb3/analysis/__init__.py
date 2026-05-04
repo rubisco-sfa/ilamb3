@@ -1,6 +1,5 @@
 """Modular ILAMB methodology functions."""
 
-from ilamb3.analysis.accumulate import accumulate_analysis
 from ilamb3.analysis.area import area_analysis
 from ilamb3.analysis.base import add_overall_score
 from ilamb3.analysis.bias import bias_analysis
@@ -25,7 +24,6 @@ ALL_ANALYSES = {
     "Runoff Sensitivity": runoff_sensitivity_analysis,
     "Hydro": hydro_analysis,
     "timeseries": timeseries_analysis,
-    "accumulate": accumulate_analysis,
     "relationship": relationship_analysis,
 } | DEFAULT_ANALYSES
 
