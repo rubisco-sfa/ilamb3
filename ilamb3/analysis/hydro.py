@@ -10,7 +10,7 @@ from loguru import logger
 
 import ilamb3.compare as cmp
 import ilamb3.dataset as dset
-import ilamb3.plot as plt
+import ilamb3.plot as ilp
 from ilamb3.analysis.base import ILAMBAnalysis, scalarify
 
 
@@ -309,7 +309,7 @@ class hydro_analysis(ILAMBAnalysis):
         plots = list(chain(*[vs for _, vs in self.sections.items()]))
 
         # Setup plots
-        df = plt.determine_plot_limits(com, symmetrize=["difference"]).set_index("name")
+        df = ilp.determine_plot_limits(com, symmetrize=["difference"]).set_index("name")
         df["title"] = [generate_titles(plot) for plot in df.index]
         df["cmap"] = df.index.map(_choose_cmap)
 
@@ -330,7 +330,7 @@ class hydro_analysis(ILAMBAnalysis):
                         "source": source,
                         "analysis": self._get_analysis_section(plot),
                     }
-                    ax = plt.plot_map(
+                    ax = ilp.plot_map(
                         ds[plot],
                         region=region,
                         vmin=df.loc[plot, "low"],
@@ -376,7 +376,7 @@ class hydro_analysis(ILAMBAnalysis):
                     )
                 except Exception:
                     pass
-                ax = plt.plot_curve(
+                ax = ilp.plot_curve(
                     {source: ds} | {"Reference": ref},
                     plot,
                     vmin=df.loc[plot, "low"]

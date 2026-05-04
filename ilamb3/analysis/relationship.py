@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-import ilamb3.plot as plt
+import ilamb3.plot as ilp
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis
@@ -399,7 +399,7 @@ class relationship_analysis(ILAMBAnalysis):
                 "region": region,
                 "source": source,
                 "axis": (
-                    plt.plot_distribution(
+                    ilp.plot_distribution(
                         ds[f"distribution-{self.ind_variable}_{region}"],
                         title=f"{source} {self.dep_variable} vs. {self.ind_variable}",
                     )
@@ -418,7 +418,7 @@ class relationship_analysis(ILAMBAnalysis):
                 "region": region,
                 "source": source,
                 "axis": (
-                    plt.plot_response(
+                    ilp.plot_response(
                         ref[f"response-{self.ind_variable}_{region}"],
                         ref[f"response-{self.ind_variable}-variability_{region}"],
                         ds[f"response-{self.ind_variable}_{region}"],

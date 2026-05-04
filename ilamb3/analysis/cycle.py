@@ -13,7 +13,7 @@ import pandas as pd
 import xarray as xr
 
 import ilamb3.dataset as dset
-import ilamb3.plot as plt
+import ilamb3.plot as ilp
 from ilamb3 import compare as cmp
 from ilamb3.analysis.base import ILAMBAnalysis, integrate_or_mean, scalarify
 from ilamb3.exceptions import AnalysisNotAppropriate
@@ -208,7 +208,7 @@ class cycle_analysis(ILAMBAnalysis):
                     com[source][plot] = dset.convert(ds[plot], plot_unit)
 
         # Setup plot data
-        dfp = plt.determine_plot_limits(com).set_index("name")
+        dfp = ilp.determine_plot_limits(com).set_index("name")
         dfp.loc["tmax", ["cmap", "title", "low", "high"]] = [
             "rainbow",
             "Month of Maximum",
@@ -236,7 +236,7 @@ class cycle_analysis(ILAMBAnalysis):
                 "region": region,
                 "source": source,
                 "axis": (
-                    plt.plot_map(
+                    ilp.plot_map(
                         ds[plot],
                         region=region,
                         vmin=dfp.loc[plot, "low"],
@@ -280,7 +280,7 @@ class cycle_analysis(ILAMBAnalysis):
                 "region": plot.split("_")[-1],
                 "source": source,
                 "axis": (
-                    plt.plot_curve(
+                    ilp.plot_curve(
                         {source: ds} | {"Reference": ref},
                         plot,
                         vmin=dfp.loc[plot, "low"]

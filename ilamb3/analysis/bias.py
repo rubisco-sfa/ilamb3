@@ -6,16 +6,18 @@ See Also
 ILAMBAnalysis : The abstract base class from which this derives.
 """
 
+from pathlib import Path
 from typing import Any, Literal
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-import ilamb3.plot as plt
+import ilamb3.plot as ilp
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
-from ilamb3.analysis.base import ILAMBAnalysis, scalarify
+from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name, scalarify
 from ilamb3.analysis.quantiles import check_quantile_database, create_quantile_map
 from ilamb3.exceptions import NoDatabaseEntry, NoUncertainty
 
@@ -300,55 +302,58 @@ class bias_analysis(ILAMBAnalysis):
         return dfs, ref_out, com_out
 
     def plots(
-        self,
-        df: pd.DataFrame,
-        ref: xr.Dataset,
-        com: dict[str, xr.Dataset],
+        self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
-        # Some initialization
-        regions = [None if r == "None" else r for r in df["region"].unique()]
-        com["Reference"] = ref
 
-        # Handle units
+        # Pull the plot regions from those found in the regions
+        regions = [None if r == "None" else r for r in df["region"].unique()]
+
+        # Handle units, use the reference units if not given
         plot_unit = (
             ref["mean"].attrs["units"] if self.plot_unit is None else self.plot_unit
         )
+        com["Reference"] = ref
         for source, ds in com.items():
             for plot in ["mean", "bias", "uncert"]:
                 if plot in ds:
                     com[source][plot] = dset.convert(ds[plot], plot_unit)
 
-        # Setup plot data
-        df = plt.determine_plot_limits(com).set_index("name")
-        df.loc["mean", ["cmap", "title"]] = [self.cmap, "Period Mean"]
-        df.loc["bias", ["cmap", "title"]] = ["seismic", "Bias"]
-        df.loc["biasscore", ["cmap", "title"]] = ["plasma", "Bias Score"]
-        if "uncert" in df.index:
-            df.loc["uncert", ["cmap", "title"]] = ["Reds", "Uncertainty"]
+        # Setup a dataframe with the information we will need for each plot in
+        # this analysis.
+        df_limits = ilp.determine_plot_limits(com)
+        df_meta = pd.DataFrame(
+            [
+                {"name": "mean", "cmap": self.cmap, "title": "Period Mean"},
+                {"name": "bias", "cmap": "seismic", "title": "Bias"},
+                {"name": "biasscore", "cmap": "plasma", "title": "Bias Score"},
+                {"name": "uncert", "cmap": "Reds", "title": "Uncertainty"},
+            ]
+        ).set_index("name")
+        df = pd.merge(df_limits, df_meta, left_index=True, right_index=True)
+        df["analysis"] = "Bias"
 
-        # Build up a dataframe of matplotlib axes
-        axs = [
-            {
-                "name": plot,
-                "title": df.loc[plot, "title"],
-                "region": region,
-                "source": None if plot == "uncert" else source,
-                "axis": (
-                    plt.plot_map(
+        # Create each plot for each source if present in the dataset
+        df_plots = []
+        for plot, row in df.iterrows():
+            for source, ds in com.items():
+                if plot not in ds:
+                    continue
+                for region in regions:
+                    out = row.to_dict()
+                    out["name"] = plot
+                    out["source"] = source
+                    out["region"] = region
+                    out["path"] = get_plot_name(source, region, plot, path)
+                    ax = ilp.plot_map(
                         ds[plot],
                         region=region,
-                        vmin=df.loc[plot, "low"],
-                        vmax=df.loc[plot, "high"],
-                        cmap=df.loc[plot, "cmap"],
-                        title=source + " " + df.loc[plot, "title"],
+                        vmin=row["low"],
+                        vmax=row["high"],
+                        cmap=row["cmap"],
+                        title=f"{source} {row['title']}",
                     )
-                ),
-            }
-            for plot in ["mean", "bias", "biasscore", "uncert"]
-            for source, ds in com.items()
-            if plot in ds
-            for region in regions
-        ]
-        axs = pd.DataFrame(axs).dropna(subset=["axis"])
-
-        return axs
+                    ax.get_figure().savefig(out["path"])
+                    plt.close()
+                    df_plots.append(out)
+        df_plots = pd.DataFrame(df_plots)
+        return df_plots
