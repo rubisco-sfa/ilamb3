@@ -304,8 +304,11 @@ class bias_analysis(ILAMBAnalysis):
     def plots(
         self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
+        # This analysis was not run and we should skip plotting entirely
+        if "Bias" not in df["analysis"].unique():
+            return pd.DataFrame()
 
-        # Pull the plot regions from those found in the regions
+        # Pull the plot regions from those found in the scalars
         regions = [None if r == "None" else r for r in df["region"].unique()]
 
         # Handle units, use the reference units if not given
@@ -320,7 +323,6 @@ class bias_analysis(ILAMBAnalysis):
 
         # Setup a dataframe with the information we will need for each plot in
         # this analysis.
-        df_limits = ilp.determine_plot_limits(com)
         df_meta = pd.DataFrame(
             [
                 {"name": "mean", "cmap": self.cmap, "title": "Period Mean"},
@@ -329,7 +331,8 @@ class bias_analysis(ILAMBAnalysis):
                 {"name": "uncert", "cmap": "Reds", "title": "Uncertainty"},
             ]
         ).set_index("name")
-        df = pd.merge(df_limits, df_meta, left_index=True, right_index=True)
+        df_limits = ilp.determine_plot_limits(com)
+        df = pd.merge(df_meta, df_limits, left_index=True, right_index=True)
         df["analysis"] = "Bias"
 
         # Create each plot for each source if present in the dataset

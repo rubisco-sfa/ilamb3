@@ -6,8 +6,10 @@ See Also
 ILAMBAnalysis : The abstract base class from which this derives.
 """
 
+from pathlib import Path
 from typing import Any, Literal
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -15,7 +17,12 @@ import xarray as xr
 import ilamb3.plot as ilp
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
-from ilamb3.analysis.base import ILAMBAnalysis, integrate_or_mean, scalarify
+from ilamb3.analysis.base import (
+    ILAMBAnalysis,
+    get_plot_name,
+    integrate_or_mean,
+    scalarify,
+)
 from ilamb3.exceptions import AnalysisNotAppropriate, NoUncertainty
 
 
@@ -209,87 +216,92 @@ class rmse_analysis(ILAMBAnalysis):
         return df, ds_ref, ds_com
 
     def plots(
-        self,
-        df: pd.DataFrame,
-        ref: xr.Dataset,
-        com: dict[str, xr.Dataset],
+        self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
+
         # This analysis was not run and we should skip plotting entirely
         if "RMSE" not in df["analysis"].unique():
             return pd.DataFrame()
+
+        # Pull the plot regions from those found in the scalars
+        regions = [None if r == "None" else r for r in df["region"].unique()]
+        traces = [f"trace_{region}" for region in regions]
 
         # Handle units
         _, ds = next(iter(com.items()))
         plot_unit = (
             ds["rmse"].attrs["units"] if self.plot_unit is None else self.plot_unit
         )
-
-        # Some initialization
-        regions = [None if r == "None" else r for r in df["region"].unique()]
         com["Reference"] = ref
-
         for source, ds in com.items():
-            for plot in [
-                "rmse",
-            ] + [f"trace_{region}" for region in regions]:
+            for plot in ["rmse"] + traces:
                 if plot in ds:
                     com[source][plot] = dset.convert(ds[plot], plot_unit)
 
-        # Setup plot data
-        df = ilp.determine_plot_limits(com).set_index("name")
-        df.loc["rmse", ["cmap", "title"]] = ["Oranges", "RMSE"]
-        df.loc["rmsescore", ["cmap", "title"]] = ["plasma", "RMSE Score"]
+        # Setup a dataframe with the information we will need for each plot in
+        # this analysis.
+        df_meta = pd.DataFrame(
+            [
+                {"name": "rmse", "cmap": "Oranges", "title": "RMSE"},
+                {"name": "rmsescore", "cmap": "plasma", "title": "RMSE Score"},
+            ]
+            + [
+                {"name": trace, "cmap": None, "title": "Time Series"}
+                for trace in traces
+            ]
+        ).set_index("name")
+        df_limits = ilp.determine_plot_limits(com)
+        df = pd.merge(df_meta, df_limits, left_index=True, right_index=True)
+        df["analysis"] = "RMSE"
 
-        # Build up a dataframe of matplotlib axes
-        axs = [
-            {
-                "name": plot,
-                "title": df.loc[plot, "title"],
-                "region": region,
-                "source": source,
-                "axis": (
-                    ilp.plot_map(
-                        ds[plot],
-                        region=region,
-                        vmin=df.loc[plot, "low"],
-                        vmax=df.loc[plot, "high"],
-                        cmap=df.loc[plot, "cmap"],
-                        title=source + " " + df.loc[plot, "title"],
-                    )
-                    if plot in ds
-                    else pd.NA
-                ),
-            }
-            for plot in ["rmse", "rmsescore"]
-            for source, ds in com.items()
-            for region in regions
-        ]
-
-        axs += [
-            {
-                "name": "trace",
-                "title": "Time Series",
-                "region": plot.split("_")[-1],
-                "source": source,
-                "axis": (
-                    ilp.plot_curve(
+        # Create each plot for each source if present in the dataset
+        df_plots = []
+        for plot, row in df.iterrows():
+            for source, ds in com.items():
+                if plot not in ds:
+                    continue
+                # trace plots have already been regionalized
+                if plot.startswith("trace"):
+                    # Reference traces don't get plots of their own
+                    if source == "Reference":
+                        continue
+                    plotname, region = plot.split("_")
+                    out = row.to_dict()
+                    out["name"] = plotname
+                    out["source"] = source
+                    out["region"] = region
+                    out["path"] = get_plot_name(source, region, plotname, path)
+                    ax = ilp.plot_curve(
                         {source: ds} | {"Reference": ref},
                         plot,
-                        vmin=df.loc[plot, "low"]
-                        - 0.05 * (df.loc[plot, "high"] - df.loc[plot, "low"]),
-                        vmax=df.loc[plot, "high"]
-                        + 0.05 * (df.loc[plot, "high"] - df.loc[plot, "low"]),
-                        title=f"{source} Time Series",
+                        region=region,
+                        vmin=row["low"],
+                        vmax=row["high"],
+                        title=f"{source} {row['title']}",
                         label="",
                     )
-                    if plot in ds
-                    else pd.NA
-                ),
-            }
-            for plot in [f"trace_{region}" for region in regions]
-            for source, ds in com.items()
-            if source != "Reference"
-        ]
+                    ax.get_figure().savefig(out["path"])
+                    plt.close()
+                    df_plots.append(out)
+                    continue
+                # Maps are plot over each region
+                for region in regions:
+                    out = row.to_dict()
+                    out["name"] = plot
+                    out["source"] = source
+                    out["region"] = region
+                    out["path"] = get_plot_name(source, region, plot, path)
+                    ax = ilp.plot_map(
+                        ds[plot],
+                        region=region,
+                        vmin=row["low"],
+                        vmax=row["high"],
+                        cmap=row["cmap"],
+                        title=f"{source} {row['title']}",
+                    )
+                    ax.get_figure().savefig(out["path"])
+                    plt.close()
+                    df_plots.append(out)
 
-        axs = pd.DataFrame(axs).dropna(subset=["axis"])
-        return axs
+        df_plots = pd.DataFrame(df_plots)
+        return df_plots
