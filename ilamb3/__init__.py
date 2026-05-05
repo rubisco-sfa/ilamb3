@@ -5,6 +5,7 @@
 import importlib
 import warnings
 
+import matplotlib
 import pint_xarray  # noqa
 import pooch
 import xarray as xr
@@ -22,6 +23,9 @@ units.define("Pg = 1e15 * g")
 units.define("Sv = 1e6 m**3 / s")
 units.define("gC = g")
 units.define("@alias W = Watt")
+
+# fix the backend to avoid Tk bugs
+matplotlib.use("Agg")
 
 # we don't really have data versions for the collection :/
 ILAMB_DATA_VERSION = "0.1"
