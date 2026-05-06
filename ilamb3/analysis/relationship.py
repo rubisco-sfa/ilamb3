@@ -388,6 +388,7 @@ class relationship_analysis(ILAMBAnalysis):
         self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
         # Some initialization
+        path.mkdir(parents=True, exist_ok=True)
         com["Reference"] = ref
 
         # Build up a dataframe of matplotlib axes, first the distribution plots
