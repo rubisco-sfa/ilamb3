@@ -290,10 +290,7 @@ class hydro_analysis(ILAMBAnalysis):
         return df, ref, com
 
     def plots(
-        self,
-        df: pd.DataFrame,
-        ref: xr.Dataset,
-        com: dict[str, xr.Dataset],
+        self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
         com["Reference"] = ref
 
@@ -307,9 +304,11 @@ class hydro_analysis(ILAMBAnalysis):
         # Which plots are we handling in here? I am building this list from a
         # section layout I created in the constructor.
         plots = list(chain(*[vs for _, vs in self.sections.items()]))
+        # temporary hack while we rework this for the hydro work
+        self.output_path = path
 
         # Setup plots
-        df = ilp.determine_plot_limits(com, symmetrize=["difference"]).set_index("name")
+        df = ilp.determine_plot_limits(com, symmetrize=["difference"])
         df["title"] = [generate_titles(plot) for plot in df.index]
         df["cmap"] = df.index.map(_choose_cmap)
 
