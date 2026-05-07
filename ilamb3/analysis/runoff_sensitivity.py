@@ -190,14 +190,12 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
         return df, ref, com
 
     def plots(
-        self,
-        df: pd.DataFrame,
-        ref: xr.Dataset,
-        com: dict[str, xr.Dataset],
+        self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
         """
         Return figures of the reference and comparison data.
         """
+        path.mkdir(parents=True, exist_ok=True)
         rows = []
 
         # Create score maps
@@ -216,30 +214,29 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
                         "title": title,
                         "region": ilamb3.conf["global_region"],
                         "source": model,
-                        "axis": False,
+                        "path": path
+                        / f"{model}_{str(ilamb3.conf['global_region'])}_{var.replace('_', '')}.png",
                     }
                 )
                 ax.set_title(title)
                 fig = ax.get_figure()
-                if self.output_path is None:
-                    return fig
-                else:
-                    fig.savefig(
-                        self.output_path
-                        / f"{model}_{str(ilamb3.conf['global_region'])}_{var.replace('_', '')}.png"
-                    )
-                    plt.close()
+                fig.savefig(rows[-1]["path"])
+                plt.close()
 
         for basin in sorted(ref["basin"]):
             for model in com:
-                _basin_plots(df, ref, com, basin, model, self.output_path)
+                filename = (
+                    path
+                    / f"{model}_{str(ilamb3.conf['global_region'])}_{str(basin.values)}.png"
+                )
+                _basin_plots(df, ref, com, basin, model, filename)
                 rows.append(
                     {
                         "name": str(basin.values),
                         "title": f"Basin plot for {str(basin.values)}",
                         "region": ilamb3.conf["global_region"],
                         "source": model,
-                        "axis": False,
+                        "path": filename,
                     }
                 )
         return pd.DataFrame(rows)
@@ -258,7 +255,7 @@ def _basin_plots(
     com: dict[str, xr.Dataset],
     basin: str,
     model: str,
-    output_path: Path | None,
+    filename: Path,
 ):
     """Create a basin/model specific plot."""
 
@@ -378,11 +375,6 @@ def _basin_plots(
         y=0.98,
         horizontalalignment="left",
     )
-    if output_path is None:
-        return fig
-    else:
-        fig.savefig(
-            output_path
-            / f"{model}_{str(ilamb3.conf['global_region'])}_{str(basin.values)}.png"
-        )
-        plt.close()
+
+    fig.savefig(filename)
+    plt.close()

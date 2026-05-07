@@ -1,5 +1,7 @@
+from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -7,7 +9,7 @@ import xarray as xr
 import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 import ilamb3.plot as ilplt
-from ilamb3.analysis.base import ILAMBAnalysis
+from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name
 
 
 class timeseries_analysis(ILAMBAnalysis):
@@ -107,73 +109,72 @@ class timeseries_analysis(ILAMBAnalysis):
         return df, ref, com
 
     def plots(
-        self,
-        df: pd.DataFrame,
-        ref: xr.Dataset,
-        com: dict[str, xr.Dataset],
+        self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
+
         # Setup plot data
-        varname = self.required_variable
         com["Reference"] = ref
         lim = ilplt.determine_plot_limits(com, percent_pad=0).set_index("name")
-        lim.loc[varname, ["cmap", "title"]] = [None, self.description]
 
         # Build up a dataframe of matplotlib axes
-        axs = [
-            {
+        plot = self.required_variable
+        df_plots = []
+        for source, ds in com.items():
+            if plot not in ds or source == "Reference":
+                continue
+            row = {
                 "name": plot,
                 "title": lim.loc[plot, "title"],
                 "region": None,
                 "source": source,
-                "axis": (
-                    ilplt.plot_curve(
-                        {source: ds} | {"Reference": ref},
-                        plot,
-                        vmin=lim.loc[plot, "low"]
-                        - 0.05 * (lim.loc[plot, "high"] - lim.loc[plot, "low"]),
-                        vmax=lim.loc[plot, "high"]
-                        + 0.05 * (lim.loc[plot, "high"] - lim.loc[plot, "low"]),
-                        title=source + " - " + lim.loc[plot, "title"],
-                    )
-                    if plot in ds
-                    else pd.NA
-                ),
+                "path": get_plot_name(source, None, plot, path),
             }
-            for plot in [varname]
-            for source, ds in com.items()
-            if source != "Reference"
-        ]
+            ax = ilplt.plot_curve(
+                {source: ds} | {"Reference": ref},
+                plot,
+                vmin=lim.loc[plot, "low"]
+                - 0.05 * (lim.loc[plot, "high"] - lim.loc[plot, "low"]),
+                vmax=lim.loc[plot, "high"]
+                + 0.05 * (lim.loc[plot, "high"] - lim.loc[plot, "low"]),
+                title=f"{source} - {self.description}",
+            )
+            ax.get_figure().savefig(row["path"])
+            plt.close()
+            df_plots.append(row)
 
         # Plot all curves on one
-        axs += [
-            {
-                "name": f"all{varname}",
-                "title": self.description,
-                "region": None,
-                "source": None,
-                "axis": (
-                    ilplt.plot_curve(
-                        com,
-                        varname,
-                        vmin=lim.loc[varname, "low"]
-                        - 0.05 * (lim.loc[varname, "high"] - lim.loc[varname, "low"]),
-                        vmax=lim.loc[varname, "high"]
-                        + 0.05 * (lim.loc[varname, "high"] - lim.loc[varname, "low"]),
-                        title=f"Combined {self.description}",
-                    )
-                ),
-            }
-        ]
+        row = {
+            "name": f"all{plot}",
+            "title": self.description,
+            "region": None,
+            "source": None,
+            "path": get_plot_name(None, None, f"all{plot}", path),
+        }
+        ax = ilplt.plot_curve(
+            com,
+            plot,
+            vmin=lim.loc[plot, "low"]
+            - 0.05 * (lim.loc[plot, "high"] - lim.loc[plot, "low"]),
+            vmax=lim.loc[plot, "high"]
+            + 0.05 * (lim.loc[plot, "high"] - lim.loc[plot, "low"]),
+            title=f"Combined {self.description}",
+        )
+        ax.get_figure().savefig(row["path"])
+        plt.close()
+        df_plots.append(row)
 
         # Add the Taylor diagram
-        axs += [
-            {
-                "name": "taylor",
-                "title": "Taylor Diagram",
-                "region": None,
-                "source": None,
-                "axis": ilplt.plot_taylor_diagram(df),
-            }
-        ]
-        axs = pd.DataFrame(axs).dropna(subset=["axis"])
+        row = {
+            "name": "taylor",
+            "title": "Taylor Diagram",
+            "region": None,
+            "source": None,
+            "path": get_plot_name(None, None, "taylor", path),
+        }
+        ax = ilplt.plot_taylor_diagram(df)
+        ax.get_figure().savefig(row["path"])
+        plt.close()
+        df_plots.append(row)
+
+        axs = pd.DataFrame(df_plots)
         return axs
