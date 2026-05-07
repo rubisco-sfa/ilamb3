@@ -498,7 +498,7 @@ def determine_plot_limits(
             data[0] = -vmax
             data[1] = vmax
         out.append({"name": plot, "low": data[0], "high": data[1]})
-    return pd.DataFrame(out)
+    return pd.DataFrame(out).set_index("name")
 
 
 def set_label_colors(

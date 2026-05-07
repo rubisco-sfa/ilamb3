@@ -1,27 +1,29 @@
 """
-The ILAMB bias methodology.
+The ILAMB spatial distribution methodology.
 
 See Also
 --------
 ILAMBAnalysis : The abstract base class from which this derives.
 """
 
+from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-import ilamb3.plot as ilplt
+import ilamb3.plot as ilp
 import ilamb3.regions as ilr
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
-from ilamb3.analysis.base import ILAMBAnalysis
+from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name
 
 
 class spatial_distribution_analysis(ILAMBAnalysis):
     """
-    The ILAMB bias methodology.
+    The ILAMB spatial distribution methodology.
 
     Parameters
     ----------
@@ -65,7 +67,7 @@ class spatial_distribution_analysis(ILAMBAnalysis):
         com: xr.Dataset,
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
         """
-        Apply the ILAMB bias methodology on the given datasets.
+        Apply the ILAMB spatial distribution methodology on the given datasets.
 
         Parameters
         ----------
@@ -166,23 +168,31 @@ class spatial_distribution_analysis(ILAMBAnalysis):
         return dfs, xr.Dataset(), xr.Dataset()
 
     def plots(
-        self,
-        df: pd.DataFrame,
-        ref: xr.Dataset,
-        com: dict[str, xr.Dataset],
+        self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
-        # Add the Taylor diagram
-        axs = []
-        df = df[df["analysis"] == "Spatial Distribution"]
-        for region in df["region"].unique():
-            axs += [
-                {
-                    "name": "taylor",
-                    "title": "Spatial Distribution",
-                    "region": str(region),
-                    "source": None,
-                    "axis": ilplt.plot_taylor_diagram(df[df["region"] == region]),
-                }
-            ]
-        axs = pd.DataFrame(axs)
-        return axs
+
+        # This analysis was not run and we should skip plotting entirely
+        if "Spatial Distribution" not in df["analysis"].unique():
+            return pd.DataFrame()
+        path.mkdir(parents=True, exist_ok=True)
+
+        # Pull the plot regions from those found in the scalars
+        regions = [None if r == "None" else r for r in df["region"].unique()]
+
+        df_plots = []
+        for region in regions:
+            row = {
+                "name": "taylor",
+                "analysis": "Spatial Distribution",
+                "title": "Spatial Distribution",
+                "region": str(region),
+                "source": None,
+                "path": get_plot_name(None, region, "taylor", path),
+            }
+
+            ax = ilp.plot_taylor_diagram(df[df["region"] == str(region)])
+            ax.get_figure().savefig(row["path"])
+            plt.close()
+            df_plots.append(row)
+        df_plots = pd.DataFrame(df_plots)
+        return df_plots

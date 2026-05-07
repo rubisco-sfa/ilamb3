@@ -536,18 +536,7 @@ def plot_analyses(
     plot_path.mkdir(exist_ok=True, parents=True)
     df_plots = []
     for name, a in analyses.items():
-        dfp = a.plots(
-            df,
-            ref,
-            com,
-        )
-        for _, row in dfp.iterrows():
-            if not row["axis"]:
-                continue
-            row["axis"].get_figure().savefig(
-                plot_path / f"{row['source']}_{row['region']}_{row['name']}.png"
-            )
-        plt.close("all")
+        dfp = a.plots(df, ref, com, plot_path)
         if "analysis" not in dfp.columns:
             dfp["analysis"] = name
         df_plots.append(dfp)

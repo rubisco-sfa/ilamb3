@@ -6,6 +6,7 @@ See Also
 ILAMBAnalysis : The abstract base class from which this derives.
 """
 
+from pathlib import Path
 from typing import Any
 
 import matplotlib.pyplot as mpl
@@ -17,7 +18,7 @@ import ilamb3
 import ilamb3.plot as ilplt
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
-from ilamb3.analysis.base import ILAMBAnalysis
+from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name
 from ilamb3.exceptions import NoUncertainty, TemporalOverlapIssue
 
 
@@ -224,51 +225,56 @@ class nbp_analysis(ILAMBAnalysis):
         return df, ref, com
 
     def plots(
-        self,
-        df: pd.DataFrame,
-        ref: xr.Dataset,
-        com: dict[str, xr.Dataset],
+        self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
         # plot over the reference limits
+        path.mkdir(parents=True, exist_ok=True)
         uncert = dset.get_interval_uncertainty(ref, "anbp")
         com["Reference"] = ref
-        axs = [
-            {
-                "name": "accumulation",
-                "title": "nbp_accumulation",
-                "region": ilamb3.conf["global_region"],
-                "source": None,
-                "axis": plot_accumulated_nbp(
-                    com, ref, vmin=float(uncert.min()), vmax=float(uncert.max())
-                ),
-            }
-        ]
-        lim = ilplt.determine_plot_limits(com, percent_pad=0).set_index("name")
-        axs += [
-            {
+        region = ilamb3.conf["global_region"]
+
+        # Composite accumulation plot
+        df_plots = []
+        row = {
+            "name": "accumulation",
+            "title": "nbp_accumulation",
+            "region": region,
+            "source": None,
+            "path": get_plot_name(None, region, "accumulation", path),
+        }
+        ax = plot_accumulated_nbp(
+            com, ref, vmin=float(uncert.min()), vmax=float(uncert.max())
+        )
+        ax.get_figure().savefig(row["path"])
+        mpl.close()
+        df_plots.append(row)
+
+        # model flux plots
+        lim = ilplt.determine_plot_limits(com, percent_pad=0)
+        plot = "nbp"
+        for source, ds in com.items():
+            if plot not in ds or source == "Reference":
+                continue
+            row = {
                 "name": plot,
                 "title": "nbp",
-                "region": ilamb3.conf["global_region"],
+                "region": region,
                 "source": source,
-                "axis": (
-                    ilplt.plot_curve(
-                        {source: ds} | {"Reference": ref},
-                        plot,
-                        vmin=lim.loc[plot, "low"]
-                        - 0.05 * (lim.loc[plot, "high"] - lim.loc[plot, "low"]),
-                        vmax=lim.loc[plot, "high"]
-                        + 0.05 * (lim.loc[plot, "high"] - lim.loc[plot, "low"]),
-                        title=source + " - nbp fluxes",
-                    )
-                    if plot in ds
-                    else pd.NA
-                ),
+                "path": get_plot_name(source, region, plot, path),
             }
-            for plot in ["nbp"]
-            for source, ds in com.items()
-            if source != "Reference"
-        ]
-        return pd.DataFrame(axs)
+            ax = ilplt.plot_curve(
+                {source: ds} | {"Reference": ref},
+                plot,
+                vmin=lim.loc[plot, "low"]
+                - 0.05 * (lim.loc[plot, "high"] - lim.loc[plot, "low"]),
+                vmax=lim.loc[plot, "high"]
+                + 0.05 * (lim.loc[plot, "high"] - lim.loc[plot, "low"]),
+                title=source + " - nbp fluxes",
+            )
+            ax.get_figure().savefig(row["path"])
+            mpl.close()
+            df_plots.append(row)
+        return pd.DataFrame(df_plots)
 
 
 def _space_labels(

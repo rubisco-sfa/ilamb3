@@ -4,6 +4,7 @@ An abstract class for implementing analysis functions used in ILAMB.
 
 import warnings
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -84,7 +85,7 @@ class ILAMBAnalysis(ABC):
 
     @abstractmethod
     def plots(
-        self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset]
+        self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
         """
         The function which creates plots from analysis intermediate results.
@@ -92,8 +93,6 @@ class ILAMBAnalysis(ABC):
         ILAMB will run your __call__ method over all comparisons and build up a
         dataframe of scalars and a dictionary of intermediate result datasets.
         We will pass these into this function where you can generate plots.
-        Instead of saving them directly here, place the into a pandas dataframe
-        which is returned to the user.
 
         Parameters
         ----------
@@ -104,6 +103,8 @@ class ILAMBAnalysis(ABC):
         com : dict[str,xr.Dataset]
             A dictionary of comparison intermediate maps and curves to plot,
             whose keys are the model names.
+        path: Path
+            The path to prepend to filenames of the saved images.
 
         Returns
         -------
@@ -173,3 +174,11 @@ def scalarify(
         val = float(da.pint.dequantify())
         unit = f"{da.pint.units:~cf}"
     return val, unit
+
+
+def get_plot_name(source: str, region: str | None, name: str, path: Path) -> Path:
+    """
+    Form the name of the plot given its components.
+    """
+    region = "None" if region is None else region
+    return path / f"{source}_{region}_{name}.png"

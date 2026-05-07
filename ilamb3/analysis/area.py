@@ -6,8 +6,10 @@ See Also
 ILAMBAnalysis : The abstract base class from which this derives.
 """
 
+from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -16,7 +18,7 @@ import ilamb3
 import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 import ilamb3.plot as ilp
-from ilamb3.analysis.base import ILAMBAnalysis
+from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name
 
 
 def _neither(a: xr.DataArray, b: xr.DataArray) -> xr.DataArray:
@@ -194,64 +196,72 @@ class area_analysis(ILAMBAnalysis):
         return df, ref_.rename({varname: "extent"}), com_.rename({varname: "extent"})
 
     def plots(
-        self,
-        df: pd.DataFrame,
-        ref: xr.Dataset,
-        com: dict[str, xr.Dataset],
+        self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
+        path.mkdir(parents=True, exist_ok=True)
         if self.analysis_name not in df["analysis"].unique():
             return pd.DataFrame()
         com["Reference"] = ref
+        region = ilamb3.conf["global_region"]
 
         # Extent plot
-        axs = [
-            {
+        df_plots = []
+        for source, ds in com.items():
+            if "extent" not in ds:
+                continue
+            row = {
                 "name": "extent",
+                "analysis": "Area Comparison",
                 "title": self.req_variable.replace("_", " ").title(),
-                "region": ilamb3.conf["global_region"],
+                "region": region,
                 "source": source,
-                "axis": ilp.plot_map(
-                    ds["extent"],
-                    cmap="Blues",
-                    title=source + " " + self.req_variable.replace("_", " ").title(),
-                    ncolors=(
-                        len(ds["extent"].attrs["labels"])
-                        if "labels" in ds["extent"].attrs
-                        else 1
-                    ),
-                    ticks=np.unique(ds["extent"].values[~np.isnan(ds["extent"])]),
-                    ticklabels=(
-                        ds["extent"].attrs["labels"]
-                        if "labels" in ds["extent"].attrs
-                        else ["Permafrost"]
-                    ),
-                    cbar_kwargs={"label": ""},
-                ),
+                "path": get_plot_name(source, region, "extent", path),
             }
-            for source, ds in com.items()
-            if "extent" in ds
-        ]
+            ax = ilp.plot_map(
+                ds["extent"],
+                cmap="Blues",
+                title=source + " " + self.req_variable.replace("_", " ").title(),
+                ncolors=(
+                    len(ds["extent"].attrs["labels"])
+                    if "labels" in ds["extent"].attrs
+                    else 1
+                ),
+                ticks=np.unique(ds["extent"].values[~np.isnan(ds["extent"])]),
+                ticklabels=(
+                    ds["extent"].attrs["labels"]
+                    if "labels" in ds["extent"].attrs
+                    else ["Permafrost"]
+                ),
+                cbar_kwargs={"label": ""},
+            )
+            ax.get_figure().savefig(row["path"])
+            plt.close()
+            df_plots.append(row)
 
         # Bias plot
-        axs += [
-            {
+        for source, ds in com.items():
+            if "bias" not in ds:
+                continue
+            row = {
                 "name": "bias",
+                "analysis": "Area Comparison",
                 "title": "Bias",
-                "region": ilamb3.conf["global_region"],
+                "region": region,
                 "source": source,
-                "axis": ilp.plot_map(
-                    ds["bias"],
-                    cmap="bwr",
-                    title=source + " Bias",
-                    ncolors=3,
-                    ticks=[-1, 0, 1],
-                    ticklabels=["Missed", "Overlap", "Excess"],
-                    cbar_kwargs={"label": ""},
-                ),
+                "path": get_plot_name(source, region, "bias", path),
             }
-            for source, ds in com.items()
-            if "bias" in ds
-        ]
+            ilp.plot_map(
+                ds["bias"],
+                cmap="bwr",
+                title=source + " Bias",
+                ncolors=3,
+                ticks=[-1, 0, 1],
+                ticklabels=["Missed", "Overlap", "Excess"],
+                cbar_kwargs={"label": ""},
+            )
+            ax.get_figure().savefig(row["path"])
+            plt.close()
+            df_plots.append(row)
 
-        axs = pd.DataFrame(axs).dropna(subset=["axis"])
-        return axs
+        df_plots = pd.DataFrame(df_plots)
+        return df_plots

@@ -6,7 +6,7 @@ from ilamb3.analysis import relationship_analysis
 from ilamb3.tests.test_compare import generate_test_dset
 
 
-def test_relationship():
+def test_relationship(test_path):
     ds = xr.merge(
         [
             generate_test_dset(nlat=2, nlon=3).rename_vars({"da": "gpp"})["gpp"],
@@ -21,6 +21,6 @@ def test_relationship():
     df, ds_ref, ds_com["Comparison"] = analysis(ds, ds)
     assert len(df) == 1
     assert np.allclose(df.loc[0, "value"], 1.0)
-    dfp = analysis.plots(df, ds_ref, ds_com)
+    dfp = analysis.plots(df, ds_ref, ds_com, test_path / "test_relationship")
     assert len(dfp) == 3
     plt.close()

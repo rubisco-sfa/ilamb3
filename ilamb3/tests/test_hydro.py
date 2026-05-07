@@ -1,3 +1,6 @@
+import tempfile
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -18,6 +21,8 @@ def test_hydro():
     assert len(q) == 1
     assert np.allclose(q.iloc[0].value, 0.6474532320617079)
     plt.rcParams.update({"figure.max_open_warning": 0})
-    dfp = analysis.plots(df, ds_ref, ds_com)
-    assert len(dfp) == 35
+    tmpdir = Path(tempfile.gettempdir()) / "ilamb-hydro"
+    tmpdir.mkdir(parents=True, exist_ok=True)
+    dfp = analysis.plots(df, ds_ref, ds_com, tmpdir)
+    assert len(dfp) == 36
     plt.close()

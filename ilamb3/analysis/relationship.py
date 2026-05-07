@@ -6,16 +6,18 @@ then later create a ILAMBAnalysis which uses it.
 """
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Union
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
 
-import ilamb3.plot as plt
+import ilamb3.plot as ilp
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
-from ilamb3.analysis.base import ILAMBAnalysis
+from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name
 from ilamb3.regions import Regions
 
 
@@ -383,56 +385,59 @@ class relationship_analysis(ILAMBAnalysis):
         return dfs, ds_ref, ds_com
 
     def plots(
-        self,
-        df: pd.DataFrame,
-        ref: xr.Dataset,
-        com: dict[str, xr.Dataset],
+        self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
         # Some initialization
+        path.mkdir(parents=True, exist_ok=True)
         com["Reference"] = ref
 
         # Build up a dataframe of matplotlib axes, first the distribution plots
-        axs = [
-            {
-                "name": f"distribution-{self.ind_variable}",
-                "title": f"{self.dep_variable} vs. {self.ind_variable}",
-                "region": region,
-                "source": source,
-                "axis": (
-                    plt.plot_distribution(
-                        ds[f"distribution-{self.ind_variable}_{region}"],
-                        title=f"{source} {self.dep_variable} vs. {self.ind_variable}",
-                    )
-                    if f"distribution-{self.ind_variable}_{region}" in ds
-                    else pd.NA
-                ),
-            }
-            for region in self.regions
-            for source, ds in com.items()
-        ]
-        com.pop("Reference")
-        axs += [
-            {
-                "name": f"response-{self.ind_variable}",
-                "title": f"{self.dep_variable} vs. {self.ind_variable}",
-                "region": region,
-                "source": source,
-                "axis": (
-                    plt.plot_response(
-                        ref[f"response-{self.ind_variable}_{region}"],
-                        ref[f"response-{self.ind_variable}-variability_{region}"],
-                        ds[f"response-{self.ind_variable}_{region}"],
-                        ds[f"response-{self.ind_variable}-variability_{region}"],
-                        source,
-                        title=f"{source} {self.dep_variable} vs. {self.ind_variable}",
-                    )
-                    if f"response-{self.ind_variable}_{region}" in ds
-                    else pd.NA
-                ),
-            }
-            for region in self.regions
-            for source, ds in com.items()
-        ]
-        axs = pd.DataFrame(axs).dropna(subset=["axis"])
+        df_plots = []
+        for source, ds in com.items():
+            for region in self.regions:
+                plot = f"distribution-{self.ind_variable}"
+                var = f"{plot}_{region}"
+                if var not in ds:
+                    continue
+                row = {
+                    "name": plot,
+                    "title": f"{self.dep_variable} vs. {self.ind_variable}",
+                    "region": region,
+                    "source": source,
+                    "path": get_plot_name(source, region, plot, path),
+                }
+                ax = ilp.plot_distribution(
+                    ds[var],
+                    title=f"{source} {self.dep_variable} vs. {self.ind_variable}",
+                )
+                ax.get_figure().savefig(row["path"])
+                plt.close()
+                df_plots.append(row)
 
-        return axs
+        com.pop("Reference")
+        for source, ds in com.items():
+            for region in self.regions:
+                plot = f"response-{self.ind_variable}"
+                var = f"{plot}_{region}"
+                if var not in ds:
+                    continue
+                row = {
+                    "name": plot,
+                    "title": f"{self.dep_variable} vs. {self.ind_variable}",
+                    "region": region,
+                    "source": source,
+                    "path": get_plot_name(source, region, plot, path),
+                }
+                ax = ilp.plot_response(
+                    ref[f"response-{self.ind_variable}_{region}"],
+                    ref[f"response-{self.ind_variable}-variability_{region}"],
+                    ds[f"response-{self.ind_variable}_{region}"],
+                    ds[f"response-{self.ind_variable}-variability_{region}"],
+                    source,
+                    title=f"{source} {self.dep_variable} vs. {self.ind_variable}",
+                )
+                ax.get_figure().savefig(row["path"])
+                plt.close()
+                df_plots.append(row)
+        df_plots = pd.DataFrame(df_plots)
+        return df_plots

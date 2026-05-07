@@ -6,17 +6,39 @@ See Also
 ILAMBAnalysis : The abstract base class from which this derives.
 """
 
+from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import xarray as xr
 
 import ilamb3.dataset as dset
-import ilamb3.plot as plt
+import ilamb3.plot as ilp
 from ilamb3 import compare as cmp
-from ilamb3.analysis.base import ILAMBAnalysis, integrate_or_mean, scalarify
+from ilamb3.analysis.base import (
+    ILAMBAnalysis,
+    get_plot_name,
+    integrate_or_mean,
+    scalarify,
+)
 from ilamb3.exceptions import AnalysisNotAppropriate
+
+MONTHS = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+]
 
 
 def _has_annual_cycle(ds: xr.Dataset, varname: str) -> bool:
@@ -186,132 +208,107 @@ class cycle_analysis(ILAMBAnalysis):
         return dfs, ref_out, com_out
 
     def plots(
-        self,
-        df: pd.DataFrame,
-        ref: xr.Dataset,
-        com: dict[str, xr.Dataset],
+        self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
+
+        # This analysis was not run and we should skip plotting entirely
         if "Annual Cycle" not in df["analysis"].unique():
             return pd.DataFrame()
+        path.mkdir(parents=True, exist_ok=True)
 
-        # Some initialization
+        # Pull the plot regions from those found in the scalars
         regions = [None if r == "None" else r for r in df["region"].unique()]
-        com["Reference"] = ref
+        cycles = [f"cycle_{region}" for region in regions]
 
         # Handle units
-        plot_unit = (
-            ref["mean"].attrs["units"] if self.plot_unit is None else self.plot_unit
-        )
+        da = ref[next(iter(cycles))]
+        plot_unit = da.attrs["units"] if self.plot_unit is None else self.plot_unit
+        com["Reference"] = ref
         for source, ds in com.items():
-            for plot in [f"cycle_{region}" for region in regions]:
+            for plot in cycles:
                 if plot in ds:
                     com[source][plot] = dset.convert(ds[plot], plot_unit)
 
-        # Setup plot data
-        dfp = plt.determine_plot_limits(com).set_index("name")
-        dfp.loc["tmax", ["cmap", "title", "low", "high"]] = [
-            "rainbow",
-            "Month of Maximum",
-            -0.5,
-            11.5,
-        ]
-        dfp.loc["shift", ["cmap", "title", "low", "high"]] = [
-            "PRGn",
-            "Phase Shift",
-            -6,
-            6,
-        ]
-        dfp.loc["cyclescore", ["cmap", "title"]] = ["plasma", "Cycle Score"]
+        # Setup a dataframe with the information we will need for each plot in
+        # this analysis.
+        df_meta = pd.DataFrame(
+            [
+                {"name": "tmax", "cmap": "rainbow", "title": "Month of Maximum"},
+                {"name": "shift", "cmap": "PRGn", "title": "Phase Shift"},
+                {"name": "cyclescore", "cmap": "plasma", "title": "Cycle Score"},
+            ]
+            + [
+                {"name": cycle, "cmap": None, "title": "Time Series"}
+                for cycle in cycles
+            ]
+        ).set_index("name")
+        df_limits = ilp.determine_plot_limits(com)
+        df = pd.merge(df_meta, df_limits, left_index=True, right_index=True)
+        df["analysis"] = "Annual Cycle"
 
-        # Build up a dataframe of matplotlib axes
-        plot_cbar_kwargs = {
-            "tmax": {"ticks": range(12), "label": ""},
+        # Override a few limits and set plot options
+        df.loc["tmax", ["low", "high"]] = -0.5, 11.5
+        df.loc["shift", ["low", "high"]] = -6, 6
+        plot_options = {
+            "tmax": {
+                "ncolors": 12,
+                "ticklabels": MONTHS,
+                "cbar_kwargs": {"ticks": range(12), "label": ""},
+            },
             "shift": {},
             "cyclescore": {},
         }
-        axs = [
-            {
-                "name": plot,
-                "title": dfp.loc[plot, "title"],
-                "region": region,
-                "source": source,
-                "axis": (
-                    plt.plot_map(
-                        ds[plot],
-                        region=region,
-                        vmin=dfp.loc[plot, "low"],
-                        vmax=dfp.loc[plot, "high"],
-                        cmap=dfp.loc[plot, "cmap"],
-                        title=source + " " + dfp.loc[plot, "title"],
-                        ncolors=12 if plot == "tmax" else 9,
-                        ticklabels=(
-                            [
-                                "Jan",
-                                "Feb",
-                                "Mar",
-                                "Apr",
-                                "May",
-                                "Jun",
-                                "Jul",
-                                "Aug",
-                                "Sep",
-                                "Oct",
-                                "Nov",
-                                "Dec",
-                            ]
-                            if plot == "tmax"
-                            else None
-                        ),
-                        **{"cbar_kwargs": plot_cbar_kwargs[plot]},
-                    )
-                    if plot in ds
-                    else pd.NA
-                ),
-            }
-            for plot in ["tmax", "shift", "cyclescore"]
-            for source, ds in com.items()
-            for region in regions
-        ]
 
-        axs += [
-            {
-                "name": "cycle",
-                "title": "Annual Cycle",
-                "region": plot.split("_")[-1],
-                "source": source,
-                "axis": (
-                    plt.plot_curve(
+        # Create each plot for each source if present in the dataset
+        df_plots = []
+        for plot, row in df.iterrows():
+            for source, ds in com.items():
+                if plot not in ds:
+                    continue
+                # cycle plots have already been regionalized
+                if plot.startswith("cycle_"):
+                    # Reference cycles don't get plots of their own
+                    if source == "Reference":
+                        continue
+                    plotname, region = plot.split("_")
+                    out = row.to_dict()
+                    out["name"] = plotname
+                    out["source"] = source
+                    out["region"] = region
+                    out["path"] = get_plot_name(source, region, plotname, path)
+                    ax = ilp.plot_curve(
                         {source: ds} | {"Reference": ref},
                         plot,
-                        vmin=dfp.loc[plot, "low"]
-                        - 0.05 * (dfp.loc[plot, "high"] - dfp.loc[plot, "low"]),
-                        vmax=dfp.loc[plot, "high"]
-                        + 0.05 * (dfp.loc[plot, "high"] - dfp.loc[plot, "low"]),
-                        title=f"{source} Annual Cycle",
+                        region=region,
+                        vmin=row["low"],
+                        vmax=row["high"],
+                        title=f"{source} {row['title']}",
                         xticks=range(1, 13),
-                        xticklabels=[
-                            "Jan",
-                            "Feb",
-                            "Mar",
-                            "Apr",
-                            "May",
-                            "Jun",
-                            "Jul",
-                            "Aug",
-                            "Sep",
-                            "Oct",
-                            "Nov",
-                            "Dec",
-                        ],
+                        xticklabels=MONTHS,
                     )
-                    if plot in ds
-                    else pd.NA
-                ),
-            }
-            for plot in [f"cycle_{region}" for region in regions]
-            for source, ds in com.items()
-            if source != "Reference"
-        ]
+                    ax.get_figure().savefig(out["path"])
+                    plt.close()
+                    df_plots.append(out)
+                    continue
+                # Maps are plot over each region
+                for region in regions:
+                    out = row.to_dict()
+                    out["name"] = plot
+                    out["source"] = source
+                    out["region"] = region
+                    out["path"] = get_plot_name(source, region, plot, path)
+                    ax = ilp.plot_map(
+                        ds[plot],
+                        region=region,
+                        vmin=row["low"],
+                        vmax=row["high"],
+                        cmap=row["cmap"],
+                        title=f"{source} {row['title']}",
+                        **plot_options[plot],
+                    )
+                    ax.get_figure().savefig(out["path"])
+                    plt.close()
+                    df_plots.append(out)
 
-        axs = pd.DataFrame(axs).dropna(subset=["axis"])
-        return axs
+        df_plots = pd.DataFrame(df_plots)
+        return df_plots
