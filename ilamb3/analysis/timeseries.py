@@ -112,6 +112,7 @@ class timeseries_analysis(ILAMBAnalysis):
         self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
 
+        path.mkdir(parents=True, exist_ok=True)
         # Setup plot data
         com["Reference"] = ref
         lim = ilplt.determine_plot_limits(com, percent_pad=0).set_index("name")

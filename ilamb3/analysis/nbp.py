@@ -228,6 +228,7 @@ class nbp_analysis(ILAMBAnalysis):
         self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
         # plot over the reference limits
+        path.mkdir(parents=True, exist_ok=True)
         uncert = dset.get_interval_uncertainty(ref, "anbp")
         com["Reference"] = ref
         region = ilamb3.conf["global_region"]

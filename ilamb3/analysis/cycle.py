@@ -214,6 +214,7 @@ class cycle_analysis(ILAMBAnalysis):
         # This analysis was not run and we should skip plotting entirely
         if "Annual Cycle" not in df["analysis"].unique():
             return pd.DataFrame()
+        path.mkdir(parents=True, exist_ok=True)
 
         # Pull the plot regions from those found in the scalars
         regions = [None if r == "None" else r for r in df["region"].unique()]

@@ -198,6 +198,7 @@ class area_analysis(ILAMBAnalysis):
     def plots(
         self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
+        path.mkdir(parents=True, exist_ok=True)
         if self.analysis_name not in df["analysis"].unique():
             return pd.DataFrame()
         com["Reference"] = ref

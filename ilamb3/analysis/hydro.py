@@ -292,6 +292,8 @@ class hydro_analysis(ILAMBAnalysis):
     def plots(
         self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
+
+        path.mkdir(parents=True, exist_ok=True)
         com["Reference"] = ref
 
         def _choose_cmap(plot_name):
