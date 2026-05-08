@@ -301,14 +301,10 @@ def run_single_block(
     transforms = setup_transforms(setup)
 
     # Thin out the dataframe to only contain variables we need for this block.
-    comparison_data = comparison_data[
-        comparison_data["variable_id"].isin(
-            find_related_variables(
-                analyses, transforms, setup.get("alternate_vars", [])
-            )
-            + ["areacella", "sftlf", "areacello", "sftof"]
-        )
-    ]
+    related_vars = find_related_variables(
+        analyses, transforms, setup.get("alternate_vars", [])
+    ) + ["areacella", "sftlf", "areacello", "sftof"]
+    comparison_data = comparison_data[comparison_data["variable_id"].isin(related_vars)]
 
     # Phase I: loop over each model in the group and run all analysis functions
     df_all = []
@@ -364,6 +360,7 @@ def run_single_block(
                 variable,
                 alternate_vars=setup.get("alternate_vars", []),
                 transforms=transforms,
+                related_vars=related_vars,
             )
         except Exception:  # pragma: no cover
             logger.exception(
