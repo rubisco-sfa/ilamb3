@@ -321,6 +321,7 @@ def run_single_block(
         log_file = output_path / f"{source_name}.log"
         log_file.unlink(missing_ok=True)  # start each log empty
         log_id = logger.add(log_file, backtrace=True, diagnose=True)
+        logger.info(f"Start of {block_name} | {source_name}")
 
         # Attempt to load local assets if preferred
         if ilamb3.conf["use_cached_results"]:
