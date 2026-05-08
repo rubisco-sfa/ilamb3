@@ -88,7 +88,7 @@ def _perform_work_phase1(work, reference_data, output_path):
     # load comparison data
     try:
         # Match the reference time frequency if possible
-        cmip_time_lbl = ild.get_frequency_label(ref[variable])
+        cmip_time_lbl = ild.get_frequency_label(ref)
         grp = ill.match_frequency(grp, cmip_time_lbl)
 
         com = ill.load_comparison_data(
