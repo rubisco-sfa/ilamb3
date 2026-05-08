@@ -59,14 +59,10 @@ def _perform_work_phase1(work, reference_data, output_path):
     transforms = run.setup_transforms(setup)
 
     # thin out the dataframe to only contain variables we need for this block
-    grp = grp[
-        grp["variable_id"].isin(
-            run.find_related_variables(
-                analyses, transforms, setup.get("alternate_vars", [])
-            )
-            + ["areacella", "sftlf", "areacello", "sftof"]
-        )
-    ]
+    related_vars = run.find_related_variables(
+        analyses, transforms, setup.get("alternate_vars", [])
+    ) + ["areacella", "sftlf", "areacello", "sftof"]
+    grp = grp[grp["variable_id"].isin(related_vars)]
 
     # if we didn't find anything, just leave
     if len(grp) < 1:
@@ -92,7 +88,7 @@ def _perform_work_phase1(work, reference_data, output_path):
     # load comparison data
     try:
         # Match the reference time frequency if possible
-        cmip_time_lbl = ild.get_frequency_label(ref[variable])
+        cmip_time_lbl = ild.get_frequency_label(ref)
         grp = ill.match_frequency(grp, cmip_time_lbl)
 
         com = ill.load_comparison_data(
@@ -100,6 +96,7 @@ def _perform_work_phase1(work, reference_data, output_path):
             variable,
             alternate_vars=setup.get("alternate_vars", []),
             transforms=transforms,
+            related_vars=related_vars,
         )
     except Exception:
         with open(log_file, "a") as log:

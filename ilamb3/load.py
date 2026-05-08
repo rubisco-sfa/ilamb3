@@ -201,6 +201,7 @@ def load_comparison_data(
     variable_id: str,
     alternate_vars: list[str] | None = None,
     transforms: list | None = None,
+    related_vars: list[str] | None = None,
 ) -> xr.Dataset:
     """
     Load the comparison (model) data into containers and merge if more than 1
@@ -216,6 +217,8 @@ def load_comparison_data(
         A list of acceptable synonyms to be used if `variable_id` is not found.
     transforms: list, optional
         A list of functions that operate on the combined dataset.
+    related_vars: list, optional
+        All variables used from all transforms and all analyses.
     """
     # First load all variables passed into the input dataframe. This will
     # include all relationship variables as well as alternates.
@@ -225,6 +228,7 @@ def load_comparison_data(
             chain(
                 [variable_id],
                 [] if alternate_vars is None else alternate_vars,
+                [] if related_vars is None else related_vars,
                 *[t.required_variables() for t in transforms],
             )
         ),
