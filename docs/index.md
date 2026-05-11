@@ -33,7 +33,7 @@ Expanded descriptions of how key functionality works in the `ilamb3` internals.
 - Datasets package
 - Compare package
 - [Transforms](transforms)
-- Analysis class
+- [Analyses](analysis)
 - Meta analysis
 :::
 

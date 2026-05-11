@@ -25,9 +25,10 @@ project:
     - title: Deep Dive
       file: deep_dive.md
       children:
+        - file: analysis.md
         - file: transforms.md
 site:
   template: book-theme
   options:
-  #   favicon: favicon.ico
-     logo_text: ilamb3
+    #   favicon: favicon.ico
+    logo_text: ilamb3
