@@ -11,7 +11,7 @@ An analysis Python module in `ilamb3` is a function that ingests both a model & 
 An analysis can be **generalized**, or it can be **specialized** to ingest particular variables, regions, product types (gridded and/or point), or dimensions (time, space, etc.). ILAMB employs both. For example, the [bias](https://github.com/rubisco-sfa/ilamb3/blob/main/ilamb3/analysis/bias.py) and [rmse](https://github.com/rubisco-sfa/ilamb3/blob/main/ilamb3/analysis/rmse.py) functions are generalized and can be applied to all incoming datasets, while the [runoff sensitivity](https://github.com/rubisco-sfa/ilamb3/blob/main/ilamb3/analysis/runoff_sensitivity.py) and [nbp](https://github.com/rubisco-sfa/ilamb3/blob/main/ilamb3/analysis/nbp.py) functions are specialized and require specific variables. Further, functions can be **simple** or **robust**. A **simple** function is prone to breakage, while a **robust** function contains logic that handles various input data and edge cases. The process of writing an analysis function follows a natural progression:
 
 1. Write a **simple** analysis function that performs the mathematical operation you want to implement
-2. Test the function on a variety of datasets to see if it works
+2. Test the function on a variety of datasets to esnure it works before making it more robust
 2. Enhance the analysis function to be more **robust**
 3. Integrate the analysis function into `ilamb3`
 4. Demonstrate how to use the analysis function in an `ilamb3` benchmarking study
@@ -71,11 +71,13 @@ def absrelerr(reference: xr.Dataset, comparison: xr.Dataset, varname: str) -> tu
 
 We added a keyword argument, `varname`, to specify the variable on which to perform the analysis. If the user doesn't provide a variable name, this particular function would not work. Next, we calculated the absolute relative error on that variable. Then, we built a pd.DataFrame that contains information that ILAMB requires. The dataframe should have the following columns:
 
-- `source`: The name of the source to which this scalar belongs, either `Reference` or `Comparison`. In general, you might report values per data source, but scalars that represent both datasets are assigned to the `Comparison` source.
+- `source`: The data source that the scalar is referencing: either the `Reference` dataset or the `Comparison` dataset. If your scalar is representative of both datasets, you should choose `Comparison` as the `source`, because inherently the scalar is meant to evaluate the performance of the comparison dataset against the reference dataset (usually the Model against the observations).
 - `region`: The region label over which the scalar applies. In general, `ilamb3` analyses can be performed over multiple regions. For now, we will set this as `None` to indicate no region is specified.
 - `analysis`: The name of the analysis. There can be multiple scalars per analysis, but this column should be the same for all scalars that belong to the same analysis. In this case, we call it `Relative Error`.
 - `name`: The name of the scalar generated for this analysis. The name should be descriptive, such as `Mean Absolute Relative Error`, because it will appear in the scalars table displayed in the `ilamb3` dataset pages.
-- `type`: The type of scalar being reported, either `scalar` or `score`. A `score` in the `ilamb3` vocabulary is a synthesis of model performance on the unit interval, and it will be included in an overall composite score.
+- `type`: The type of scalar being reported, either `scalar` or `score`.
+    - A `scalar` is any statistic you compute; they could represent errors, deviations, means, etc. It can be any value that you think is important to report, and it can be in any units. They will be displayed in the scalars table on the dataset pages.
+    - A `score` is a synthesis of certain scalars to make it easier to compare performance across models and datasets. If you provide scores, ILAMB will use them to produce an additional "Overall Score."
 - `units`: The units of the scalar, which in this case is dimensionless.
 - `value`: The value of the scalar.
 
@@ -134,17 +136,17 @@ if dset.is_temporal(com[varname]):
 ref, com = cmp.nest_spatial_grids(ref, com)
 
 # compute epsilon per gridcell
-eps_spatial = np.abs(ref[varname] - com[varname]) / np.abs(ref[varname])
+eps_gridded = np.abs(ref[varname] - com[varname]) / np.abs(ref[varname])
 
 # compute an area-weighted mean of the per-gridcell epsilon values
-epsilon = dset.integrate_space(eps_spatial, varname, mean=True)
+epsilon = dset.integrate_space(eps_gridded, varname, mean=True)
 ```
 
 - `make_comparable` is a catch-all comparison function that we use in many of our analysis functions. It removes non-overlapping time periods from the datasets, ensures matching units, ensures matching longitude intervals (either [-180, 180] or [0, 360]), as well as other things.
 - `is_temporal` returns True if the time dimension is present while handling variations in the name of the time dimension (i.e. `time` vs `Time`) between datasets.
 - `integrate_time` integrates away the time dimension by taking a mean. This circumvents the need to handle calendar differences. By taking this mean, we imply that we are less interested in any temporal differences, which should be noted in the docstring of our new analysis routine.
 - `nest_spatial_grids` spatially aligns the datasets using the methodology outlines in [*Collier, et al. 2018*](https://doi.org/10.1029/2018MS001354) to handle potential resolution differences. You could also opt to interpolate the grids to a common resolution.
-- `integrate_space` with `mean=True` returns the area-weighted mean of per-gridcell epsilon values. Now we have both a spatial version called `eps_spatial` that we can use to plot spatial maps, as well as a scalar version called `epsilon` that we can report in the dataframe. This is an example of how you can return intermediate datasets to be plotted, as well as scalars to be reported in the dataframe.
+- `integrate_space` with `mean=True` returns the area-weighted mean of per-gridcell epsilon values. Now we have both a spatial version called `eps_gridded` that we can use to plot spatial maps, as well as a scalar version called `epsilon` that we can report in the dataframe. This is an example of how you can return intermediate datasets to be plotted, as well as scalars to be reported in the dataframe.
 
 Our additions have introduced one more potential bug: we integrate over space, but what if one or both of the datasets are site collections, rather than gridded (e.g., the Fluxnet collection). While we could add logic to the function that handles point data, let's rather restrict this function to only work on gridded datasets. The **robust** analysis routine should detect and flag when a method isn't appropriate for the input data and raise an error called `ilamb3.exceptions.AnalysisNotAppropriate`. Let's add the following lines to the top of the function:
 
@@ -285,7 +287,7 @@ class absrelerror(ILAMBAnalysis):  # define a class that inherits from the ABC
 Lines that were changed have been highlighted for emphasis. In words, the above code snippet makes the following changes:
 
 - We have imported the abstract base class `ILAMBAnalysis` and made `absrelerror` a class that *inherits* from it.
-- We created a member function named `__init__` and moved our `varname` argument to it. Python has a number of *double under* or *dunder* methods that have special behavior. The `__init__` method is called when an instance of the class is created, and it allows us to initialize the instance's attributes.
+- We created a member function named `__init__` and moved our `varname` argument to it. Python has a number of *double under* (a.k.a *dunder*) methods that have special behavior. The `__init__` method is called when an instance of the class is created, and it allows us to initialize the instance's attributes.
 - Then, we created a member function named `__call__`, and we put the content from our function inside. The reference and comparison datasets are passed as arguments to this method---all analysis `__call__` methods follow this pattern. The `__call__` method will allow us to call an instance of the `absrelerror` class as if it were a function.
 
 At the moment, it does not yet seem like we have accomplished much by this change. However, if you try to create an instance of this class we have built,
