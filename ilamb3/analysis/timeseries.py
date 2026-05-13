@@ -18,6 +18,9 @@ class timeseries_analysis(ILAMBAnalysis):
         self.description = kwargs.get("description", "Period Mean")
         self.kwargs = kwargs
 
+    def name(self) -> str:
+        return "Timeseries"
+
     def required_variables(self):
         return [self.required_variable]
 
@@ -49,7 +52,7 @@ class timeseries_analysis(ILAMBAnalysis):
                 {
                     "source": "Reference",
                     "region": "None",
-                    "analysis": "timeseries",
+                    "analysis": self.name(),
                     "name": self.description,
                     "type": "scalar",
                     "units": unit,
@@ -58,7 +61,7 @@ class timeseries_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": "None",
-                    "analysis": "timeseries",
+                    "analysis": self.name(),
                     "name": self.description,
                     "type": "scalar",
                     "units": unit,
@@ -67,7 +70,7 @@ class timeseries_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": "None",
-                    "analysis": "timeseries",
+                    "analysis": self.name(),
                     "name": "Bias Score",
                     "type": "score",
                     "units": "1",
@@ -76,7 +79,7 @@ class timeseries_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": "None",
-                    "analysis": "timeseries",
+                    "analysis": self.name(),
                     "name": "Normalized Standard Deviation",
                     "type": "scalar",
                     "units": "1",
@@ -85,7 +88,7 @@ class timeseries_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": "None",
-                    "analysis": "timeseries",
+                    "analysis": self.name(),
                     "name": "Correlation",
                     "type": "scalar",
                     "units": "1",
@@ -94,7 +97,7 @@ class timeseries_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": "None",
-                    "analysis": "timeseries",
+                    "analysis": self.name(),
                     "name": "Taylor Score",
                     "type": "score",
                     "units": "1",

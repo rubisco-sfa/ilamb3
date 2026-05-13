@@ -50,6 +50,17 @@ class spatial_distribution_analysis(ILAMBAnalysis):
         self.regions = regions
         self.kwargs = kwargs
 
+    def name(self) -> str:
+        """
+        Return the name of this analysis.
+
+        Returns
+        -------
+        str
+            The name of this analysis.
+        """
+        return "Spatial Distribution"
+
     def required_variables(self) -> list[str]:
         """
         Return the list of variables required for this analysis.
@@ -86,7 +97,6 @@ class spatial_distribution_analysis(ILAMBAnalysis):
             A dataset containing comparison grided information from the comparison.
         """
         # Initialize
-        analysis_name = "Spatial Distribution"
         varname = self.req_variable
 
         # Make the variables comparable and force loading into memory
@@ -138,7 +148,7 @@ class spatial_distribution_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": str(region),
-                    "analysis": analysis_name,
+                    "analysis": self.name(),
                     "name": "Normalized Standard Deviation",
                     "type": "scalar",
                     "units": "1",
@@ -147,7 +157,7 @@ class spatial_distribution_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": str(region),
-                    "analysis": analysis_name,
+                    "analysis": self.name(),
                     "name": "Correlation",
                     "type": "scalar",
                     "units": "1",
@@ -156,7 +166,7 @@ class spatial_distribution_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": str(region),
-                    "analysis": analysis_name,
+                    "analysis": self.name(),
                     "name": "Spatial Distribution Score",
                     "type": "score",
                     "units": "1",
@@ -172,7 +182,7 @@ class spatial_distribution_analysis(ILAMBAnalysis):
     ) -> pd.DataFrame:
 
         # This analysis was not run and we should skip plotting entirely
-        if "Spatial Distribution" not in df["analysis"].unique():
+        if self.name() not in df["analysis"].unique():
             return pd.DataFrame()
         path.mkdir(parents=True, exist_ok=True)
 
@@ -183,8 +193,8 @@ class spatial_distribution_analysis(ILAMBAnalysis):
         for region in regions:
             row = {
                 "name": "taylor",
-                "analysis": "Spatial Distribution",
-                "title": "Spatial Distribution",
+                "analysis": self.name(),
+                "title": self.name(),
                 "region": str(region),
                 "source": None,
                 "path": get_plot_name(None, region, "taylor", path),

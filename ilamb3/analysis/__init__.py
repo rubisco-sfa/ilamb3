@@ -1,30 +1,39 @@
 """Modular ILAMB methodology functions."""
 
-from ilamb3.analysis.area import area_analysis
-from ilamb3.analysis.base import add_overall_score
-from ilamb3.analysis.bias import bias_analysis
-from ilamb3.analysis.cycle import cycle_analysis
-from ilamb3.analysis.hydro import hydro_analysis
-from ilamb3.analysis.nbp import nbp_analysis
-from ilamb3.analysis.relationship import relationship_analysis
-from ilamb3.analysis.rmse import rmse_analysis
-from ilamb3.analysis.runoff_sensitivity import runoff_sensitivity_analysis
-from ilamb3.analysis.spatial_distribution import spatial_distribution_analysis
-from ilamb3.analysis.timeseries import timeseries_analysis
+import importlib
+import inspect
+from importlib import resources
 
+from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
+
+
+def _get_ilamb_analyses(module_name):
+    try:
+        mod = importlib.import_module(module_name)
+    except Exception:
+        return {}
+    return {
+        f.replace("_analysis", ""): mod.__dict__[f]
+        for f in dir(mod)
+        if inspect.isclass(mod.__dict__[f])
+        and issubclass(mod.__dict__[f], ILAMBAnalysis)
+        and f != "ILAMBAnalysis"
+    }
+
+
+# Programmatically load all analyses found in the analysis directory and the
+# current directory. They keys of this dictionary are the valid ids that can be
+# given in a configure file.
+ALL_ANALYSES = {}
+with resources.path("ilamb3.analysis") as path:
+    for f in path.glob("*.py"):
+        if f.stem == "__init__" or f.stem == "base":
+            continue
+        ALL_ANALYSES.update(_get_ilamb_analyses(f"ilamb3.analysis.{f.stem}"))
+
+# set the default analyses as a subset
 DEFAULT_ANALYSES = {
-    "Bias": bias_analysis,
-    "RMSE": rmse_analysis,
-    "Annual Cycle": cycle_analysis,
-    "Spatial Distribution": spatial_distribution_analysis,
+    key: ALL_ANALYSES[key] for key in ["bias", "rmse", "cycle", "spatial_distribution"]
 }
-ALL_ANALYSES = {
-    "Area Comparison": area_analysis,
-    "nbp": nbp_analysis,
-    "Runoff Sensitivity": runoff_sensitivity_analysis,
-    "Hydro": hydro_analysis,
-    "timeseries": timeseries_analysis,
-    "relationship": relationship_analysis,
-} | DEFAULT_ANALYSES
 
-__all__ = list(ALL_ANALYSES.keys()) + ["add_overall_score"]
+__all__ = ["ILAMBAnalysis", "add_overall_score"]

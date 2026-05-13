@@ -270,6 +270,17 @@ class relationship_analysis(ILAMBAnalysis):
         self.regions = regions
         self.kwargs = kwargs
 
+    def name(self) -> str:
+        """
+        Return the name of this analysis.
+
+        Returns
+        -------
+        str
+            The name of this analysis.
+        """
+        return f"Relationship {self.ind_variable}"
+
     def required_variables(self) -> list[str]:
         """
         Return the list of variables required for this analysis.
@@ -315,7 +326,6 @@ class relationship_analysis(ILAMBAnalysis):
             return ds
 
         # Initialize and make comparable
-        analysis_name = f"Relationship {self.ind_variable}"
         var_ind = self.ind_variable
         var_dep = self.dep_variable
         for var in self.required_variables():
@@ -359,7 +369,7 @@ class relationship_analysis(ILAMBAnalysis):
                 [
                     "Comparison",
                     str(region),
-                    analysis_name,
+                    self.name(),
                     f"Relationship Score {var_ind}",
                     "score",
                     "1",

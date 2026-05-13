@@ -160,6 +160,17 @@ class hydro_analysis(ILAMBAnalysis):
             ],
         }
 
+    def name(self) -> str:
+        """
+        Return the name of this analysis.
+
+        Returns
+        -------
+        str
+            The name of this analysis.
+        """
+        return "Hydro"
+
     def required_variables(self) -> list[str]:
         """
         Return the list of variables required for this analysis.

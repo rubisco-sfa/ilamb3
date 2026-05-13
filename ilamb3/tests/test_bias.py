@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ilamb3.analysis import bias_analysis
+from ilamb3.analysis.bias import bias_analysis
 from ilamb3.regions import Regions
 from ilamb3.tests.test_compare import generate_test_dset
 from ilamb3.tests.test_dataset import generate_test_site_dset
