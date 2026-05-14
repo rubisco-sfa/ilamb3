@@ -90,6 +90,17 @@ class bias_analysis(ILAMBAnalysis):
         self.plot_unit = plot_unit
         self.kwargs = kwargs
 
+    def name(self) -> str:
+        """
+        Return the name of the analysis.
+
+        Returns
+        -------
+        str
+            The name of the analysis.
+        """
+        return "Bias"
+
     def required_variables(self) -> list[str]:
         """
         Return the list of variables required for this analysis.
@@ -121,12 +132,11 @@ class bias_analysis(ILAMBAnalysis):
         pd.DataFrame
             A dataframe with scalar and score information from the comparison.
         xr.Dataset
-            A dataset containing reference grided information from the comparison.
+            A dataset containing reference gridded information from the comparison.
         xr.Dataset
-            A dataset containing comparison grided information from the comparison.
+            A dataset containing comparison gridded information from the comparison.
         """
         # Initialize
-        analysis_name = "Bias"
         varname = self.req_variable
 
         # Checks on the quantile database if used
@@ -250,7 +260,7 @@ class bias_analysis(ILAMBAnalysis):
                     [
                         src,
                         str(region),
-                        analysis_name,
+                        self.name(),
                         "Period Mean",
                         "scalar",
                         unit,
@@ -260,7 +270,7 @@ class bias_analysis(ILAMBAnalysis):
             # Bias
             val, unit = scalarify(com_out, "bias", region, True, unit=self.plot_unit)
             dfs.append(
-                ["Comparison", str(region), analysis_name, "Bias", "scalar", unit, val]
+                ["Comparison", str(region), self.name(), "Bias", "scalar", unit, val]
             )
             # Bias Score
             val, unit = scalarify(
@@ -274,7 +284,7 @@ class bias_analysis(ILAMBAnalysis):
                 [
                     "Comparison",
                     str(region),
-                    analysis_name,
+                    self.name(),
                     "Bias Score",
                     "score",
                     unit,

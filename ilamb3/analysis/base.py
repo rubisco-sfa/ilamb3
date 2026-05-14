@@ -37,6 +37,17 @@ class ILAMBAnalysis(ABC):
         raise NotImplementedError()  # pragma: no cover
 
     @abstractmethod
+    def name(self) -> str:
+        """
+        Return the name of the analysis.
+
+        When results from your analysis are presented in the data dashboard, this
+        name will be used as the clickable section title. It should be a short but
+        human-readable name.
+        """
+        raise NotImplementedError()  # pragma: no cover
+
+    @abstractmethod
     def required_variables(self) -> list[str] | dict[str, list[str]]:
         """
         Return the variables used in this analysis.

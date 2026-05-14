@@ -33,13 +33,14 @@ Expanded descriptions of how key functionality works in the `ilamb3` internals.
 - Datasets package
 - Compare package
 - [Transforms](transforms)
-- Analysis class
+- [Analyses](analysis)
 - Meta analysis
 :::
 
 :::{card} 📖 Reference
 :link: ./datasets.md
 Documentation for all `ilamb3` internals.
+- [Glossary](glossary)
 - Auto-generated API documentation
 - A list of every markdown file in the doc for easy search
 - Links/ descriptions to our supported runs

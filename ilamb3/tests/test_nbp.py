@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from ilamb3.analysis import nbp_analysis
+from ilamb3.analysis.nbp import nbp_analysis
 from ilamb3.exceptions import TemporalOverlapIssue
 from ilamb3.tests.test_compare import generate_test_dset
 

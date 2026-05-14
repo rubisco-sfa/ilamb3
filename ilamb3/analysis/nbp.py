@@ -70,6 +70,17 @@ class nbp_analysis(ILAMBAnalysis):
     def __init__(self, evaluation_year: int | None = None, **kwargs: Any):
         self.evaluation_year = evaluation_year
 
+    def name(self) -> str:
+        """
+        Return the name of this analysis.
+
+        Returns
+        -------
+        str
+            The name of this analysis.
+        """
+        return "nbp"
+
     def required_variables(self) -> list[str]:
         """
         Return the variable names required in this analysis.

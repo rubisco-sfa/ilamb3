@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 
-from ilamb3.analysis import relationship_analysis
+from ilamb3.analysis.relationship import relationship_analysis
 from ilamb3.tests.test_compare import generate_test_dset
 
 
