@@ -27,6 +27,9 @@ project:
       children:
         - file: analysis.md
         - file: transforms.md
+    - title: Reference
+      children:
+        - file: glossary.md
 site:
   template: book-theme
   options:
