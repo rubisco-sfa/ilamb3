@@ -143,6 +143,21 @@ def datasets_iomb():
     with open("_generated/catalog_iomb.html", "w") as fout:
         fout.write(df.style.set_table_styles(styles).to_html())
 
+def analysis_genyaml():
+    cat = ilamb3.ilamb3_catalog()
+    wecann_gpp_key = [key for key in cat.registry if "WECANN" in key and "gpp" in key]
+    if len(wecann_gpp_key) != 1:
+        raise ValueError(f"Ambiguity in finding WECANN gpp {wecann_gpp_key=}")
+    wecann_gpp_key = wecann_gpp_key[0]
+    out = {
+        "WECANN-1-0": {
+            "sources": {"gpp": wecann_gpp_key},
+            "variable_cmap": "Greens",
+        }
+    }
+    with open("_generated/my_analysis_test.yaml", "w") as f:
+        f.write(yaml.dump(out))
+    cat.fetch(wecann_gpp_key)
 
 if __name__ == "__main__":
     # Run all the functions defined in this module
