@@ -153,6 +153,7 @@ def analysis_genyaml():
         "WECANN-1-0": {
             "sources": {"gpp": wecann_gpp_key},
             "variable_cmap": "Greens",
+            "analyses": ["absrelerror"]
         }
     }
     with open("_generated/my_analysis_test.yaml", "w") as f:
