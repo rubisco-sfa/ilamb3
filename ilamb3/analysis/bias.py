@@ -22,6 +22,50 @@ from ilamb3.analysis.quantiles import check_quantile_database, create_quantile_m
 from ilamb3.exceptions import NoDatabaseEntry, NoUncertainty
 
 
+def evaluate_difference(
+    ref: xr.Dataset,
+    com: xr.Dataset,
+    varname: str,
+    error_normalization: xr.DataArray,
+    ref_uncertainty: xr.DataArray,
+    method: Literal["Collier2018", "RegionalQuantiles"],
+) -> xr.Dataset:
+
+    # This just overwrites the inputs into their nested grid variants
+    if dset.is_spatial(ref[varname]) and dset.is_spatial(com[varname]):
+        ref, com, error_normalization, ref_uncertainty = cmp.nest_spatial_grids(
+            ref, com, error_normalization, ref_uncertainty
+        )
+    # To subtract arrays, dimension names must match
+    ref, com, error_normalization, ref_uncertainty = cmp.rename_dims(
+        ref, com, error_normalization, ref_uncertainty.fillna(0)
+    )
+    # Evaluate the difference in stages
+    diff = com[varname] - ref[varname]
+    discounted_diff = (np.abs(diff) - ref_uncertainty).clip(0)
+    relative_error = discounted_diff / np.abs(error_normalization)
+    # Scores are still dependent on the method
+    match method:
+        case "Collier2018":
+            score = np.exp(-relative_error)
+        case "RegionalQuantiles":
+            score = (1.0 - relative_error).clip(0, 1)
+        case _:
+            raise ValueError(f"Unknown method: {method}")
+    score.attrs["units"] = 1
+    # Build up and return the results, rename the lat's and lon's so they can be
+    # merged uniquely
+    out = xr.Dataset({f"diff_{varname}": diff, f"score_{varname}": score})
+    if dset.is_spatial(out[f"diff_{varname}"]):
+        out = out.rename(
+            {
+                dset.get_dim_name(out, "lat"): "lat_",
+                dset.get_dim_name(out, "lon"): "lon_",
+            }
+        )
+    return out
+
+
 class bias_analysis(ILAMBAnalysis):
     """
     The ILAMB bias methodology.
@@ -136,10 +180,9 @@ class bias_analysis(ILAMBAnalysis):
         xr.Dataset
             A dataset containing comparison gridded information from the comparison.
         """
-        # Initialize
-        varname = self.req_variable
-
         # Checks on the quantile database if used
+        varname = self.req_variable
+        quantile_map = None
         if self.method == "RegionalQuantiles":
             check_quantile_database(self.quantile_database)
             try:
@@ -148,111 +191,77 @@ class bias_analysis(ILAMBAnalysis):
                 )
                 dset.convert(quantile_map, ref[varname].attrs["units"])
             except NoDatabaseEntry:
-                # fallback if the variable/type/quantile is not in the database
+                # Fallback if the variable/type/quantile is not in the database
                 self.method = "Collier2018"
-
         # Never mass weight if regional quantiles are used
         if self.method == "RegionalQuantiles":
             self.mass_weighting = False
 
-        # Make the variables comparable and force loading into memory
         ref, com = cmp.make_comparable(ref, com, varname, **self.kwargs)
 
+        # Build up the output datasets as we go
+        out_ref = xr.Dataset()
+        out_com = xr.Dataset()
+
         # Temporal means across the time period
-        ref_mean = (
+        out_ref["mean"] = (
             dset.integrate_time(ref, varname, mean=True)
             if dset.is_temporal(ref[varname])
             else ref[varname]
         )
-        com_mean = (
+        out_com["mean"] = (
             dset.integrate_time(com, varname, mean=True)
             if dset.is_temporal(com[varname])
             else com[varname]
         )
 
-        # Get the reference data uncertainty
-        uncert = xr.zeros_like(ref_mean)
+        # Choose what we will use to normalize the error, defaults to traditional definition
+        error_norm = out_ref["mean"]
+        if self.method == "RegionalQuantiles" and quantile_map is not None:
+            # Use the quantile map if that is what we are doing
+            error_norm = quantile_map
+        elif (
+            dset.is_temporal(ref[varname])
+            and ref[dset.get_dim_name(ref[varname], "time")].size > 1
+        ):
+            # Otherwise normalize by the standard deviation of the reference
+            error_norm = dset.std_time(ref, varname)
+
+        # Get the reference data uncertainty if present and desired
+        out_ref["uncert"] = xr.zeros_like(out_ref["mean"])
         if self.use_uncertainty:
             try:
-                ref["uncert"] = dset.get_scalar_uncertainty(ref, varname)
-                uncert = (
-                    dset.integrate_time(ref, "uncert", mean=True)
-                    if dset.is_temporal(ref["uncert"])
-                    else ref["uncert"]
-                )
+                out_ref["uncert"] = dset.get_scalar_uncertainty(ref, varname)
             except (NoUncertainty, ValueError):
                 self.use_uncertainty = False
+        if dset.is_temporal(out_ref["uncert"]):
+            out_ref["uncert"] = dset.integrate_time(out_ref, "uncert", mean=True)
 
-        # If temporal information is available, we normalize the error by the
-        # standard deviation of the reference. If not, we revert to the traditional
-        # definition of relative error.
-        norm = ref_mean
-        if dset.is_temporal(ref[varname]):
-            time_dim = dset.get_dim_name(ref[varname], "time")
-            if ref[time_dim].size > 1:
-                norm = dset.std_time(ref, varname)
-
-        # Nest the grids for comparison, we postpend composite grid variables with "_"
-        if dset.is_spatial(ref) and dset.is_spatial(com):
-            ref_, com_, norm_, uncert_ = cmp.nest_spatial_grids(
-                ref_mean, com_mean, norm, uncert
-            )
-        elif dset.is_site(ref) and dset.is_site(com):
-            ref_ = ref_mean
-            com_ = com_mean
-            norm_ = norm
-            uncert_ = uncert
-        else:
-            raise ValueError("Reference and comparison not uniformly site/spatial.")
-
-        # Compute score by different methods
-        ref_, com_, norm_, uncert_ = cmp.rename_dims(
-            ref_, com_, norm_, uncert_.fillna(0)
+        # Now score the difference and merge with the comparison output.
+        out_nested = evaluate_difference(
+            ref, com, varname, error_norm, out_ref["uncert"], self.method
         )
-        bias = com_ - ref_
-        if self.method == "Collier2018":
-            score = np.exp(-np.abs((np.abs(bias) - uncert_).clip(0) / norm_))
-        elif self.method == "RegionalQuantiles":
-            norm = quantile_map.interp(
-                lat=bias["lat"], lon=bias["lon"], method="nearest"
-            )
-            score = (1 - (np.abs(bias) - uncert_).clip(0) / norm).clip(0, 1)
-        else:
-            msg = (
-                "The method used to score the bias must be 'Collier2018' or "
-                f"'RegionalQuantiles' but found {self.method=}"
-            )
-            raise ValueError(msg)
-        score.attrs["units"] = 1
+        out_nested = out_nested.rename(
+            {
+                k: k.split("_")[0].replace("diff", "bias").replace("score", "biasscore")
+                for k in out_nested
+            }
+        )
+        out_com = xr.merge([out_com, out_nested], compat="override")
 
-        # Build output datasets
-        ref_out = ref_mean.to_dataset(name="mean")
-        if self.use_uncertainty:
-            ref_out["uncert"] = uncert
-        com_out = bias.to_dataset(name="bias")
-        com_out["biasscore"] = score
-        try:
-            lat_name = dset.get_dim_name(com_mean, "lat")
-            lon_name = dset.get_dim_name(com_mean, "lon")
-            com_mean = com_mean.rename({lat_name: "lat_", lon_name: "lon_"})
-        except KeyError:
-            pass
-        com_out["mean"] = com_mean
-
-        # Pass measures into out for integrations if present
+        # We are going to integrate over regions in the next step. Values will
+        # be more accurate if using the cell measures provided in the original
+        # sources if present.
         if "cell_measures" in ref:
-            ref_out["cell_measures"] = ref["cell_measures"]
-        if "cell_measures" in com and dset.is_spatial(com):
-            msr = com["cell_measures"]
-            lat_name = dset.get_dim_name(msr, "lat")
-            lon_name = dset.get_dim_name(msr, "lon")
-            com_out["cell_measures"] = msr.rename({lat_name: "lat_", lon_name: "lon_"})
+            out_ref["cell_measures"] = ref["cell_measures"]
+        if "cell_measures" in com:
+            out_com["cell_measures"] = com["cell_measures"]
 
         # Compute scalars over all regions
         dfs = []
         for region in self.regions:
             # Period mean
-            for src, var in zip(["Reference", "Comparison"], [ref_out, com_out]):
+            for src, var in zip(["Reference", "Comparison"], [out_ref, out_com]):
                 val, unit = scalarify(
                     var, "mean", region, not self.spatial_sum, unit=self.table_unit
                 )
@@ -268,17 +277,17 @@ class bias_analysis(ILAMBAnalysis):
                     ]
                 )
             # Bias
-            val, unit = scalarify(com_out, "bias", region, True, unit=self.plot_unit)
+            val, unit = scalarify(out_com, "bias", region, True, unit=self.plot_unit)
             dfs.append(
                 ["Comparison", str(region), self.name(), "Bias", "scalar", unit, val]
             )
             # Bias Score
             val, unit = scalarify(
-                com_out,
+                out_com,
                 "biasscore",
                 region,
                 True,
-                weight=ref_ if self.mass_weighting else None,
+                weight=None,
             )
             dfs.append(
                 [
@@ -306,10 +315,10 @@ class bias_analysis(ILAMBAnalysis):
             ],
         )
 
-        # We don't really want to plot cell measures
-        ref_out = ref_out.drop_vars("cell_measures", errors="ignore")
-        com_out = com_out.drop_vars("cell_measures", errors="ignore")
-        return dfs, ref_out, com_out
+        # Now that we have the scalars, now we can drop the cell measures
+        out_ref = out_ref.drop_vars("cell_measures", errors="ignore")
+        out_com = out_com.drop_vars("cell_measures", errors="ignore")
+        return dfs, out_ref, out_com
 
     def plots(
         self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
