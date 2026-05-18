@@ -239,7 +239,7 @@ class bias_analysis(ILAMBAnalysis):
 
         # Now score the difference and merge with the comparison output.
         out_nested = evaluate_difference(
-            ref, com, varname, error_norm, out_ref["uncert"], self.method
+            out_ref, out_com, "mean", error_norm, out_ref["uncert"], self.method
         )
         out_nested = out_nested.rename(
             {
