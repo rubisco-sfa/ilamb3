@@ -257,6 +257,25 @@ class bias_analysis(ILAMBAnalysis):
         if "cell_measures" in com:
             out_com["cell_measures"] = com["cell_measures"]
 
+        # If the user has selected to use mass weighting, we will need the
+        # reference mean interpolated to the nested grid if sources are gridded.
+        if self.mass_weighting:
+            if dset.is_spatial(out_com["biasscore"]):
+                weight = (
+                    out_ref["mean"]
+                    .rename(
+                        {
+                            dset.get_dim_name(out_ref, "lat"): "lat_",
+                            dset.get_dim_name(out_ref, "lon"): "lon_",
+                        }
+                    )
+                    .interp_like(out_nested, method="nearest")
+                )
+            else:
+                weight = out_ref[
+                    "mean"
+                ]  # sites and therefore does not need to be interpolated
+
         # Compute scalars over all regions
         dfs = []
         for region in self.regions:
@@ -287,7 +306,7 @@ class bias_analysis(ILAMBAnalysis):
                 "biasscore",
                 region,
                 True,
-                weight=None,
+                weight=weight if self.mass_weighting else None,
             )
             dfs.append(
                 [
