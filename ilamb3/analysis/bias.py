@@ -218,8 +218,17 @@ class bias_analysis(ILAMBAnalysis):
         # Choose what we will use to normalize the error, defaults to traditional definition
         error_norm = out_ref["mean"]
         if self.method == "RegionalQuantiles" and quantile_map is not None:
-            # Use the quantile map if that is what we are doing
-            error_norm = quantile_map
+            # Use the quantile map on the comparison grid
+            error_norm = quantile_map.rename(
+                {
+                    dset.get_dim_name(quantile_map, "lat"): dset.get_dim_name(
+                        out_com, "lat"
+                    ),
+                    dset.get_dim_name(quantile_map, "lon"): dset.get_dim_name(
+                        out_com, "lon"
+                    ),
+                }
+            ).interp_like(out_com, method="nearest")
         elif (
             dset.is_temporal(ref[varname])
             and ref[dset.get_dim_name(ref[varname], "time")].size > 1
