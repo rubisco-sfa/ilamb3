@@ -36,19 +36,22 @@ class integrate(ILAMBTransform):
         mean: bool = False,
         **kwargs: Any,
     ):
+        """
+        Initialize the transform with any keyword arguments.
+        """
         self.dim = dim
         self.varname = varname
         self.mean = mean
 
     def required_variables(self) -> list[str]:
         """
-        Return the variables this transform uses.
+        Return the variables that this transform needs to have in the dataset.
         """
         return []
 
     def __call__(self, ds: xr.Dataset) -> xr.Dataset:
         """
-        Apply the appropriate integration transform to the dataset.
+        The body of the transform function.
         """
 
         # Normalize varname to list

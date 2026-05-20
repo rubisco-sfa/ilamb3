@@ -173,8 +173,8 @@ def is_gridded(data: xr.DataArray | xr.Dataset) -> bool:
         True if latitude and longitude dimensions are present, False otherwise.
     """
     try:
-        get_dim_name(da, "lat")
-        get_dim_name(da, "lon")
+        get_dim_name(data, "lat")
+        get_dim_name(data, "lon")
         return True
     except KeyError:
         pass
@@ -186,7 +186,8 @@ def is_gridded(data: xr.DataArray | xr.Dataset) -> bool:
 
 def is_site(da: xr.DataArray) -> bool:
     """
-    Return if the dataarray is a collection of sites.
+    Return if the dataarray is a collection of sites, i.e., has latitude and longitude
+    coordinates but no corresponding dimensions.
 
     Parameters
     ----------
@@ -220,7 +221,7 @@ def is_site(da: xr.DataArray) -> bool:
 
 def is_layered(da: xr.DataArray) -> bool:
     """
-    Return if the dataarray is layered.
+    Return if the dataarray is layered, i.e., has a depth dimension.
 
     Parameters
     ----------
