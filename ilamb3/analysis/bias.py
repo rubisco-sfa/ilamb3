@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any, Literal
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -19,6 +18,7 @@ from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name, scalarify
 from ilamb3.analysis.quantiles import check_quantile_database, create_quantile_map
+from ilamb3.compare.base import compute_bias
 from ilamb3.exceptions import NoDatabaseEntry, NoUncertainty
 
 
@@ -37,6 +37,8 @@ class bias_analysis(ILAMBAnalysis):
         `RegionalQuantiles`.
     regions : list
         A list of region labels over which to apply the analysis.
+    seasons : bool
+        Apply the analysis seasonally (DJF, MAM, JJA, SON) if True.
     use_uncertainty : bool
         Enable to utilize uncertainty information from the reference product if
         present.
@@ -68,6 +70,7 @@ class bias_analysis(ILAMBAnalysis):
         variable_cmap: str = "viridis",
         method: Literal["Collier2018", "RegionalQuantiles"] = "Collier2018",
         regions: list[str | None] = [None],
+        seasons: bool = False,
         use_uncertainty: bool = True,
         spatial_sum: bool = False,
         mass_weighting: bool = False,
@@ -81,6 +84,7 @@ class bias_analysis(ILAMBAnalysis):
         self.cmap = variable_cmap
         self.method = method
         self.regions = regions
+        self.seasons = seasons
         self.use_uncertainty = use_uncertainty
         self.spatial_sum = spatial_sum
         self.mass_weighting = mass_weighting

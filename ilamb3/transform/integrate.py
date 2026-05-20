@@ -9,7 +9,9 @@ from ilamb3.transform.base import ILAMBTransform
 
 class integrate(ILAMBTransform):
     """
-    This ILAMB Transform integrates a variable over a specified dimension if that
+    Compute the integrated sum or mean of a variable along a dimension.
+
+    This :class:`ILAMBTransform` integrates a variable over a specified dimension if that
     dimension exists. The integrated variable replaces the original variable in the
     dataset. The integration is the sum over the specified dimension weighted by
     the appropriate measure (e.g., time interval lengths for time integration).
@@ -56,7 +58,7 @@ class integrate(ILAMBTransform):
         integration_map = {
             "time": (dset.integrate_time, dset.is_temporal),
             "depth": (dset.integrate_depth, dset.is_layered),
-            "space": (dset.integrate_space, dset.is_spatial),
+            "space": (dset.integrate_space, dset.is_gridded),
         }
 
         integration_func, var_type_func = integration_map[self.dim]

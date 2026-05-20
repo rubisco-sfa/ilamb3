@@ -223,8 +223,8 @@ def plot_map(da: xr.DataArray, **kwargs):
     if dset.is_temporal(da):
         raise ValueError("Cannot make spatio-temporal plots")
 
-    # Space or sites?
-    if dset.is_spatial(da):
+    # Gridded or sites?
+    if dset.is_gridded(da):
         out_plot = da.plot(
             ax=ax, transform=ccrs.PlateCarree(), cbar_kwargs=cba, **kwargs
         )

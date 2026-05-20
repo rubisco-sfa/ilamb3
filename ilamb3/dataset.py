@@ -70,7 +70,7 @@ def get_dim_name(
     }
     # Assumption: the 'site' dimension is what is left over after all others are removed
     if dim == "site":
-        if is_spatial(dset):
+        if is_gridded(dset):
             raise NoSiteDimension("Dataset/dataarray is spatial")
         possible_names = list(
             set(dset.dims)
@@ -151,20 +151,20 @@ def is_temporal(da: xr.DataArray) -> bool:
         True if time dimension is present, False otherwise.
     """
     try:
-        get_dim_name(da, "time")
+        get_dim_name(data, "time")
         return True
     except KeyError:
         pass
     return False
 
 
-def is_spatial(da: xr.DataArray) -> bool:
+def is_gridded(data: xr.DataArray | xr.Dataset) -> bool:
     """
-    Return if the dataarray is spatial.
+    Return if the dataarray is gridded, i.e., has latitude and longitude dimensions.
 
     Parameters
-    ----------
-    da : xr.DataArray
+    data : xr.DataArray or xr.Dataset
+        The input dataarray or dataset.
         The input dataarray.
 
     Returns
@@ -1164,7 +1164,8 @@ def get_mean_time_frequency(ds: xr.Dataset) -> float:
 
 def get_frequency_label(ds: xr.Dataset) -> str | None:
     """
-    Return the CMIP time frequency label of the dataset.
+    Return the CMIP time frequency label of the dataset. One of "3hr",
+    "6hr", "day", "mon", "yr", or "fx" if the dataset is not temporal.
     """
     if not is_temporal(ds):
         return "fx"
@@ -1175,27 +1176,75 @@ def get_frequency_label(ds: xr.Dataset) -> str | None:
 
 def compute_monthly_mean(ds: xr.Dataset) -> xr.Dataset:
     """
-    Return the monthly mean of the input dataset in a `noleap` calendar.
+    One time-weighted mean per month of data.
+
+    For example, given 5 years of daily input, the result has 60 (12*5) timesteps.
+    """
+    if not is_temporal(ds):
+        raise ValueError("Input dataset has no temporal dimension.")
+    freq = get_mean_time_frequency(ds)
+    if freq > 31:
+        raise ValueError(f"Input dataset is already coarser than monthly {freq=}.")
+    time_name = get_dim_name(ds, "time")
+
+    # Vars time_measures and bounds will be averaged if we keep them, which breaks the
+    # meaning of the measures and bounds, so drop them before resampling
+    drop = ["time_measures"]
+    for v in ds.variables.values():
+        bv = v.attrs.get("bounds")
+        if bv and bv in ds.variables and time_name in ds[bv].dims:
+            drop.append(bv)
+    ds = ds.drop_vars(drop, errors="ignore")
+
+    # 3hr, 6hr, and 1day timesteps are msr = 3, 6, and 24 hours respectively
+    # So (non-weighted) simple mean is fine
+    ds = ds.resample(time=xr.groupers.TimeResampler("MS")).mean()
+    return ds
+
+
+def compute_monthly_climatology(ds: xr.Dataset) -> xr.Dataset:
+    """
+    One time-weighted mean per month of the year of data.
+
+    For example, given 5 years of daily input, the result has 12 timesteps.
+    """
+    return ds
+
+
+def compute_annual_mean(ds: xr.Dataset) -> xr.Dataset:
+    """
+    One time-weighted mean per year of data.
+
+    For example, given 5 years of daily input, the result has 5 timesteps.
+    """
+    if not is_temporal(ds):
+        raise ValueError("Input dataset has no temporal dimension.")
+    freq = get_mean_time_frequency(ds)
+    if freq > 366:
+        raise ValueError(f"Input dataset is already coarser than annual {freq=}.")
+    ds = ds.resample(time=xr.groupers.TimeResampler("YS")).mean()
+    return ds
+
+
+def compute_seasonal_mean(
+    ds: xr.Dataset,
+    seasons: list[str] = ["DJF", "MAM", "JJA", "SON"],
+) -> xr.Dataset:
+    """
+    One time-weighted mean per season of data.
+
+    For example, given 5 years of daily input, the result has 20 (4*5) timesteps. The
+    default seasons are ["DJF", "MAM", "JJA", "SON"], but they can be any list of
+    "seasons" supported by :class:`xr.groupers.SeasonResampler`.
     """
     if not is_temporal(ds):
         raise ValueError("Input dataset has no temporal dimension.")
     dt = get_mean_time_frequency(ds)
     if dt > 31:
         raise ValueError(f"Input dataset is already coarser than monthly {dt=}.")
-    ds = ds.resample(time=xr.groupers.TimeResampler("MS")).mean()
-    return ds
-
-
-def compute_annual_mean(ds: xr.Dataset) -> xr.Dataset:
-    """
-    Return the annual mean of the input dataset.
-    """
-    if not is_temporal(ds):
-        raise ValueError("Input dataset has no temporal dimension.")
-    dt = get_mean_time_frequency(ds)
-    if dt > 366:
-        raise ValueError(f"Input dataset is already coarser than annual {dt=}.")
-    ds = ds.resample(time=xr.groupers.TimeResampler("YS")).mean()
+    ds = ds.resample(
+        time=xr.groupers.SeasonResampler(seasons, drop_incomplete=True)
+    ).mean()  # need to do time integrated mean instead?
     return ds
 
 

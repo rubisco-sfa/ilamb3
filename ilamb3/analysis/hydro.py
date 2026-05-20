@@ -197,11 +197,11 @@ class hydro_analysis(ILAMBAnalysis):
         # ensure longitudes are uniform
         ref, com = cmp.adjust_lon(ref, com)
         # ensure the lat/lon dims are sorted
-        if dset.is_spatial(ref):
+        if dset.is_gridded(ref):
             ref = ref.sortby(
                 [dset.get_dim_name(ref, "lat"), dset.get_dim_name(ref, "lon")]
             )
-        if dset.is_spatial(com):
+        if dset.is_gridded(com):
             com = com.sortby(
                 [dset.get_dim_name(com, "lat"), dset.get_dim_name(com, "lon")]
             )
@@ -332,7 +332,7 @@ class hydro_analysis(ILAMBAnalysis):
             for source, ds in com.items():
                 if plot not in ds:
                     continue
-                if not dset.is_spatial(ds[plot]):
+                if not dset.is_gridded(ds[plot]):
                     continue
                 for region in self.regions:
                     row = {
