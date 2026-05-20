@@ -280,6 +280,7 @@ class Regions:
             da = xr.where(mask, np.nan, da)
         else:
             raise NotImplementedError("Region type not implemented.")
+        da.name = "quantiles"
         return da
 
 

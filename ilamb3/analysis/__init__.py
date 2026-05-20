@@ -7,6 +7,7 @@ from importlib import resources
 from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
 
 
+# resources.files("numpy").joinpath("linalg")
 def _get_ilamb_analyses(module_name):
     try:
         mod = importlib.import_module(module_name)
@@ -25,11 +26,21 @@ def _get_ilamb_analyses(module_name):
 # current directory. They keys of this dictionary are the valid ids that can be
 # given in a configure file.
 ALL_ANALYSES = {}
-with resources.path("ilamb3.analysis") as path:
+try:
+    with resources.path("ilamb3.analysis") as path:
+        for f in path.glob("*.py"):
+            if f.stem == "__init__" or f.stem == "base":
+                continue
+            ALL_ANALYSES.update(_get_ilamb_analyses(f"ilamb3.analysis.{f.stem}"))
+except Exception:
+    from pathlib import Path
+
+    path = Path(str(resources.files("ilamb3"))) / "analysis"
     for f in path.glob("*.py"):
         if f.stem == "__init__" or f.stem == "base":
             continue
         ALL_ANALYSES.update(_get_ilamb_analyses(f"ilamb3.analysis.{f.stem}"))
+
 
 # set the default analyses as a subset
 DEFAULT_ANALYSES = {

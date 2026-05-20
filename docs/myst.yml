@@ -25,8 +25,11 @@ project:
     - title: Deep Dive
       file: deep_dive.md
       children:
-        - file: analysis.md
         - file: transforms.md
+        - file: analysis.md
+    - title: Reference
+      children:
+        - file: glossary.md
 site:
   template: book-theme
   options:
