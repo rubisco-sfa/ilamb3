@@ -1333,8 +1333,10 @@ def compute_seasonal_climatology(
     msr = msr.isel(time=keep)
 
     # Time-weighted mean per season label
+    time_name = get_dim_name(data, "time")
+
     def _weighted_mean(da: xr.DataArray) -> xr.DataArray:
-        w = msr.sel(time=da["time"])
+        w = msr.sel(time=da[time_name])
         return da.weighted(w.fillna(0)).mean(dim="time")
 
     # Dataset with varname -> weighted mean
@@ -1343,7 +1345,6 @@ def compute_seasonal_climatology(
             raise ValueError(f"Variable {varname=} not found in dataset.")
         out = data[varname].groupby(time=grouper).map(_weighted_mean)
         out_ds = out.to_dataset(name=varname)
-        out_ds.attrs = dict(data.attrs)
         return out_ds
 
     # Dataset without varname -> regular mean for all variables
