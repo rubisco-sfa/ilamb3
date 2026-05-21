@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -18,7 +19,6 @@ from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name, scalarify
 from ilamb3.analysis.quantiles import check_quantile_database, create_quantile_map
-from ilamb3.compare.base import compute_bias
 from ilamb3.exceptions import NoDatabaseEntry, NoUncertainty
 
 
@@ -30,21 +30,50 @@ def evaluate_difference(
     ref_uncertainty: xr.DataArray,
     method: Literal["Collier2018", "RegionalQuantiles"],
 ) -> xr.Dataset:
+    """
+    Compute the difference and bias score between the reference and comparison datasets.
 
-    # This just overwrites the inputs into their nested grid variants
-    if dset.is_spatial(ref[varname]) and dset.is_spatial(com[varname]):
+    Parameters
+    ----------
+    ref : xr.Dataset
+        The reference dataset containing the variable to compare and its uncertainty.
+    com : xr.Dataset
+        The comparison dataset containing the variable to compare.
+    varname : str
+        The name of the variable to compare in both datasets.
+    error_normalization : xr.DataArray
+        The data array to use for normalizing the error, either the reference mean,
+        the reference standard deviation, or a quantile map.
+    ref_uncertainty : xr.DataArray
+        The uncertainty associated with the reference dataset variable, used to discount
+        the error.
+    method : str
+        The name of the scoring methodology to use, either `Collier2018` or
+        `RegionalQuantiles`.
+
+    Returns
+    -------
+    xr.Dataset
+        A dataset containing the difference scalars
+    """
+
+    # Regrid ref and com in place
+    if dset.is_gridded(ref[varname]) and dset.is_gridded(com[varname]):
         ref, com, error_normalization, ref_uncertainty = cmp.nest_spatial_grids(
             ref, com, error_normalization, ref_uncertainty
         )
-    # To subtract arrays, dimension names must match
+
+    # Ensure the dimension names match for all inputs before getting difference
     ref, com, error_normalization, ref_uncertainty = cmp.rename_dims(
         ref, com, error_normalization, ref_uncertainty.fillna(0)
     )
-    # Evaluate the difference in stages
+
+    # Get per-pixel difference scalars for the variable of interest
     diff = com[varname] - ref[varname]
+
+    # Calculate per-pixel bias score using specified method
     discounted_diff = (np.abs(diff) - ref_uncertainty).clip(0)
     relative_error = discounted_diff / np.abs(error_normalization)
-    # Scores are still dependent on the method
     match method:
         case "Collier2018":
             score = np.exp(-relative_error)
@@ -52,17 +81,18 @@ def evaluate_difference(
             score = (1.0 - relative_error).clip(0, 1)
         case _:
             raise ValueError(f"Unknown method: {method}")
-    score.attrs["units"] = 1
-    # Build up and return the results, rename the lat's and lon's so they can be
-    # merged uniquely
+
+    # Create the output dataset with diff scalar, score scalar, and renamed lat/lon dims
     out = xr.Dataset({f"diff_{varname}": diff, f"score_{varname}": score})
-    if dset.is_spatial(out[f"diff_{varname}"]):
+    if dset.is_gridded(out[f"diff_{varname}"]):
+        # Rename lat and lon to generic names for plotting purposes
         out = out.rename(
             {
                 dset.get_dim_name(out, "lat"): "lat_",
                 dset.get_dim_name(out, "lon"): "lon_",
             }
         )
+    out[f"score_{varname}"].attrs["units"] = 1
     return out
 
 
@@ -81,8 +111,9 @@ class bias_analysis(ILAMBAnalysis):
         `RegionalQuantiles`.
     regions : list
         A list of region labels over which to apply the analysis.
-    seasons : bool
-        Apply the analysis seasonally (DJF, MAM, JJA, SON) if True.
+    seasons : list
+        A list of season strings to calculate difference (bias) scalars. For valid
+        strings, see :class:`xr.groupers.SeasonResampler`.
     use_uncertainty : bool
         Enable to utilize uncertainty information from the reference product if
         present.
@@ -114,7 +145,7 @@ class bias_analysis(ILAMBAnalysis):
         variable_cmap: str = "viridis",
         method: Literal["Collier2018", "RegionalQuantiles"] = "Collier2018",
         regions: list[str | None] = [None],
-        seasons: bool = False,
+        seasons: list[str] = [],
         use_uncertainty: bool = True,
         spatial_sum: bool = False,
         mass_weighting: bool = False,
@@ -173,7 +204,7 @@ class bias_analysis(ILAMBAnalysis):
         ref : xr.Dataset
             The reference dataset.
         com : xr.Dataset
-            The comparison dataset.
+            The dataset that will be compared to the reference.
 
         Returns
         -------
@@ -184,6 +215,7 @@ class bias_analysis(ILAMBAnalysis):
         xr.Dataset
             A dataset containing comparison gridded information from the comparison.
         """
+
         # Checks on the quantile database if used
         varname = self.req_variable
         quantile_map = None
@@ -191,19 +223,24 @@ class bias_analysis(ILAMBAnalysis):
             check_quantile_database(self.quantile_database)
             try:
                 quantile_map = create_quantile_map(
-                    self.quantile_database, varname, "bias", self.quantile_threshold
+                    self.quantile_database,  # type: ignore
+                    varname,
+                    "bias",
+                    self.quantile_threshold,
                 )
-                dset.convert(quantile_map, ref[varname].attrs["units"])
+                quantile_map = dset.convert(quantile_map, ref[varname].attrs["units"])
             except NoDatabaseEntry:
                 # Fallback if the variable/type/quantile is not in the database
                 self.method = "Collier2018"
+
         # Never mass weight if regional quantiles are used
         if self.method == "RegionalQuantiles":
             self.mass_weighting = False
 
+        # Ensure ref and com are comparable
         ref, com = cmp.make_comparable(ref, com, varname, **self.kwargs)
 
-        # Build up the output datasets as we go
+        # Instantiate the two output xr.Datasets
         out_ref = xr.Dataset()
         out_com = xr.Dataset()
 
@@ -218,6 +255,9 @@ class bias_analysis(ILAMBAnalysis):
             if dset.is_temporal(com[varname])
             else com[varname]
         )
+
+        # If requested, get means for each season
+        # if self.seasons:
 
         # Choose what we will use to normalize the error, defaults to traditional definition
         error_norm = out_ref["mean"]
