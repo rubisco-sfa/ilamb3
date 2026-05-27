@@ -1,10 +1,9 @@
 """Functions for preparing datasets for comparison."""
 
-from typing import Any, Literal
+from typing import Any
 
 import cftime as cf
 import numpy as np
-import pandas as pd
 import xarray as xr
 
 import ilamb3

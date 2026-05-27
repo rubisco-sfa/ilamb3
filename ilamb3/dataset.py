@@ -64,8 +64,16 @@ def get_dim_name(
     """
     dim_names = {
         "time": ["time", "TIME", "month"],
-        "lat": ["lat", "latitude", "Latitude", "lat_", "Lat", "LATITUDE"],
-        "lon": ["lon", "longitude", "Longitude", "lon_", "Lon", "LONGITUDE"],
+        "lat": ["lat", "latitude", "Latitude", "lat_nested", "lat_", "Lat", "LATITUDE"],
+        "lon": [
+            "lon",
+            "longitude",
+            "Longitude",
+            "lon_nested",
+            "lon_",
+            "Lon",
+            "LONGITUDE",
+        ],
         "depth": ["depth", "lev"],
     }
     # Assumption: the 'site' dimension is what is left over after all others are removed
@@ -1305,8 +1313,38 @@ def compute_seasonal_climatology(
     Time-weighted mean of each season across all complete years of data.
 
     First subsets the input to only timesteps that fall within complete season-years
-    (using ``SeasonResampler(drop_incomplete=True)`` to identify them), then takes a
-    single-pass time-weighted mean per season label.
+    using ``SeasonResampler(drop_incomplete=True)`` to identify them. Then, a
+    single-pass time-weighted mean is calculated per season label. For example, given 5
+    years of daily data and seasons = ["DJF", "MAM", "JJA", "SON"], the result has
+    4 timesteps, one for each season, where the ``data[varname]`` is the weighted mean
+    of the 5 DJF seasons (incomplete seasons are dropped). The time coordinate of the
+    result is the first day of each season, e.g. "1990-12-01" for DJF, "1990-03-01" for
+    MAM, etc.
+
+    Parameters
+    ----------
+    data : xarray.Dataset
+        The input dataset.
+    seasons : list of str, optional
+        The seasons to use, default is ["DJF", "MAM", "JJA", "SON"]. Can be any list of
+        seasons supported by :class:`xarray.groupers.SeasonResampler`.
+    varname : str, optional
+        If ``data`` is a dataset, the variable name to subselect.
+
+    Returns
+    -------
+    xarray.Dataset
+        The seasonal climatology of the input data, with the time dimension resampled to
+        the seasons and reduced to a single time step per season.
+
+    Notes
+    -----
+    The time-weighted mean is only computed if a dataset and variable name are provided.
+    If a dataset is provided without a variable name, the regular mean is taken for all
+    variables, which is not time-weighted. While this preserves the full dataset,
+    variables like time_bounds will be incorrect because the new seasonal time steps are
+    the first day of the season rather than the midpoint. Providing a variable name,
+    which drops all other variables, is safer.
     """
 
     # Ensure data is temporal and not already coarser than seasonal

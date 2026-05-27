@@ -31,7 +31,7 @@ def evaluate_difference(
     method: Literal["Collier2018", "RegionalQuantiles"],
 ) -> xr.Dataset:
     """
-    Compute the difference and bias score between the reference and comparison datasets.
+    Compute the difference and score between the reference and comparison datasets.
 
     Parameters
     ----------
@@ -42,7 +42,7 @@ def evaluate_difference(
     varname : str
         The name of the variable to compare in both datasets.
     error_normalization : xr.DataArray
-        The data array to use for normalizing the error, either the reference mean,
+        The data array to use for normalizing the error, such as the reference mean,
         the reference standard deviation, or a quantile map.
     ref_uncertainty : xr.DataArray
         The uncertainty associated with the reference dataset variable, used to discount
@@ -54,7 +54,7 @@ def evaluate_difference(
     Returns
     -------
     xr.Dataset
-        A dataset containing the difference scalars
+        A dataset containing the difference and score scalars
     """
 
     # Regrid ref and com in place
@@ -88,8 +88,8 @@ def evaluate_difference(
         # Rename lat and lon to generic names for plotting purposes
         out = out.rename(
             {
-                dset.get_dim_name(out, "lat"): "lat_",
-                dset.get_dim_name(out, "lon"): "lon_",
+                dset.get_dim_name(out, "lat"): "lat_nested",
+                dset.get_dim_name(out, "lon"): "lon_nested",
             }
         )
     out[f"score_{varname}"].attrs["units"] = 1
@@ -256,10 +256,24 @@ class bias_analysis(ILAMBAnalysis):
             else com[varname]
         )
 
-        # If requested, get means for each season
-        # if self.seasons:
+        # If requested, get means for each season as well
+        if self.seasons:
+            out_ref_ssnl = (
+                dset.compute_seasonal_climatology(ref, self.seasons, varname)
+                if dset.is_temporal(ref[varname])
+                else ref[varname]
+            )
+            out_com_ssnl = (
+                dset.compute_seasonal_climatology(com, self.seasons, varname)
+                if dset.is_temporal(com[varname])
+                else com[varname]
+            )
+            # Loop thru each season and save in out_ref/com as {season}_mean
+            for season in self.seasons:
+                out_ref[f"{season}_mean"] = out_ref_ssnl[season]
+                out_com[f"{season}_mean"] = out_com_ssnl[season]
 
-        # Choose what we will use to normalize the error, defaults to traditional definition
+        # Choose what we will use to normalize the error
         error_norm = out_ref["mean"]
         if self.method == "RegionalQuantiles" and quantile_map is not None:
             # Use the quantile map on the comparison grid
@@ -313,13 +327,13 @@ class bias_analysis(ILAMBAnalysis):
         # If the user has selected to use mass weighting, we will need the
         # reference mean interpolated to the nested grid if sources are gridded.
         if self.mass_weighting:
-            if dset.is_spatial(out_com["biasscore"]):
+            if dset.is_gridded(out_com["biasscore"]):
                 weight = (
                     out_ref["mean"]
                     .rename(
                         {
-                            dset.get_dim_name(out_ref, "lat"): "lat_",
-                            dset.get_dim_name(out_ref, "lon"): "lon_",
+                            dset.get_dim_name(out_ref, "lat"): "lat_nested",
+                            dset.get_dim_name(out_ref, "lon"): "lon_nested",
                         }
                     )
                     .interp_like(out_nested, method="nearest")
