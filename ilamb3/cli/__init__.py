@@ -192,12 +192,19 @@ def run(
 @app.command(help="Fetch reference data if part of an ILAMB catalog.")
 def fetch(
     config: Annotated[Path, typer.Argument(help="The benchmark study yaml file.")],
+    key: Annotated[
+        list[str] | None,
+        typer.Option(
+            help="Additional keys to fetch from the catalog. Especially useful to pre-download region files prior to running the study. Use the option multiple times to specify multiple files."
+        ),
+    ] = None,
 ):
     catalogs = [ilamb3.ilamb_catalog(), ilamb3.iomb_catalog(), ilamb3.ilamb3_catalog()]
     df = form_reference_dataframe(parse_registry_keys(config))
     df = df[df["path"].isnull()]
-    for key in df.index:
-        fetch_key(str(key), catalogs)
+    keys = [str(key) for key in df.index] + (key or [])
+    for download_key in keys:
+        fetch_key(download_key, catalogs)
 
 
 @app.command(help="What went wrong in the run?")
