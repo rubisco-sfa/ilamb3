@@ -391,7 +391,7 @@ Cryosphere:
       - permafrost_extent:
           method: slater2013
       analyses:
-      - Area Comparison
+        - area
 
     Obu2018:
       sources:
@@ -406,7 +406,7 @@ Cryosphere:
       - permafrost_extent:
           method: slater2013
       analyses:
-      - Area Comparison
+        - area
 
   Active Layer Thickness:
 
