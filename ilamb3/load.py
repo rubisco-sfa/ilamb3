@@ -2,6 +2,8 @@
 Functions encapsulating the logic of how ilamb3 loads data during a run.
 """
 
+import functools
+import operator
 import os
 from collections.abc import Callable
 from functools import partial
@@ -281,6 +283,19 @@ def load_comparison_data(
         )
         for var in df["variable_id"].unique()
     }
+    # Remove measure variables that aren't needed, we don't know until the
+    # datasets are loaded
+    measures_used = functools.reduce(
+        operator.or_,
+        [
+            set(dset.which_cell_measures(ds, var))
+            for var, ds in com.items()
+            if var not in ["areacella", "sftlf", "areacello", "sftof"]
+        ],
+    )
+    for unused in set(["areacella", "sftlf", "areacello", "sftof"]) - measures_used:
+        com.pop(unused)
+
     # If the variable_id is not present, it may be called something else
     if alternate_vars is not None and variable_id not in com:
         found = [v for v in alternate_vars if v in com]
