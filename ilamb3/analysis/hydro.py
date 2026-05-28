@@ -86,7 +86,7 @@ def score_difference(ref: xr.Dataset, com: xr.Dataset) -> xr.Dataset:
     # Rename the lat dimension for merging with the comparison on return
     lat_name = dset.get_dim_name(diff, "lat")
     lon_name = dset.get_dim_name(diff, "lon")
-    com = com.merge(diff.rename({lat_name: f"{lat_name}_", lon_name: f"{lon_name}_"}))
+    com = com.merge(diff.rename({lat_name: "lat_nested", lon_name: "lon_nested"}))
     return com
 
 
