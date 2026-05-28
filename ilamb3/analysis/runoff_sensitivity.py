@@ -15,6 +15,7 @@ import pandas as pd
 import xarray as xr
 
 import ilamb3
+import ilamb3.load as ill
 import ilamb3.plot as ilp
 from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.exceptions import MissingVariable
@@ -60,9 +61,8 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
         **kwargs: Any,
     ):
         # Register basins in the ILAMB region system
-        cat = ilamb3.ilamb_catalog()
         self.basins = list(
-            set(Regions().add_netcdf(xr.open_dataset(cat.fetch("G-RUN/mrb_basins.nc"))))
+            set(Regions().add_netcdf(ill.load_key_or_filename("G-RUN/mrb_basins.nc")))
         )
         self.output_path = Path(output_path) if output_path is not None else None
 
