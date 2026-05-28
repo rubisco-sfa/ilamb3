@@ -741,4 +741,4 @@ Sensitivities:
             vmax: 2015-01
         - runoff_sensitivity
       analyses:
-        - Runoff Sensitivity
+        - runoff_sensitivity
