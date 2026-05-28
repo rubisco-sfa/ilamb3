@@ -191,7 +191,9 @@ def run(
 
 @app.command(help="Fetch reference data if part of an ILAMB catalog.")
 def fetch(
-    config: Annotated[Path, typer.Argument(help="The benchmark study yaml file.")],
+    config: Annotated[
+        Path | None, typer.Argument(help="The benchmark study yaml file.")
+    ] = None,
     key: Annotated[
         list[str] | None,
         typer.Option(
@@ -200,9 +202,12 @@ def fetch(
     ] = None,
 ):
     catalogs = [ilamb3.ilamb_catalog(), ilamb3.iomb_catalog(), ilamb3.ilamb3_catalog()]
-    df = form_reference_dataframe(parse_registry_keys(config))
-    df = df[df["path"].isnull()]
-    keys = [str(key) for key in df.index] + (key or [])
+    keys = []
+    if config is not None:
+        df = form_reference_dataframe(parse_registry_keys(config))
+        df = df[df["path"].isnull()]  # just the datasets we don't have
+        keys += [str(key) for key in df.index]
+    keys += key or []
     for download_key in keys:
         fetch_key(download_key, catalogs)
 
