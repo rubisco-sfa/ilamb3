@@ -294,7 +294,7 @@ def load_comparison_data(
         ],
     )
     for unused in set(["areacella", "sftlf", "areacello", "sftof"]) - measures_used:
-        com.pop(unused)
+        com.pop(unused, None)
 
     # If the variable_id is not present, it may be called something else
     if alternate_vars is not None and variable_id not in com:
