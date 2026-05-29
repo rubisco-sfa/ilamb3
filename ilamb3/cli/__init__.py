@@ -111,7 +111,7 @@ def run(
     region_source: Annotated[
         list[Path] | None,
         typer.Option(
-            help="The file (text or netCDF) which provides more regions over which the analysis may be run. Use the option multiple times to specify multiple files."
+            help="The file or key which provides more regions over which the analysis may be run. Use the option multiple times to specify multiple files."
         ),
     ] = None,
     output_path: Annotated[
@@ -142,9 +142,11 @@ def run(
     ] = None,
 ):
     ilamb3.conf.reset()
-    region_source = list() if region_source is None else region_source
-    ilamb3.conf["region_sources"] = region_source
-    for source in region_source:
+    region_sources = (
+        list() if region_source is None else [str(r) for r in region_source]
+    )
+    ilamb3.conf["region_sources"] = region_sources
+    for source in region_sources:
         ilr.Regions().add_netcdf(ill.load_key_or_filename(str(source)))
 
     # set options

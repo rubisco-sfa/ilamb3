@@ -154,6 +154,7 @@ def _perform_work_phase2(setup, output_path):
     local_path = output_path / setup["path"]
     log_file = local_path / "post.log"
     log_file.unlink(missing_ok=True)
+    setup = run.augment_setup_with_options(setup, pd.DataFrame())
     analyses = run.setup_analyses(setup, local_path)
 
     # get parallel worker information for logging
@@ -221,8 +222,7 @@ def _start_worker(cfg_path: Path):
     ilamb3.conf.load(cfg_path)
     ilamb_regions = ilr.Regions()
     for source in ilamb3.conf["region_sources"]:
-        cat = ilamb3.ilamb_catalog()
-        ilamb_regions.add_netcdf(cat.fetch(source))
+        ilamb_regions.add_netcdf(ill.load_key_or_filename(source))
 
 
 def run_study_parallel(
