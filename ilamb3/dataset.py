@@ -1277,3 +1277,25 @@ def cmip_cell_measures(ds: xr.Dataset, varname: str) -> xr.Dataset:
     msr = xr.where(msr > 0, msr, np.nan)
     ds["cell_measures"] = msr
     return ds
+
+
+def which_cell_measures(
+    data: xr.Dataset | xr.DataArray, varname: str | None
+) -> list[str]:
+    """
+    Return the name of the cell measures variable for the given variable, if present.
+    """
+    if isinstance(data, xr.Dataset) and varname is None:
+        raise ValueError("varname must be specified when data is a Dataset")
+    da = data if isinstance(data, xr.DataArray) else data[varname]
+    measures = []
+    if "cell_measures" in da.attrs:
+        m = re.search(r"area:\s(.*)", da.attrs["cell_measures"])
+        if m:
+            measures.append(m.group(1))
+    if "cell_methods" in da.attrs:
+        if "where land" in da.attrs["cell_methods"]:
+            measures.append("sftlf")
+        elif "where sea" in da.attrs["cell_methods"]:
+            measures.append("sftof")
+    return measures
