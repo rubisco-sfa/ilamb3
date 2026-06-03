@@ -58,13 +58,13 @@ def dataframe_cache(func):
         hash = _create_hash(*args)
         cache_file = _get_cache_dir() / hash
         if cache_file.is_file():
-            return pd.read_feather(cache_file)
+            return pd.read_parquet(cache_file)
         result = func(*args, **kwargs)
         if not isinstance(result, pd.DataFrame):
             raise ValueError(
                 f"You decorated the function '{func.__name__}' but the return type is not a pd.DataFrame: {type(result)}"
             )
-        result.to_feather(cache_file)
+        result.to_parquet(cache_file)
         return result
 
     return wrapper
