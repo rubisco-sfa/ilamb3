@@ -19,6 +19,12 @@ try:
 except ImportError:
     HAS_MPI4PY = False
 
+try:
+    import intake_esgf  # noqa
+
+    HAS_INTAKE = True
+except ImportError:
+    HAS_INTAKE = False
 
 app = typer.Typer(name="ilamb", no_args_is_help=True)
 
@@ -236,6 +242,71 @@ def debug(
             for log in logs_no_csvs:
                 with open(root / log) as fin:
                     print("  -", Path(log).stem, fin.readlines()[-1].strip())
+
+
+@app.command(help="Search/download model data from ESGF.")
+def esgf(
+    config: Annotated[Path, typer.Argument(help="The benchmark study yaml file.")],
+    source_id: Annotated[
+        list[str] | None,
+        typer.Option(
+            help="The source_id for which you would like to limit the search. Use the option multiple times to specify multiple source_id's."
+        ),
+    ] = None,
+    variables: Annotated[
+        bool,
+        typer.Option(
+            help="Enable to see only a list of variables used in the configure."
+        ),
+    ] = False,
+    counts: Annotated[
+        bool,
+        typer.Option(help="Enable to see only counts of datasets found in the search."),
+    ] = False,
+) -> None:
+    if not HAS_INTAKE:
+        raise ImportError(
+            "The 'ilamb esgf' command requires that you install the 'esgf' extras."
+        )
+    import intake_esgf
+
+    import ilamb3.esgf as ile
+
+    intake_esgf.conf.set(print_log_on_error=True)
+
+    df_info = ile.get_configure_variables(config)
+    if variables:
+        print(df_info["variable_id"].to_list())
+        return
+    cat = ile.get_esgf_catalog(df_info, source_id)
+    if counts:
+        print(cat.model_groups().to_string())
+        return
+    path_dict = ile.download_esgf_catalog(df_info, cat)
+
+    # output CSVs
+    def _path_dict_to_pandas(
+        facets: list[str], path_dict: dict[str, list[str]]
+    ) -> pd.DataFrame:
+        df = []
+        for key, paths in path_dict.items():
+            row = {col: value for col, value in zip(facets, key.split("."))}
+            for path in paths:
+                row["path"] = str(path)
+                df.append(row)
+        df = pd.DataFrame(df)
+        return df
+
+    if source_id is None:
+        out = _path_dict_to_pandas(cat.project.master_id_facets(), path_dict)
+        out.to_csv("model_data.csv", index=False)
+        return
+    for s in source_id:
+        out = _path_dict_to_pandas(
+            cat.project.master_id_facets(),
+            {key: val for key, val in path_dict.items() if s in key},
+        )
+        out.to_csv(f"{s}.csv", index=False)
 
 
 if __name__ == "__main__":

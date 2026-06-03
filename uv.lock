@@ -989,6 +989,10 @@ docs = [
     { name = "jupyterlab-myst" },
     { name = "mystmd" },
 ]
+esgf = [
+    { name = "intake-esgf", version = "2025.10.22", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "intake-esgf", version = "2026.1.26", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+]
 gcb = [
     { name = "gsw" },
 ]
@@ -1033,6 +1037,7 @@ docs = [
     { name = "jupyterlab-myst", specifier = ">=2.6.0" },
     { name = "mystmd", specifier = ">=1.8.3" },
 ]
+esgf = [{ name = "intake-esgf", specifier = ">=2025.10.22" }]
 gcb = [{ name = "gsw", specifier = ">=3.6.19" }]
 parallel = [{ name = "mpi4py", specifier = ">=4.1.0" }]
 
