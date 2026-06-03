@@ -25,6 +25,7 @@ from ilamb3.transform.permafrost import (  # noqa
     active_layer_thickness,
     permafrost_extent,
 )
+from ilamb3.transform.quantile import quantile  # noqa
 from ilamb3.transform.runoff_sensitivity import runoff_sensitivity  # noqa
 from ilamb3.transform.select import (  # noqa
     select_depth,
@@ -34,7 +35,6 @@ from ilamb3.transform.select import (  # noqa
 )
 from ilamb3.transform.soilmoisture import soil_moisture_to_vol_fraction  # noqa
 from ilamb3.transform.stratification_index import stratification_index  # noqa
-from ilamb3.transform.quantile import quantile # noqa
 
 ALL_TRANSFORMS = {
     key: fnc
