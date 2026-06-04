@@ -196,6 +196,7 @@ def download_esgf_catalog(
     for any files with earlier start dates.
     """
     path_dict: dict[str, list[str]] = {}
+    grps = cat.model_groups()
 
     # Downloads everything that starts beyond the threshold date
     rem_tmin = cat.file_start
@@ -212,7 +213,7 @@ def download_esgf_catalog(
     except ValueError:
         pass
 
-    for source_id, _, grid_label in cat.model_groups().index:
+    for source_id, _, grid_label in grps.index:
         for var in ["areacella", "sftlf"]:
             tmp = cat.clone()
             tmp.search(
