@@ -827,7 +827,7 @@ def sel(dset: xr.Dataset, coord: str, cmin: Any, cmax: Any) -> xr.Dataset:
     bnds = dset[coord].attrs["bounds"]
     dset[bnds][0, 0] = cmin
     dset[bnds][-1, 1] = cmax
-    dim = dset[coord].to_numpy()
+    dim = dset[coord].to_numpy().copy()
     dim[0] = dset[bnds][0, 0].values + 0.5 * (
         dset[bnds][0, 1].values - dset[bnds][0, 0].values
     )
