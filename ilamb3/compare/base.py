@@ -46,26 +46,34 @@ def nest_spatial_grids(*args):
         return args
 
     # find the union of all the breaks, and then the centroids of this irregular grid
-    lat = np.empty(0)
-    lon = np.empty(0)
+    lat_bnds = np.empty(0)
+    lon_bnds = np.empty(0)
     for arg in args:
         arg = arg.to_dataset() if isinstance(arg, xr.DataArray) else arg
-        lat = np.union1d(lat, _return_breaks(arg, dset.get_dim_name(arg, "lat")))
-        lon = np.union1d(lon, _return_breaks(arg, dset.get_dim_name(arg, "lon")))
-    lat = 0.5 * (lat[:-1] + lat[1:])
-    lon = 0.5 * (lon[:-1] + lon[1:])
+        lat_bnds = np.union1d(
+            lat_bnds, _return_breaks(arg, dset.get_dim_name(arg, "lat"))
+        )
+        lon_bnds = np.union1d(
+            lon_bnds, _return_breaks(arg, dset.get_dim_name(arg, "lon"))
+        )
+    lat = 0.5 * (lat_bnds[:-1] + lat_bnds[1:])
+    lon = 0.5 * (lon_bnds[:-1] + lon_bnds[1:])
     out = []
     for arg in args:
         lat_name = dset.get_dim_name(arg, "lat")
         lon_name = dset.get_dim_name(arg, "lon")
-        iarg = arg.interp({lat_name: lat, lon_name: lon}, method="nearest")
+        iarg = arg.sel({lat_name: lat, lon_name: lon}, method="nearest")
+        iarg[lat_name] = lat
+        iarg[lon_name] = lon
         # if 'bounds' existed, they will now be interpolated and incorrect
-        for dim_name in [lat_name, lon_name]:
+        for dim_name, bnd_val in zip([lat_name, lon_name], [lat_bnds, lon_bnds]):
             dim = iarg[dim_name]
-            try:
-                iarg = iarg.drop_vars(dim.attrs["bounds"])
-            except Exception:
-                pass
+            dim_bnd_name = dim.attrs.get("bounds", f"{dim_name}_bounds")
+            iarg[dim_name].attrs["bounds"] = dim_bnd_name
+            iarg = iarg.drop_vars(dim_bnd_name, errors="ignore")
+            iarg[dim_bnd_name] = xr.DataArray(
+                np.array([bnd_val[:-1], bnd_val[1:]]).T, dims=[dim_name, "nv"]
+            )
         out.append(iarg)
     return out
 

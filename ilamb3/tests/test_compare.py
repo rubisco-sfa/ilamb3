@@ -3,6 +3,7 @@ import pandas as pd
 import xarray as xr
 
 import ilamb3.compare as cmp
+import ilamb3.dataset as ild
 
 
 def generate_test_dset(seed: int = 1, ntime=None, nlat=None, nlon=None):
@@ -39,7 +40,10 @@ def test_nest_spatial_grids():
     ds2 = generate_test_dset(nlat=5, nlon=7)
     ds1 = ds1.cf.add_bounds("lat")
     ds1_, ds2_ = cmp.nest_spatial_grids(ds1, ds2)
-    assert np.allclose((ds1_ - ds2_).sum()["da"], -6.06395917e-08)
+    for before, after in zip([ds1, ds2], [ds1_, ds2_]):
+        val_before = float(ild.integrate_space(before, "da"))
+        val_after = float(ild.integrate_space(after, "da"))
+        assert np.allclose(val_before, val_after)
     dsa, dsb = cmp.pick_grid_aligned(ds1, ds2, ds1_, ds2_)
     xr.testing.assert_allclose(dsa, ds1_)
     xr.testing.assert_allclose(dsb, ds2_)
