@@ -376,7 +376,7 @@ def compute_time_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
             msg = "Cannot estimate time measures from single value without bounds"
             raise ValueError(msg)
         # compute time measures as differences (timedelta64[ns]) converted to days
-        delt = time.diff(dim=time_name).to_numpy().astype(float) * 1e-9 / 3600 / 24
+        delt = time.diff(dim=time_name).dt.total_seconds() / 3600 / 24
         # pad the array to match the original time array size
         delt = np.hstack([delt[0], delt, delt[-1]])
         # compute the average measure in days for each time step
@@ -395,7 +395,7 @@ def compute_time_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     delt = dset[timeb_name]
     nbnd = delt.dims[-1]
     delt = delt.diff(nbnd).squeeze().compute()
-    measure = delt.astype("float") * 1e-9 / 86400  # .diff [ns] to [d]
+    measure = delt.dt.total_seconds() / 3600 / 24
     measure.attrs["units"] = "d"
     return measure
 
