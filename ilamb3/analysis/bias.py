@@ -339,9 +339,9 @@ class bias_analysis(ILAMBAnalysis):
         # Rename diff_{varname} and score_{varname} to bias and biasscore
         out_nested = out_nested.rename(
             {
-                k: str(k)
-                .replace("diff_", "bias_", 1)
-                .replace("score_", "biasscore_", 1)
+                k: k.split("_")[0]
+                .replace("diff", "bias", 1)
+                .replace("score", "biasscore", 1)
                 for k in out_nested
             }
         )
@@ -356,7 +356,7 @@ class bias_analysis(ILAMBAnalysis):
         # Get the weights for score spatial integration if mass weighting is enabled
         weight = None
         if self.mass_weighting:
-            weight = get_weights(out_ref, out_com, "mean", "biasscore_mean", out_nested)
+            weight = get_weights(out_ref, out_com, "mean", "biasscore", out_nested)
 
         # ------------------------------------------------------------------------------
         # 3.a. Create mean Datasets and uncertainty/norm DataArrays for seasons
@@ -366,7 +366,12 @@ class bias_analysis(ILAMBAnalysis):
         out_ref_season = None
         out_com_season = None
 
-        if self.seasons:
+        # Only do seasons if asked, if temporal, and ensure there are at least 12 months
+        if (
+            self.seasons
+            and dset.is_temporal(ref)
+            and dset.get_mean_time_frequency(ref) >= 365
+        ):
             out_ref_season = xr.Dataset()
             out_com_season = xr.Dataset()
 
@@ -400,13 +405,13 @@ class bias_analysis(ILAMBAnalysis):
                     and "season" in out_com_temp.dims
                     else out_com_temp[season]
                 )
-                out_ref_season[f"{season}_mean"] = da_ref
-                out_com_season[f"{season}_mean"] = da_com
+                out_ref_season[f"mean{season}"] = da_ref
+                out_com_season[f"mean{season}"] = da_com
 
             # Set dummy normalizer and uncertainty because they are used for score
             # And we won't bother with scores for seasonal means
-            error_norm_season = xr.ones_like(out_ref_season[f"{self.seasons[0]}_mean"])
-            uncert_season = xr.zeros_like(out_ref_season[f"{self.seasons[0]}_mean"])
+            error_norm_season = xr.ones_like(out_ref_season[f"mean{self.seasons[0]}"])
+            uncert_season = xr.zeros_like(out_ref_season[f"mean{self.seasons[0]}"])
 
             # --------------------------------------------------------------------------
             # 3.b. Calculate scalars
@@ -417,18 +422,19 @@ class bias_analysis(ILAMBAnalysis):
                 out_season_nested = evaluate_difference(
                     out_ref_season,
                     out_com_season,
-                    f"{season}_mean",
+                    f"mean{season}",
                     error_norm_season,
                     uncert_season,
                     self.method,  # type: ignore
                 )
 
-                # Rename diff_{varname} and score_{varname}
+                # Rename diff_{varname} and score_{varname} to bias{varname} and biasscore{varname}
                 out_season_nested = out_season_nested.rename(
                     {
-                        k: str(k)
-                        .replace("diff_", "bias_", 1)
-                        .replace("score_", "biasscore_", 1)
+                        k: ("bias" if k.startswith("diff") else "biasscore")
+                        + "".join(
+                            k.split("_")[1:]
+                        )  # collapse season parts, just in case?
                         for k in out_season_nested
                     }
                 )
@@ -444,6 +450,9 @@ class bias_analysis(ILAMBAnalysis):
             # Add seasons vars to out_ref and out_com so they're available for plotting
             out_ref = xr.merge([out_ref, out_ref_season], compat="override")
             out_com = xr.merge([out_com, out_com_season], compat="override")
+
+        else:
+            self.seasons = None  # prevent plots() from using seasonal info in this case
 
         # ------------------------------------------------------------------------------
         # 4. Break up results by regions
@@ -482,7 +491,7 @@ class bias_analysis(ILAMBAnalysis):
                     ):
                         val, unit = scalarify(
                             var,
-                            f"{season}_mean",
+                            f"mean{season}",
                             region,
                             not self.spatial_sum,
                             unit=self.table_unit,
@@ -492,7 +501,7 @@ class bias_analysis(ILAMBAnalysis):
                                 src,
                                 str(region),
                                 self.name(),
-                                f"{season} Mean",
+                                f"Mean {season}",
                                 "scalar",
                                 unit,
                                 val,
@@ -500,9 +509,7 @@ class bias_analysis(ILAMBAnalysis):
                         )
 
             # Bias
-            val, unit = scalarify(
-                out_com, "bias_mean", region, True, unit=self.plot_unit
-            )
+            val, unit = scalarify(out_com, "bias", region, True, unit=self.plot_unit)
             dfs.append(
                 ["Comparison", str(region), self.name(), "Bias", "scalar", unit, val]
             )
@@ -516,7 +523,7 @@ class bias_analysis(ILAMBAnalysis):
                 for season in self.seasons:
                     val, unit = scalarify(
                         out_com_season,
-                        f"bias_{season}_mean",
+                        f"bias{season}",
                         region,
                         True,
                         unit=self.plot_unit,
@@ -526,7 +533,7 @@ class bias_analysis(ILAMBAnalysis):
                             "Comparison",
                             str(region),
                             self.name(),
-                            f"{season} Bias",
+                            f"Bias {season}",
                             "scalar",
                             unit,
                             val,
@@ -536,7 +543,7 @@ class bias_analysis(ILAMBAnalysis):
             # Bias Score
             val, unit = scalarify(
                 out_com,
-                "biasscore_mean",
+                "biasscore",
                 region,
                 True,
                 weight=weight if self.mass_weighting else None,
@@ -591,11 +598,11 @@ class bias_analysis(ILAMBAnalysis):
             ref["mean"].attrs["units"] if self.plot_unit is None else self.plot_unit
         )
 
-        # Gather all the variables we need for plotting and convert to common units
-        plot_vars = ["mean", "bias_mean", "uncert"]
+        # Convert plotting variables to common units
+        plot_vars = ["mean", "bias", "uncert"]  # biasscore is unitless
         if self.seasons:
-            plot_vars += [f"{s}_mean" for s in self.seasons]
-            plot_vars += [f"bias_{s}_mean" for s in self.seasons]
+            plot_vars += [f"mean{s}" for s in self.seasons]  # seasonal means
+            plot_vars += [f"bias{s}" for s in self.seasons]  # seasonal bias scalars
         com["Reference"] = ref
         for source, ds in com.items():
             for plot in plot_vars:
@@ -607,8 +614,8 @@ class bias_analysis(ILAMBAnalysis):
         df_meta = pd.DataFrame(
             [
                 {"name": "mean", "cmap": self.cmap, "title": "Period Mean"},
-                {"name": "bias_mean", "cmap": "seismic", "title": "Bias"},
-                {"name": "biasscore_mean", "cmap": "plasma", "title": "Bias Score"},
+                {"name": "bias", "cmap": "seismic", "title": "Bias"},
+                {"name": "biasscore", "cmap": "plasma", "title": "Bias Score"},
                 {"name": "uncert", "cmap": "Reds", "title": "Uncertainty"},
             ]
         ).set_index("name")
@@ -620,16 +627,16 @@ class bias_analysis(ILAMBAnalysis):
         if self.seasons:
             season_rows = []
             for season in self.seasons:
-                if "mean" in df.index:
-                    row = df.loc["mean"].to_dict()
-                    row.update(name=f"{season}_mean", title=f"{season} Mean")
+                if f"mean{season}" in df.index:
+                    row = df.loc[f"mean{season}"].to_dict()
+                    row.update(name=f"mean{season}", title=f"Mean {season}")
                     season_rows.append(row)
-                if "bias_mean" in df.index:
-                    row = df.loc["bias_mean"].to_dict()
+                if f"bias{season}" in df.index:
+                    row = df.loc[f"bias{season}"].to_dict()
                     row.update(
-                        name=f"bias_{season}_mean",
+                        name=f"bias{season}",
                         cmap="seismic",
-                        title=f"{season} Bias",
+                        title=f"Bias {season}",
                     )
                     season_rows.append(row)
             if season_rows:
