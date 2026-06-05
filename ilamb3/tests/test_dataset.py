@@ -130,12 +130,12 @@ def test_integrate_space_weighted():
 
 def test_integrate_depth():
     ds = generate_test_dset_with_depth()
-    ds = dset.integrate_space(
-        dset.integrate_time(dset.integrate_depth(ds, "da"), "da"), "da"
-    )
-    ds = ds.to_dataset(name="da")
-    ds = dset.convert(ds, "Pg", varname="da")
-    assert np.allclose(ds["da"], 1002.990371115)
+    ds = ds.cf.add_bounds("depth")
+    ds["da"][...] = 1.0
+    da = dset.integrate_depth(ds, "da")
+    assert np.allclose(da, ds["depth_bounds"].max() - ds["depth_bounds"].min())
+    da = dset.integrate_depth(ds, "da", mean=True)
+    assert np.allclose(da, 1.0)
 
 
 def test_mean():
