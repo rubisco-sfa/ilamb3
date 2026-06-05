@@ -863,7 +863,7 @@ def integrate_depth(
         The depth integral or sum.
     """
     if isinstance(dset, xr.DataArray):
-        varname = dset.name
+        varname = str(dset.name)
         dset = dset.to_dataset(name=varname)
     else:
         assert varname is not None
