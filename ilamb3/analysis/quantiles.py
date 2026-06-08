@@ -7,7 +7,7 @@ from ilamb3.exceptions import MissingRegion, NoDatabaseEntry
 from ilamb3.regions import Regions
 
 
-def check_quantile_database(dbase: pd.DataFrame) -> None:
+def check_quantile_database(dbase: pd.DataFrame | None) -> None:
     if dbase is None:
         raise ValueError("Need a quantile database")
     missing = set(dbase["region"].unique()) - set(Regions().regions)

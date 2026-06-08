@@ -153,7 +153,7 @@ def integrate_or_mean(
     Integration/average the input dataarray/dataset to reduce in space/site.
     """
     da = var[varname] if isinstance(var, xr.Dataset) else var
-    if dset.is_spatial(da):
+    if dset.is_gridded(da):
         da = dset.integrate_space(var, varname, region=region, mean=mean, weight=weight)
     elif dset.is_site(da):
         da = ilr.Regions().restrict_to_region(da, region)

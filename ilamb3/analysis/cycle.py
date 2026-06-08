@@ -170,7 +170,7 @@ class cycle_analysis(ILAMBAnalysis):
         try:
             lat_name = dset.get_dim_name(com_tmax, "lat")
             lon_name = dset.get_dim_name(com_tmax, "lon")
-            com_tmax = com_tmax.rename({lat_name: "lat_", lon_name: "lon_"})
+            com_tmax = com_tmax.rename({lat_name: "lat_nested", lon_name: "lon_nested"})
         except KeyError:
             pass
         com_out["tmax"] = com_tmax
