@@ -29,7 +29,7 @@ def nest_spatial_grids(*args):
     Returns
     -------
     *args
-        The input *args interpolated to the nested grid.
+        The input *args interpolated to the nested grid and promoted to Datasets.
 
     """
 
@@ -41,32 +41,54 @@ def nest_spatial_grids(*args):
             dim = ds.cf.add_bounds(dim_name)[f"{dim_name}_bounds"]
         return dim.to_numpy().flatten()
 
-    # are the arguments all spatial?
+    # are the arguments all gridded?
     if not all([dset.is_gridded(arg) for arg in args]):
-        return args
+        return [
+            arg.to_dataset() if isinstance(arg, xr.DataArray) else arg for arg in args
+        ]
 
     # find the union of all the breaks, and then the centroids of this irregular grid
-    lat = np.empty(0)
-    lon = np.empty(0)
+    lat_bnds = np.empty(0)
+    lon_bnds = np.empty(0)
     for arg in args:
         arg = arg.to_dataset() if isinstance(arg, xr.DataArray) else arg
-        lat = np.union1d(lat, _return_breaks(arg, dset.get_dim_name(arg, "lat")))
-        lon = np.union1d(lon, _return_breaks(arg, dset.get_dim_name(arg, "lon")))
-    lat = 0.5 * (lat[:-1] + lat[1:])
-    lon = 0.5 * (lon[:-1] + lon[1:])
+        lat_bnds = np.union1d(
+            lat_bnds, _return_breaks(arg, dset.get_dim_name(arg, "lat"))
+        )
+        lon_bnds = np.union1d(
+            lon_bnds, _return_breaks(arg, dset.get_dim_name(arg, "lon"))
+        )
+    lat = 0.5 * (lat_bnds[:-1] + lat_bnds[1:])
+    lon = 0.5 * (lon_bnds[:-1] + lon_bnds[1:])
+    lat_bnds = xr.DataArray(
+        np.array([lat_bnds[:-1], lat_bnds[1:]]).T,
+        dims=["lat_nested", "nv"],
+        coords={"lat_nested": lat},
+    )
+    lon_bnds = xr.DataArray(
+        np.array([lon_bnds[:-1], lon_bnds[1:]]).T,
+        dims=["lon_nested", "nv"],
+        coords={"lon_nested": lon},
+    )
+
+    # operate on each input argument
     out = []
     for arg in args:
-        lat_name = dset.get_dim_name(arg, "lat")
-        lon_name = dset.get_dim_name(arg, "lon")
-        iarg = arg.interp({lat_name: lat, lon_name: lon}, method="nearest")
-        # if 'bounds' existed, they will now be interpolated and incorrect
-        for dim_name in [lat_name, lon_name]:
-            dim = iarg[dim_name]
-            try:
-                iarg = iarg.drop_vars(dim.attrs["bounds"])
-            except Exception:
-                pass
-        out.append(iarg)
+        # we only output Datasets so the new bounds can be carried along
+        arg = arg if isinstance(arg, xr.Dataset) else arg.to_dataset()
+        # rename so as to not be confused downstream
+        arg = arg.rename({"lat": "lat_nested", "lon": "lon_nested"})
+        # sel so that we do not get nan's outside of the
+        arg = arg.sel({"lat_nested": lat, "lon_nested": lon}, method="nearest")
+        arg["lat_nested"] = lat
+        arg["lon_nested"] = lon
+        # set the proper bounds, cf-xarray will not estimate them correctly
+        arg = arg.assign_coords(
+            {"lat_nested_bounds": lat_bnds, "lon_nested_bounds": lon_bnds}
+        )
+        arg["lat_nested"].attrs["bounds"] = "lat_nested_bounds"
+        arg["lon_nested"].attrs["bounds"] = "lon_nested_bounds"
+        out.append(arg)
     return out
 
 

@@ -66,6 +66,11 @@ def score_difference(ref: xr.Dataset, com: xr.Dataset) -> xr.Dataset:
     # Compute differences and scores
     ref_, com_ = cmp.nest_spatial_grids(ref, com)
     diff = com_ - ref_
+
+    # Changes in xarray require explicit setting of attributes
+    for var in diff:
+        diff[var].attrs["units"] = ref_[var].attrs["units"]
+
     diff = diff.rename_vars({v: f"{v}_difference" for v in diff})
     # Add scores to the means that also have std's
     diff = diff.merge(

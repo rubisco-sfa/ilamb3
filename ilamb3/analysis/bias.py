@@ -62,14 +62,13 @@ def evaluate_difference(
         ref, com, error_normalization, ref_uncertainty = cmp.nest_spatial_grids(
             ref, com, error_normalization, ref_uncertainty
         )
-
-    # Ensure the dimension names match for all inputs before getting difference
-    ref, com, error_normalization, ref_uncertainty = cmp.rename_dims(
-        ref, com, error_normalization, ref_uncertainty.fillna(0)
-    )
+        # Datasets are returned, select the da
+        error_normalization = error_normalization[next(iter(error_normalization))]
+        ref_uncertainty = ref_uncertainty[next(iter(ref_uncertainty))]
 
     # Get per-pixel difference scalars for the variable of interest
     diff = com[varname] - ref[varname]
+    diff.attrs["units"] = ref[varname].attrs["units"]
 
     # Calculate per-pixel bias score using specified method
     discounted_diff = (np.abs(diff) - ref_uncertainty).clip(0)
@@ -82,16 +81,8 @@ def evaluate_difference(
         case _:
             raise ValueError(f"Unknown method: {method}")
 
-    # Create the output dataset with diff scalar, score scalar, and renamed lat/lon dims
+    # Create the output dataset with diff scalar, score scalar
     out = xr.Dataset({f"diff_{varname}": diff, f"score_{varname}": score})
-    if dset.is_gridded(out[f"diff_{varname}"]):
-        # Rename lat and lon to generic names for plotting purposes
-        out = out.rename(
-            {
-                dset.get_dim_name(out, "lat"): "lat_nested",
-                dset.get_dim_name(out, "lon"): "lon_nested",
-            }
-        )
     out[f"score_{varname}"].attrs["units"] = 1
     return out
 

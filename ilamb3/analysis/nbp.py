@@ -40,9 +40,9 @@ def _carbon_accumulation(ds):
             ds[f"a{var}"] = da.cumsum(dim="year")
             ds[f"a{var}"].attrs["units"] = "Pg"
             if "ancillary_variables" in da.attrs:
-                ds[f"a{var}"].attrs[
-                    "ancillary_variables"
-                ] = f"a{da.attrs['ancillary_variables']}"
+                ds[f"a{var}"].attrs["ancillary_variables"] = (
+                    f"a{da.attrs['ancillary_variables']}"
+                )
             if "bounds" in da.attrs:
                 ds[f"a{var}"].attrs["bounds"] = f"a{da.attrs['bounds']}"
 
