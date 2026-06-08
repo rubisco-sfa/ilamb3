@@ -66,11 +66,6 @@ def evaluate_difference(
         error_normalization = error_normalization[next(iter(error_normalization))]
         ref_uncertainty = ref_uncertainty[next(iter(ref_uncertainty))]
 
-    # Ensure the dimension names match for all inputs before getting difference
-    ref, com, error_normalization, ref_uncertainty = cmp.rename_dims(
-        ref, com, error_normalization, ref_uncertainty.fillna(0)
-    )
-
     # Get per-pixel difference scalars for the variable of interest
     diff = com[varname] - ref[varname]
     diff.attrs["units"] = ref[varname].attrs["units"]
@@ -86,25 +81,8 @@ def evaluate_difference(
         case _:
             raise ValueError(f"Unknown method: {method}")
 
-    # Create the output dataset with diff scalar, score scalar, and renamed lat/lon dims
+    # Create the output dataset with diff scalar, score scalar
     out = xr.Dataset({f"diff_{varname}": diff, f"score_{varname}": score})
-    if dset.is_gridded(out[f"diff_{varname}"]):
-        # Rename lat and lon to generic names for plotting purposes
-        lat_bnds = dset.get_bounds_variable(ref, dset.get_dim_name(ref[varname], "lat"))
-        lat_bnds = lat_bnds.drop_vars(set(lat_bnds.coords) - set(lat_bnds.dims))
-        lon_bnds = dset.get_bounds_variable(ref, dset.get_dim_name(ref[varname], "lon"))
-        lon_bnds = lon_bnds.drop_vars(set(lon_bnds.coords) - set(lon_bnds.dims))
-        out = out.assign_coords(
-            {"lat_nested_bounds": lat_bnds, "lon_nested_bounds": lon_bnds}
-        )
-        out = out.rename(
-            {
-                dset.get_dim_name(out, "lat"): "lat_nested",
-                dset.get_dim_name(out, "lon"): "lon_nested",
-            }
-        )
-        out["lat_nested"].attrs["bounds"] = "lat_nested_bounds"
-        out["lon_nested"].attrs["bounds"] = "lon_nested_bounds"
     out[f"score_{varname}"].attrs["units"] = 1
     return out
 

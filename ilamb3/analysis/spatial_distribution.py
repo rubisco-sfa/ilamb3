@@ -115,15 +115,15 @@ class spatial_distribution_analysis(ILAMBAnalysis):
         )
 
         # ... on the same grid
-        ref, com = cmp.rename_dims(*cmp.nest_spatial_grids(ref, com))
+        ref, com = cmp.nest_spatial_grids(ref, com)
 
         # Compute scalars over all regions
         dfs = []
         ilamb_regions = ilr.Regions()
         for region in self.regions:
             # Get regional versions
-            rref = ilamb_regions.restrict_to_region(ref, region)
-            rcom = ilamb_regions.restrict_to_region(com, region)
+            rref = ilamb_regions.restrict_to_region(ref[varname], region)
+            rcom = ilamb_regions.restrict_to_region(com[varname], region)
 
             # Spatial standard deviation
             ref_std = float(rref.std())

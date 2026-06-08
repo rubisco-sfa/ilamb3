@@ -69,8 +69,8 @@ def test_grid_align():
     xr.testing.assert_allclose(ds1_, ds2_)
     ds2 = generate_test_dset(nlat=3, nlon=4)
     ds1_, ds2_ = cmp.pick_grid_aligned(ds1, ds2)
-    xr.testing.assert_allclose(ds1_["lat"], ds2_["lat"])
-    xr.testing.assert_allclose(ds1_["lon"], ds2_["lon"])
+    xr.testing.assert_allclose(ds1_["lat_nested"], ds2_["lat_nested"])
+    xr.testing.assert_allclose(ds1_["lon_nested"], ds2_["lon_nested"])
 
 
 def test_trim_time():

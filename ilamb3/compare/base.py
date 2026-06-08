@@ -29,7 +29,7 @@ def nest_spatial_grids(*args):
     Returns
     -------
     *args
-        The input *args interpolated to the nested grid.
+        The input *args interpolated to the nested grid and promoted to Datasets.
 
     """
 
@@ -41,9 +41,11 @@ def nest_spatial_grids(*args):
             dim = ds.cf.add_bounds(dim_name)[f"{dim_name}_bounds"]
         return dim.to_numpy().flatten()
 
-    # are the arguments all spatial?
+    # are the arguments all gridded?
     if not all([dset.is_gridded(arg) for arg in args]):
-        return args
+        return [
+            arg.to_dataset() if isinstance(arg, xr.DataArray) else arg for arg in args
+        ]
 
     # find the union of all the breaks, and then the centroids of this irregular grid
     lat_bnds = np.empty(0)
@@ -58,29 +60,35 @@ def nest_spatial_grids(*args):
         )
     lat = 0.5 * (lat_bnds[:-1] + lat_bnds[1:])
     lon = 0.5 * (lon_bnds[:-1] + lon_bnds[1:])
+    lat_bnds = xr.DataArray(
+        np.array([lat_bnds[:-1], lat_bnds[1:]]).T,
+        dims=["lat_nested", "nv"],
+        coords={"lat_nested": lat},
+    )
+    lon_bnds = xr.DataArray(
+        np.array([lon_bnds[:-1], lon_bnds[1:]]).T,
+        dims=["lon_nested", "nv"],
+        coords={"lon_nested": lon},
+    )
+
+    # operate on each input argument
     out = []
     for arg in args:
-        lat_name = dset.get_dim_name(arg, "lat")
-        lon_name = dset.get_dim_name(arg, "lon")
-        iarg = arg.sel({lat_name: lat, lon_name: lon}, method="nearest")
-        # interpolated arguments will be returned as Datasets
-        iarg = iarg if isinstance(iarg, xr.Dataset) else iarg.to_dataset()
-        iarg[lat_name] = lat
-        iarg[lon_name] = lon
-        # if 'bounds' existed, they will now be interpolated and incorrect
-        for dim_name, bnd_val in zip([lat_name, lon_name], [lat_bnds, lon_bnds]):
-            dim = iarg[dim_name]
-            dim_bnd_name = dim.attrs.get("bounds", f"{dim_name}_bounds")
-            iarg[dim_name].attrs["bounds"] = dim_bnd_name
-            iarg = iarg.drop_vars(dim_bnd_name, errors="ignore")
-            iarg = iarg.assign_coords(
-                {
-                    dim_bnd_name: xr.DataArray(
-                        np.array([bnd_val[:-1], bnd_val[1:]]).T, dims=[dim_name, "nv"]
-                    )
-                }
-            )
-        out.append(iarg)
+        # we only output Datasets so the new bounds can be carried along
+        arg = arg if isinstance(arg, xr.Dataset) else arg.to_dataset()
+        # rename so as to not be confused downstream
+        arg = arg.rename({"lat": "lat_nested", "lon": "lon_nested"})
+        # sel so that we do not get nan's outside of the
+        arg = arg.sel({"lat_nested": lat, "lon_nested": lon}, method="nearest")
+        arg["lat_nested"] = lat
+        arg["lon_nested"] = lon
+        # set the proper bounds, cf-xarray will not estimate them correctly
+        arg = arg.assign_coords(
+            {"lat_nested_bounds": lat_bnds, "lon_nested_bounds": lon_bnds}
+        )
+        arg["lat_nested"].attrs["bounds"] = "lat_nested_bounds"
+        arg["lon_nested"].attrs["bounds"] = "lon_nested_bounds"
+        out.append(arg)
     return out
 
 

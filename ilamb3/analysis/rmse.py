@@ -163,16 +163,15 @@ class rmse_analysis(ILAMBAnalysis):
 
         # Conversions
         if self.use_uncertainty:
-            ref, com, uncert = cmp.rename_dims(
-                *cmp.nest_spatial_grids(ref[varname], com[varname], uncert.fillna(0))
+            ref, com, uncert = cmp.nest_spatial_grids(
+                ref[varname], com[varname], uncert.fillna(0)
             )
         else:
-            ref, com = cmp.rename_dims(
-                *cmp.nest_spatial_grids(ref[varname], com[varname])
-            )
+            ref, com = cmp.nest_spatial_grids(ref[varname], com[varname])
 
         # Compute the RMSE and score
         rmse = np.sqrt(dset.integrate_time((com - ref) ** 2, varname, mean=True))
+        rmse.attrs["units"] = ref[varname].attrs["units"]
         ref_mean = dset.integrate_time(ref, varname, mean=True)
         com_mean = dset.integrate_time(com, varname, mean=True)
         crmse = np.sqrt(

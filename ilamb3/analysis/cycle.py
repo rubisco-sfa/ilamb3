@@ -156,7 +156,7 @@ class cycle_analysis(ILAMBAnalysis):
 
         # Compute the phase shift (difference in max month)
         ref_tmax_, com_tmax_ = cmp.nest_spatial_grids(ref_tmax, com_tmax)
-        shift = com_tmax_ - ref_tmax_
+        shift = com_tmax_[varname] - ref_tmax_[varname]
         shift = xr.where(shift > 6, shift - 12, shift)
         shift = xr.where(shift < -6, shift + 12, shift)
         shift_score = 1 - np.abs(shift) / 6
@@ -165,15 +165,9 @@ class cycle_analysis(ILAMBAnalysis):
 
         # Build output datasets
         ref_out = ref_tmax.to_dataset(name="tmax")
-        com_out = shift.to_dataset(name="shift")
-        com_out["cyclescore"] = shift_score
-        try:
-            lat_name = dset.get_dim_name(com_tmax, "lat")
-            lon_name = dset.get_dim_name(com_tmax, "lon")
-            com_tmax = com_tmax.rename({lat_name: "lat_nested", lon_name: "lon_nested"})
-        except KeyError:
-            pass
-        com_out["tmax"] = com_tmax
+        com_out = xr.Dataset(
+            {"tmax": com_tmax, "shift": shift, "cyclescore": shift_score}
+        )
 
         # Compute scalars over all regions
         dfs = []

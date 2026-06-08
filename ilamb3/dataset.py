@@ -992,16 +992,11 @@ def coarsen_annual(dset: xr.Dataset) -> xr.Dataset:
         The coarsened dataset.
     """
     # Can't sum time objects so find them and remove
-    time_name = get_dim_name(dset, "time")
-    if "bounds" in dset[time_name].attrs:
-        bounds = dset[time_name].attrs["bounds"]
-        if bounds in dset:
-            dset = dset.drop_vars(bounds)
-    msr = compute_time_measures(dset).pint.dequantify()
-    ann = (dset * msr).groupby(f"{time_name}.year").sum() / msr.groupby(
-        f"{time_name}.year"
-    ).sum()
-    return ann
+    time_dim = get_dim_name(dset, "time")
+    dset = dset.resample({time_dim: xr.groupers.TimeResampler("YS")}).mean()
+    dset[time_dim] = dset[time_dim].dt.year
+    dset = dset.rename_dims({time_dim: "year"}).rename_vars({time_dim: "year"})
+    return dset
 
 
 def shift_lon(dset: xr.Dataset) -> xr.Dataset:
