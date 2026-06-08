@@ -261,6 +261,15 @@ class bias_analysis(ILAMBAnalysis):
         if self.method == "RegionalQuantiles":
             self.mass_weighting = False
 
+        # Don't do seasons if not temporal or if there are not at least a year of data
+        if self.seasons and not dset.is_temporal(ref):
+            self.seasons = None
+        if self.seasons:
+            tmin, tmax = dset.get_time_extent(ref)
+            trange = tmax - tmin
+            if trange <= np.timedelta64(359, "D"):
+                self.seasons = None
+
         # ------------------------------------------------------------------------------
         # 2.a. Create mean Datasets, uncertainty DataArray, & error normalizer DataArray
         # ------------------------------------------------------------------------------
@@ -367,11 +376,7 @@ class bias_analysis(ILAMBAnalysis):
         out_com_season = None
 
         # Only do seasons if asked, if temporal, and ensure there are at least 12 months
-        if (
-            self.seasons
-            and dset.is_temporal(ref)
-            and dset.get_mean_time_frequency(ref) >= 365
-        ):
+        if self.seasons:
             out_ref_season = xr.Dataset()
             out_com_season = xr.Dataset()
 
@@ -432,9 +437,7 @@ class bias_analysis(ILAMBAnalysis):
                 out_season_nested = out_season_nested.rename(
                     {
                         k: ("bias" if k.startswith("diff") else "biasscore")
-                        + "".join(
-                            k.split("_")[1:]
-                        )  # collapse season parts, just in case?
+                        + "".join(k.split("_")[1:]).replace("mean", "")
                         for k in out_season_nested
                     }
                 )

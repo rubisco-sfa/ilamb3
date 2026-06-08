@@ -140,24 +140,25 @@ def test_bias_seasons(seasons: list[str]):
     com = generate_seasonal_dset(seed=2, **grid)
     analysis = bias_analysis("da", method="Collier2018", seasons=seasons)
     df, ds_ref, ds_com = analysis(ref, com)
+    print(df)
 
     # Esnure df is populated with the expected seasonal mean and bias names
     for season in seasons:
-        mean_rows = df[df["name"] == f"{season} Mean"]
+        mean_rows = df[df["name"] == f"Mean {season}"]
         assert len(mean_rows) == 2
         assert set(mean_rows["source"]) == {"Reference", "Comparison"}
 
-        bias_rows = df[df["name"] == f"{season} Bias"]
+        bias_rows = df[df["name"] == f"Bias {season}"]
         assert len(bias_rows) == 1
         assert bias_rows.iloc[0]["source"] == "Comparison"
 
     # Ensure xr.Datasets have the expected seasonal mean and bias variables & correct dims
     for season in seasons:
-        assert f"{season}_mean" in ds_ref.data_vars
-        assert f"{season}_mean" in ds_com.data_vars
-        assert f"bias_{season}_mean" in ds_com.data_vars
+        assert f"mean{season}" in ds_ref.data_vars
+        assert f"mean{season}" in ds_com.data_vars
+        assert f"bias{season}" in ds_com.data_vars
 
-        da = ds_com[f"{season}_mean"]
+        da = ds_com[f"mean{season}"]
         assert "season" not in da.dims
         assert "season" not in da.coords
         assert da.ndim == 2
