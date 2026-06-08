@@ -38,7 +38,7 @@ def extract_sites_closest(
     """
     width = kwargs.get("window_half_width", 2.0)
     scale = kwargs.get("scale_width_by_grid_resolution", None)
-    if scale is not None and dset.is_spatial(ds):
+    if scale is not None and dset.is_gridded(ds):
         width = scale * dset.get_mean_spatial_resolution(ds)
     ds_neighborhood = extract_neighbors_by_window(
         ds,
@@ -86,7 +86,7 @@ def extract_sites_mean(
     """
     width = kwargs.get("window_half_width", 2.0)
     scale = kwargs.get("scale_width_by_grid_resolution", None)
-    if scale is not None and dset.is_spatial(ds):
+    if scale is not None and dset.is_gridded(ds):
         width = scale * dset.get_mean_spatial_resolution(ds)
     ds_neighborhood = extract_neighbors_by_window(
         ds,
@@ -147,7 +147,7 @@ def extract_neighbors_by_window(
     list[xr.Dataset]
         The neighborhoods, one for each site in the `ds_target`.
     """
-    if not (dset.is_spatial(ds_source) or dset.is_site(ds_source)):
+    if not (dset.is_gridded(ds_source) or dset.is_site(ds_source)):
         raise ValueError(
             f"The source dataset must be gridded or site data.\n{ds_source=}"
         )
@@ -173,7 +173,7 @@ def extract_neighbors_by_window(
     ds_neighborhood = []
     for site in range(len(ds_target[site_name_tar])):
         ds_site = ds_target.isel({site_name_tar: site})
-        if dset.is_spatial(ds_source):
+        if dset.is_gridded(ds_source):
             # A computational efficiency if spatial to reduce the number of
             # points for which we will compute a distance
             ds_hood = ds_source.sel(
@@ -272,7 +272,7 @@ def neighborhood_mean(
     ds_hood = next(iter(ds_neighborhood))
     op_dims = (
         [dset.get_coord_name(ds_hood, "lat"), dset.get_coord_name(ds_hood, "lon")]
-        if dset.is_spatial(ds_hood)
+        if dset.is_gridded(ds_hood)
         else [dset.get_dim_name(ds_hood, "site")]
     )
     op_vars = [v for v in ds_hood if set(op_dims).issubset(ds_hood[v].dims)]
@@ -374,7 +374,7 @@ def neighborhood_closest(
     # Pick the closest value from each neighborhood
     op_dims = (
         [lat_name_hood, lon_name_hood]
-        if dset.is_spatial(ds_hood)
+        if dset.is_gridded(ds_hood)
         else [dset.get_dim_name(ds_hood, "site")]
     )
 

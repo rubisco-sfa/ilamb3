@@ -179,12 +179,12 @@ def test_scale_water():
     assert np.allclose(da.pint.dequantify(), 1)
 
 
-def test_is_spatial_or_site():
+def test_is_gridded_or_site():
     ds = generate_test_dset()
-    assert dset.is_spatial(ds)
+    assert dset.is_gridded(ds)
     assert not dset.is_site(ds)
     ds = generate_test_site_dset()
-    assert not dset.is_spatial(ds)
+    assert not dset.is_gridded(ds)
     assert dset.is_site(ds)
 
 

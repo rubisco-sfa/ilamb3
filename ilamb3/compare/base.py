@@ -42,7 +42,7 @@ def nest_spatial_grids(*args):
         return dim.to_numpy().flatten()
 
     # are the arguments all spatial?
-    if not all([dset.is_spatial(arg) for arg in args]):
+    if not all([dset.is_gridded(arg) for arg in args]):
         return args
 
     # find the union of all the breaks, and then the centroids of this irregular grid
@@ -315,28 +315,28 @@ def make_comparable(
 ) -> tuple[xr.Dataset, xr.Dataset]:
     """Return the datasets in a form where they are comparable."""
 
-    # sometimes our data represents a single time step over a long span
+    # Sometimes our data represents a single time step over a long span
     if dset.is_temporal(ref):
         ref, com = handle_timescale_mismatch(ref, com)
 
-    # trim away time, assuming data is monthly
+    # Trim away time, assuming data is monthly
     if dset.is_temporal(ref):
         ref, com = trim_time(ref, com)
 
-    # latlon needs to be 1D arrays
+    # Lat/lon needs to be 1D arrays
     if dset.is_latlon2d(com[varname]):
         com = dset.latlon2d_to_1d(ref, com[varname]).to_dataset(name=varname)
 
-    # ensure longitudes are uniform
+    # Ensure longitudes are uniform
     ref, com = adjust_lon(ref, com)
 
-    # ensure the lat/lon dims are sorted
-    if dset.is_spatial(ref):
+    # If gridded, ensure the lat/lon dims are sorted
+    if dset.is_gridded(ref):
         ref = ref.sortby([dset.get_dim_name(ref, "lat"), dset.get_dim_name(ref, "lon")])
-    if dset.is_spatial(com):
+    if dset.is_gridded(com):
         com = com.sortby([dset.get_dim_name(com, "lat"), dset.get_dim_name(com, "lon")])
 
-    # pick the sites
+    # If sites, extract the sites
     site_extraction_opts = ilamb3.conf["site_extraction"].copy()
     for key, value in kwargs.get("site_extraction", {}).items():
         site_extraction_opts[key] = value
@@ -355,10 +355,10 @@ def make_comparable(
         # Just extract sites from the reference like usual.
         com = extraction_fcn(com, ref, **site_extraction_opts)
 
-    # convert units
+    # Convert units
     com = dset.convert(com, ref[varname].attrs["units"], varname=varname)
 
-    # load into memory
+    # Load into memory
     ref.load()
     com.load()
     return ref, com

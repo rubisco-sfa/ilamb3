@@ -210,7 +210,7 @@ def load_reference_data(
     ref = {key: dset.fix_missing_bounds_attrs(ds) for key, ds in ref.items()}
     # Merge all the data together
     if len(ref) > 1:
-        if _is_uniform(dset.is_spatial, ref):
+        if _is_uniform(dset.is_gridded, ref):
             grid_variable = variable_id if variable_id in ref else next(iter(ref))
             ref = cmp.same_spatial_grid(ref[grid_variable], **ref)
         if _is_uniform(dset.is_temporal, ref):

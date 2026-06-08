@@ -22,6 +22,100 @@ from ilamb3.analysis.quantiles import check_quantile_database, create_quantile_m
 from ilamb3.exceptions import NoDatabaseEntry, NoUncertainty
 
 
+def evaluate_difference(
+    ref: xr.Dataset,
+    com: xr.Dataset,
+    varname: str,
+    error_normalization: xr.DataArray,
+    ref_uncertainty: xr.DataArray,
+    method: Literal["Collier2018", "RegionalQuantiles"],
+) -> xr.Dataset:
+    """
+    Compute the difference and score between the reference and comparison datasets.
+
+    Parameters
+    ----------
+    ref : xr.Dataset
+        The reference dataset containing the variable to compare and its uncertainty.
+    com : xr.Dataset
+        The comparison dataset containing the variable to compare.
+    varname : str
+        The name of the variable to compare in both datasets.
+    error_normalization : xr.DataArray
+        The data array to use for normalizing the error, such as the reference mean,
+        the reference standard deviation, or a quantile map.
+    ref_uncertainty : xr.DataArray
+        The uncertainty associated with the reference dataset variable, used to discount
+        the error.
+    method : str
+        The name of the scoring methodology to use, either `Collier2018` or
+        `RegionalQuantiles`.
+
+    Returns
+    -------
+    xr.Dataset
+        A dataset containing diff_{varname} and "score_{varname}"
+    """
+
+    # Regrid ref and com in place
+    if dset.is_gridded(ref[varname]) and dset.is_gridded(com[varname]):
+        ref, com, error_normalization, ref_uncertainty = cmp.nest_spatial_grids(
+            ref, com, error_normalization, ref_uncertainty
+        )
+
+    # Ensure the dimension names match for all inputs before getting difference
+    ref, com, error_normalization, ref_uncertainty = cmp.rename_dims(
+        ref, com, error_normalization, ref_uncertainty.fillna(0)
+    )
+
+    # Get per-pixel difference scalars for the variable of interest
+    diff = com[varname] - ref[varname]
+
+    # Calculate per-pixel bias score using specified method
+    discounted_diff = (np.abs(diff) - ref_uncertainty).clip(0)
+    relative_error = discounted_diff / np.abs(error_normalization)
+    match method:
+        case "Collier2018":
+            score = np.exp(-relative_error)
+        case "RegionalQuantiles":
+            score = (1.0 - relative_error).clip(0, 1)
+        case _:
+            raise ValueError(f"Unknown method: {method}")
+
+    # Create the output dataset with diff scalar, score scalar, and renamed lat/lon dims
+    out = xr.Dataset({f"diff_{varname}": diff, f"score_{varname}": score})
+    if dset.is_gridded(out[f"diff_{varname}"]):
+        # Rename lat and lon to generic names for plotting purposes
+        out = out.rename(
+            {
+                dset.get_dim_name(out, "lat"): "lat_nested",
+                dset.get_dim_name(out, "lon"): "lon_nested",
+            }
+        )
+    out[f"score_{varname}"].attrs["units"] = 1
+    return out
+
+
+def get_weights(
+    ref: xr.Dataset, com: xr.Dataset, varname: str, scorename: str, nested: xr.Dataset
+) -> xr.DataArray:
+    """Get the weights for score spatial integration if mass weighting is enabled."""
+    if dset.is_gridded(com[scorename]):
+        weight = (
+            ref[varname]
+            .rename(
+                {
+                    dset.get_dim_name(ref, "lat"): "lat_nested",
+                    dset.get_dim_name(ref, "lon"): "lon_nested",
+                }
+            )
+            .interp_like(nested, method="nearest")
+        )
+    else:
+        weight = ref[varname]  # sites and therefore does not need to be interpolated
+    return weight
+
+
 class bias_analysis(ILAMBAnalysis):
     """
     The ILAMB bias methodology.
@@ -37,6 +131,9 @@ class bias_analysis(ILAMBAnalysis):
         `RegionalQuantiles`.
     regions : list
         A list of region labels over which to apply the analysis.
+    seasons : list
+        A list of season strings to calculate difference (bias) scalars. For valid
+        strings, see :class:`xr.groupers.SeasonResampler`.
     use_uncertainty : bool
         Enable to utilize uncertainty information from the reference product if
         present.
@@ -68,6 +165,7 @@ class bias_analysis(ILAMBAnalysis):
         variable_cmap: str = "viridis",
         method: Literal["Collier2018", "RegionalQuantiles"] = "Collier2018",
         regions: list[str | None] = [None],
+        seasons: list[str] | None = None,
         use_uncertainty: bool = True,
         spatial_sum: bool = False,
         mass_weighting: bool = False,
@@ -81,6 +179,7 @@ class bias_analysis(ILAMBAnalysis):
         self.cmap = variable_cmap
         self.method = method
         self.regions = regions
+        self.seasons = seasons
         self.use_uncertainty = use_uncertainty
         self.spatial_sum = spatial_sum
         self.mass_weighting = mass_weighting
@@ -125,7 +224,7 @@ class bias_analysis(ILAMBAnalysis):
         ref : xr.Dataset
             The reference dataset.
         com : xr.Dataset
-            The comparison dataset.
+            The dataset that will be compared to the reference.
 
         Returns
         -------
@@ -136,123 +235,237 @@ class bias_analysis(ILAMBAnalysis):
         xr.Dataset
             A dataset containing comparison gridded information from the comparison.
         """
-        # Initialize
-        varname = self.req_variable
+
+        # ------------------------------------------------------------------------------
+        # 1. Set up parameters
+        # ------------------------------------------------------------------------------
 
         # Checks on the quantile database if used
+        varname = self.req_variable
+        quantile_map = None
         if self.method == "RegionalQuantiles":
             check_quantile_database(self.quantile_database)
             try:
                 quantile_map = create_quantile_map(
-                    self.quantile_database, varname, "bias", self.quantile_threshold
+                    self.quantile_database,  # type: ignore
+                    varname,
+                    "bias",
+                    self.quantile_threshold,
                 )
-                dset.convert(quantile_map, ref[varname].attrs["units"])
+                quantile_map = dset.convert(quantile_map, ref[varname].attrs["units"])
             except NoDatabaseEntry:
-                # fallback if the variable/type/quantile is not in the database
+                # Fallback if the variable/type/quantile is not in the database
                 self.method = "Collier2018"
 
         # Never mass weight if regional quantiles are used
         if self.method == "RegionalQuantiles":
             self.mass_weighting = False
 
-        # Make the variables comparable and force loading into memory
+        # Don't do seasons if not temporal or if there are not at least a year of data
+        if self.seasons and not dset.is_temporal(ref):
+            self.seasons = None
+        if self.seasons:
+            tmin, tmax = dset.get_time_extent(ref)
+            trange = tmax - tmin
+            if trange <= np.timedelta64(359, "D"):
+                self.seasons = None
+
+        # ------------------------------------------------------------------------------
+        # 2.a. Create mean Datasets, uncertainty DataArray, & error normalizer DataArray
+        # ------------------------------------------------------------------------------
+
+        # Ensure ref and com are comparable
         ref, com = cmp.make_comparable(ref, com, varname, **self.kwargs)
 
-        # Temporal means across the time period
-        ref_mean = (
+        # Instantiate the two output xr.Datasets
+        out_ref = xr.Dataset()
+        out_com = xr.Dataset()
+
+        # Create temporal mean xr.Datasets
+        out_ref["mean"] = (
             dset.integrate_time(ref, varname, mean=True)
             if dset.is_temporal(ref[varname])
-            else ref[varname]
-        )
-        com_mean = (
+            else ref[varname]  # If no time dim, we can't take mean & that's fine
+        )  # Should this raise logger warning? Users won't know if mean wasn't taken
+        out_com["mean"] = (
             dset.integrate_time(com, varname, mean=True)
             if dset.is_temporal(com[varname])
             else com[varname]
         )
 
-        # Get the reference data uncertainty
-        uncert = xr.zeros_like(ref_mean)
+        # Create error normalizer xr.DataArray depending on chosen method
+        error_norm = out_ref["mean"]  # Default error normalizer if no time dim
+
+        # If RegionalQuantiles, use the quantile map on the comparison grid
+        if self.method == "RegionalQuantiles" and quantile_map is not None:
+            error_norm = quantile_map.rename(
+                {
+                    dset.get_dim_name(quantile_map, "lat"): dset.get_dim_name(
+                        out_com, "lat"
+                    ),
+                    dset.get_dim_name(quantile_map, "lon"): dset.get_dim_name(
+                        out_com, "lon"
+                    ),
+                }
+            ).interp_like(out_com, method="nearest")
+
+        # Otherwise, if temporal, normalize by the standard deviation of the reference
+        elif (
+            dset.is_temporal(ref[varname])
+            and ref[dset.get_dim_name(ref[varname], "time")].size > 1
+        ):
+            error_norm = dset.std_time(ref, varname)
+
+        # Get the reference data uncertainty if present and desired
+        uncert = xr.zeros_like(out_ref["mean"])  # Default uncertainty is 0
         if self.use_uncertainty:
             try:
-                ref["uncert"] = dset.get_scalar_uncertainty(ref, varname)
-                uncert = (
-                    dset.integrate_time(ref, "uncert", mean=True)
-                    if dset.is_temporal(ref["uncert"])
-                    else ref["uncert"]
-                )
+                uncert = dset.get_scalar_uncertainty(ref, varname)
             except (NoUncertainty, ValueError):
                 self.use_uncertainty = False
 
-        # If temporal information is available, we normalize the error by the
-        # standard deviation of the reference. If not, we revert to the traditional
-        # definition of relative error.
-        norm = ref_mean
-        if dset.is_temporal(ref[varname]):
-            time_dim = dset.get_dim_name(ref[varname], "time")
-            if ref[time_dim].size > 1:
-                norm = dset.std_time(ref, varname)
+        # Integrate uncertainty over time like we did with mean
+        if dset.is_temporal(uncert):
+            uncert = dset.integrate_time(uncert, mean=True)
 
-        # Nest the grids for comparison, we postpend composite grid variables with "_"
-        if dset.is_spatial(ref) and dset.is_spatial(com):
-            ref_, com_, norm_, uncert_ = cmp.nest_spatial_grids(
-                ref_mean, com_mean, norm, uncert
-            )
-        elif dset.is_site(ref) and dset.is_site(com):
-            ref_ = ref_mean
-            com_ = com_mean
-            norm_ = norm
-            uncert_ = uncert
-        else:
-            raise ValueError("Reference and comparison not uniformly site/spatial.")
-
-        # Compute score by different methods
-        ref_, com_, norm_, uncert_ = cmp.rename_dims(
-            ref_, com_, norm_, uncert_.fillna(0)
-        )
-        bias = com_ - ref_
-        if self.method == "Collier2018":
-            score = np.exp(-np.abs((np.abs(bias) - uncert_).clip(0) / norm_))
-        elif self.method == "RegionalQuantiles":
-            norm = quantile_map.interp(
-                lat=bias["lat"], lon=bias["lon"], method="nearest"
-            )
-            score = (1 - (np.abs(bias) - uncert_).clip(0) / norm).clip(0, 1)
-        else:
-            msg = (
-                "The method used to score the bias must be 'Collier2018' or "
-                f"'RegionalQuantiles' but found {self.method=}"
-            )
-            raise ValueError(msg)
-        score.attrs["units"] = 1
-
-        # Build output datasets
-        ref_out = ref_mean.to_dataset(name="mean")
+        # Carry it into out_ref so plots() can pick it up via com["Reference"]
         if self.use_uncertainty:
-            ref_out["uncert"] = uncert
-        com_out = bias.to_dataset(name="bias")
-        com_out["biasscore"] = score
-        try:
-            lat_name = dset.get_dim_name(com_mean, "lat")
-            lon_name = dset.get_dim_name(com_mean, "lon")
-            com_mean = com_mean.rename({lat_name: "lat_", lon_name: "lon_"})
-        except KeyError:
-            pass
-        com_out["mean"] = com_mean
+            out_ref["uncert"] = uncert
 
-        # Pass measures into out for integrations if present
+        # ------------------------------------------------------------------------------
+        # 2.b. Calculate scalars/score
+        # ------------------------------------------------------------------------------
+
+        # Now score the difference and merge with the comparison output
+        out_nested = evaluate_difference(
+            out_ref,
+            out_com,
+            "mean",
+            error_norm,  # type: ignore
+            uncert,
+            self.method,  # type: ignore
+        )
+        # Rename diff_{varname} and score_{varname} to bias and biasscore
+        out_nested = out_nested.rename(
+            {
+                k: k.split("_")[0]
+                .replace("diff", "bias", 1)
+                .replace("score", "biasscore", 1)
+                for k in out_nested
+            }
+        )
+        out_com = xr.merge([out_com, out_nested], compat="override")
+
+        # Before doing regional integration, gather cell_measures if present
         if "cell_measures" in ref:
-            ref_out["cell_measures"] = ref["cell_measures"]
-        if "cell_measures" in com and dset.is_spatial(com):
-            msr = com["cell_measures"]
-            lat_name = dset.get_dim_name(msr, "lat")
-            lon_name = dset.get_dim_name(msr, "lon")
-            com_out["cell_measures"] = msr.rename({lat_name: "lat_", lon_name: "lon_"})
+            out_ref["cell_measures"] = ref["cell_measures"]
+        if "cell_measures" in com:
+            out_com["cell_measures"] = com["cell_measures"]
+
+        # Get the weights for score spatial integration if mass weighting is enabled
+        weight = None
+        if self.mass_weighting:
+            weight = get_weights(out_ref, out_com, "mean", "biasscore", out_nested)
+
+        # ------------------------------------------------------------------------------
+        # 3.a. Create mean Datasets and uncertainty/norm DataArrays for seasons
+        # ------------------------------------------------------------------------------
+
+        # If requested, get means/norm/uncertainty for each season as well
+        out_ref_season = None
+        out_com_season = None
+
+        # Only do seasons if asked, if temporal, and ensure there are at least 12 months
+        if self.seasons:
+            out_ref_season = xr.Dataset()
+            out_com_season = xr.Dataset()
+
+            # Create seasonal mean xr.Datasets
+            out_ref_temp = (
+                dset.compute_seasonal_climatology(ref, self.seasons, varname)
+                if dset.is_temporal(ref[varname])
+                else ref[varname]
+            )
+            out_com_temp = (
+                dset.compute_seasonal_climatology(com, self.seasons, varname)
+                if dset.is_temporal(com[varname])
+                else com[varname]
+            )
+            # Make sure the season coordinates are never persisted because...
+            # We'll want to merge seasonal means back into the period mean dataset later
+            for season in self.seasons:
+                da_ref = (
+                    out_ref_temp[varname]
+                    .sel(season=season)
+                    .drop_vars("season", errors="ignore")
+                    if isinstance(out_ref_temp, xr.Dataset)
+                    and "season" in out_ref_temp.dims
+                    else out_ref_temp[season]
+                )
+                da_com = (
+                    out_com_temp[varname]
+                    .sel(season=season)
+                    .drop_vars("season", errors="ignore")
+                    if isinstance(out_com_temp, xr.Dataset)
+                    and "season" in out_com_temp.dims
+                    else out_com_temp[season]
+                )
+                out_ref_season[f"mean{season}"] = da_ref
+                out_com_season[f"mean{season}"] = da_com
+
+            # Set dummy normalizer and uncertainty because they are used for score
+            # And we won't bother with scores for seasonal means
+            error_norm_season = xr.ones_like(out_ref_season[f"mean{self.seasons[0]}"])
+            uncert_season = xr.zeros_like(out_ref_season[f"mean{self.seasons[0]}"])
+
+            # --------------------------------------------------------------------------
+            # 3.b. Calculate scalars
+            # --------------------------------------------------------------------------
+
+            per_season_dfs = []
+            for season in self.seasons:
+                out_season_nested = evaluate_difference(
+                    out_ref_season,
+                    out_com_season,
+                    f"mean{season}",
+                    error_norm_season,
+                    uncert_season,
+                    self.method,  # type: ignore
+                )
+
+                # Rename diff_{varname} and score_{varname} to bias{varname} and biasscore{varname}
+                out_season_nested = out_season_nested.rename(
+                    {
+                        k: ("bias" if k.startswith("diff") else "biasscore")
+                        + "".join(k.split("_")[1:]).replace("mean", "")
+                        for k in out_season_nested
+                    }
+                )
+
+                per_season_dfs.append(out_season_nested)
+
+            # Combine so that each season is a different variable in the same dataset
+            out_season_nested = xr.merge(per_season_dfs, compat="override")
+            out_com_season = xr.merge(
+                [out_com_season, out_season_nested], compat="override"
+            )
+
+            # Add seasons vars to out_ref and out_com so they're available for plotting
+            out_ref = xr.merge([out_ref, out_ref_season], compat="override")
+            out_com = xr.merge([out_com, out_com_season], compat="override")
+
+        else:
+            self.seasons = None  # prevent plots() from using seasonal info in this case
+
+        # ------------------------------------------------------------------------------
+        # 4. Break up results by regions
+        # ------------------------------------------------------------------------------
 
         # Compute scalars over all regions
         dfs = []
         for region in self.regions:
             # Period mean
-            for src, var in zip(["Reference", "Comparison"], [ref_out, com_out]):
+            for src, var in zip(["Reference", "Comparison"], [out_ref, out_com]):
                 val, unit = scalarify(
                     var, "mean", region, not self.spatial_sum, unit=self.table_unit
                 )
@@ -267,18 +480,77 @@ class bias_analysis(ILAMBAnalysis):
                         val,
                     ]
                 )
+
+            # Seasonal means
+            if (
+                self.seasons
+                and out_ref_season is not None
+                and out_com_season is not None
+            ):
+                for season in self.seasons:
+                    for src, var in zip(
+                        ["Reference", "Comparison"],
+                        [out_ref_season, out_com_season],
+                    ):
+                        val, unit = scalarify(
+                            var,
+                            f"mean{season}",
+                            region,
+                            not self.spatial_sum,
+                            unit=self.table_unit,
+                        )
+                        dfs.append(
+                            [
+                                src,
+                                str(region),
+                                self.name(),
+                                f"Mean {season}",
+                                "scalar",
+                                unit,
+                                val,
+                            ]
+                        )
+
             # Bias
-            val, unit = scalarify(com_out, "bias", region, True, unit=self.plot_unit)
+            val, unit = scalarify(out_com, "bias", region, True, unit=self.plot_unit)
             dfs.append(
                 ["Comparison", str(region), self.name(), "Bias", "scalar", unit, val]
             )
+
+            # Seasonal Bias
+            if (
+                self.seasons
+                and out_ref_season is not None
+                and out_com_season is not None
+            ):
+                for season in self.seasons:
+                    val, unit = scalarify(
+                        out_com_season,
+                        f"bias{season}",
+                        region,
+                        True,
+                        unit=self.plot_unit,
+                    )
+                    dfs.append(
+                        [
+                            "Comparison",
+                            str(region),
+                            self.name(),
+                            f"Bias {season}",
+                            "scalar",
+                            unit,
+                            val,
+                        ]
+                    )
+
             # Bias Score
             val, unit = scalarify(
-                com_out,
+                out_com,
                 "biasscore",
                 region,
                 True,
-                weight=ref_ if self.mass_weighting else None,
+                weight=weight if self.mass_weighting else None,
+                unit=None,  # bias score is unitless
             )
             dfs.append(
                 [
@@ -306,15 +578,17 @@ class bias_analysis(ILAMBAnalysis):
             ],
         )
 
-        # We don't really want to plot cell measures
-        ref_out = ref_out.drop_vars("cell_measures", errors="ignore")
-        com_out = com_out.drop_vars("cell_measures", errors="ignore")
-        return dfs, ref_out, com_out
+        # Now that we have the scalars, we can drop the cell measures
+        out_ref = out_ref.drop_vars("cell_measures", errors="ignore")
+        out_com = out_com.drop_vars("cell_measures", errors="ignore")
+        return dfs, out_ref, out_com
 
     def plots(
         self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
-        # This analysis was not run and we should skip plotting entirely
+        """Create plots for the bias analysis."""
+
+        # If bias analysis was not run, we should skip plotting entirely
         if "Bias" not in df["analysis"].unique():
             return pd.DataFrame()
         path.mkdir(parents=True, exist_ok=True)
@@ -326,9 +600,15 @@ class bias_analysis(ILAMBAnalysis):
         plot_unit = (
             ref["mean"].attrs["units"] if self.plot_unit is None else self.plot_unit
         )
+
+        # Convert plotting variables to common units
+        plot_vars = ["mean", "bias", "uncert"]  # biasscore is unitless
+        if self.seasons:
+            plot_vars += [f"mean{s}" for s in self.seasons]  # seasonal means
+            plot_vars += [f"bias{s}" for s in self.seasons]  # seasonal bias scalars
         com["Reference"] = ref
         for source, ds in com.items():
-            for plot in ["mean", "bias", "uncert"]:
+            for plot in plot_vars:
                 if plot in ds:
                     com[source][plot] = dset.convert(ds[plot], plot_unit)
 
@@ -346,6 +626,25 @@ class bias_analysis(ILAMBAnalysis):
         df = pd.merge(df_meta, df_limits, left_index=True, right_index=True)
         df["analysis"] = "Bias"
 
+        # Update df_meta for seasonal analyses; same color scales as period mean/bias
+        if self.seasons:
+            season_rows = []
+            for season in self.seasons:
+                if f"mean{season}" in df.index:
+                    row = df.loc[f"mean{season}"].to_dict()
+                    row.update(name=f"mean{season}", title=f"Mean {season}")
+                    season_rows.append(row)
+                if f"bias{season}" in df.index:
+                    row = df.loc[f"bias{season}"].to_dict()
+                    row.update(
+                        name=f"bias{season}",
+                        cmap="seismic",
+                        title=f"Bias {season}",
+                    )
+                    season_rows.append(row)
+            if season_rows:
+                df = pd.concat([df, pd.DataFrame(season_rows).set_index("name")])
+
         # Create each plot for each source if present in the dataset
         df_plots = []
         for plot, row in df.iterrows():
@@ -357,7 +656,7 @@ class bias_analysis(ILAMBAnalysis):
                     out["name"] = plot
                     out["source"] = source
                     out["region"] = region
-                    out["path"] = get_plot_name(source, region, plot, path)
+                    out["path"] = get_plot_name(source, region, str(plot), path)
                     ax = ilp.plot_map(
                         ds[plot],
                         region=region,
@@ -366,7 +665,7 @@ class bias_analysis(ILAMBAnalysis):
                         cmap=row["cmap"],
                         title=f"{source} {row['title']}",
                     )
-                    ax.get_figure().savefig(out["path"])
+                    ax.get_figure().savefig(out["path"])  # type: ignore
                     plt.close()
                     df_plots.append(out)
         df_plots = pd.DataFrame(df_plots)
