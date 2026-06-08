@@ -63,6 +63,8 @@ def nest_spatial_grids(*args):
         lat_name = dset.get_dim_name(arg, "lat")
         lon_name = dset.get_dim_name(arg, "lon")
         iarg = arg.sel({lat_name: lat, lon_name: lon}, method="nearest")
+        # interpolated arguments will be returned as Datasets
+        iarg = iarg if isinstance(iarg, xr.Dataset) else iarg.to_dataset()
         iarg[lat_name] = lat
         iarg[lon_name] = lon
         # if 'bounds' existed, they will now be interpolated and incorrect
@@ -71,8 +73,12 @@ def nest_spatial_grids(*args):
             dim_bnd_name = dim.attrs.get("bounds", f"{dim_name}_bounds")
             iarg[dim_name].attrs["bounds"] = dim_bnd_name
             iarg = iarg.drop_vars(dim_bnd_name, errors="ignore")
-            iarg[dim_bnd_name] = xr.DataArray(
-                np.array([bnd_val[:-1], bnd_val[1:]]).T, dims=[dim_name, "nv"]
+            iarg = iarg.assign_coords(
+                {
+                    dim_bnd_name: xr.DataArray(
+                        np.array([bnd_val[:-1], bnd_val[1:]]).T, dims=[dim_name, "nv"]
+                    )
+                }
             )
         out.append(iarg)
     return out

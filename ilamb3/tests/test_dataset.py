@@ -210,7 +210,7 @@ def test_cell_measures():
     ds["lon_bnds"] = (("lon", "nb"), np.array([lons[:-1], lons[1:]]).T)
     ds["lat"].attrs["bounds"] = "lat_bnds"
     ds["lon"].attrs["bounds"] = "lon_bnds"
-    assert np.allclose(dset.compute_cell_measures(ds).mean(), 2.83369151e13)
+    assert np.allclose(dset.compute_cell_measures(ds, "da").mean(), 2.83369151e13)
 
 
 def test_get_frequency_label():

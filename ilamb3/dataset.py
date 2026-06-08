@@ -451,14 +451,18 @@ def get_bounds_variable(ds: xr.Dataset, varname: str) -> xr.DataArray | None:
     return ds[bnd_var]
 
 
-def compute_cell_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
+def compute_cell_measures(
+    data: xr.Dataset | xr.DataArray, varname: str | None = None
+) -> xr.DataArray:
     """
     Return the area of each spatial cell.
 
     Parameters
     ----------
-    dset : xr.Dataset or xr.DataArray
+    data : xr.Dataset or xr.DataArray
         The input dataset.
+    varname : str, optional
+        If a dataset is given, the DataArray for which we will compute the measures.
 
     Returns
     -------
@@ -470,52 +474,33 @@ def compute_cell_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     It would be better to get these from the model data itself, but they are not always
     provided, particularly in reference data.
     """
+    da = data
+    ds = data
+    if isinstance(data, xr.Dataset):
+        assert varname is not None
+        da = data[varname]
+        ds = data
+    if isinstance(data, xr.DataArray):
+        da = data
+        ds = da.to_dataset()
     earth_radius = 6.371e6  # [m]
-    lat_name = get_dim_name(dset, "lat")
-    lon_name = get_dim_name(dset, "lon")
-    lat = dset[lat_name]
-    lon = dset[lon_name]
-    latb_name = lat.attrs["bounds"] if "bounds" in lat.attrs else None
-    lonb_name = lon.attrs["bounds"] if "bounds" in lon.attrs else None
-    # we prefer to compute your cell areas from the lat/lon bounds if they are
-    # part of the dataset...
-    if has_bounds(dset, lat_name, latb_name) & has_bounds(dset, lon_name, lonb_name):
-        delx = dset[lonb_name] * np.pi / 180
-        dely = np.sin(dset[latb_name] * np.pi / 180)
-        other_dims = delx.dims[-1]
-        delx = earth_radius * delx.diff(other_dims).squeeze()
-        dely = earth_radius * dely.diff(other_dims).squeeze()  # type: ignore
-        msr = dely * delx
-        msr.attrs["units"] = "m2"
-        return msr
-    # ...and if they aren't, we assume the lat/lon we have is a cell centroid
-    # and compute the area.
-    lon = lon.values
-    lat = lat.values
-    delx = 0.5 * (lon[:-1] + lon[1:])
-    dely = 0.5 * (lat[:-1] + lat[1:])
-    delx = np.vstack(
-        [
-            np.hstack([lon[0] - 0.5 * (lon[1] - lon[0]), delx]),
-            np.hstack([delx, lon[-1] + 0.5 * (lon[-1] - lon[-2])]),
-        ]
-    ).T
-    dely = np.vstack(
-        [
-            np.hstack([lat[0] - 0.5 * (lat[1] - lat[0]), dely]),
-            np.hstack([dely, lat[-1] + 0.5 * (lat[-1] - lat[-2])]),
-        ]
-    ).T
-    delx = delx * np.pi / 180
-    dely = np.sin(dely * np.pi / 180)
-    delx = earth_radius * np.diff(delx, axis=1).squeeze()
-    dely = earth_radius * np.diff(dely, axis=1).squeeze()
-    delx = xr.DataArray(
-        data=np.abs(delx), dims=[lon_name], coords={lon_name: dset[lon_name]}
-    )
-    dely = xr.DataArray(
-        data=np.abs(dely), dims=[lat_name], coords={lat_name: dset[lat_name]}
-    )
+    lat_name = get_dim_name(da, "lat")
+    lon_name = get_dim_name(da, "lon")
+    lat = da[lat_name]
+    lon = da[lon_name]
+    latb_name = lat.attrs.get("bounds", None)
+    lonb_name = lon.attrs.get("bounds", None)
+    if not has_bounds(ds, lat_name, latb_name):
+        ds = ds.cf.add_bounds(lat_name)
+        latb_name = f"{lat_name}_bounds"
+    if not has_bounds(ds, lon_name, lonb_name):
+        ds = ds.cf.add_bounds(lon_name)
+        lonb_name = f"{lon_name}_bounds"
+    delx = ds[lonb_name] * np.pi / 180
+    dely = np.sin(ds[latb_name] * np.pi / 180)
+    other_dims = delx.dims[-1]
+    delx = earth_radius * delx.diff(other_dims).squeeze()
+    dely = earth_radius * dely.diff(other_dims).squeeze()  # type: ignore
     msr = dely * delx
     msr.attrs["units"] = "m2"
     return msr
@@ -554,7 +539,7 @@ def coarsen_dataset(dset: xr.Dataset, varname: str, res: float = 0.5) -> xr.Data
     fine_per_coarse = int(round(res / ds_res))
     # In order for our coarsening to be conservative, we will need to use cell measures
     if "cell_measures" not in dset:
-        dset["cell_measures"] = compute_cell_measures(dset)
+        dset["cell_measures"] = compute_cell_measures(dset, varname)
     # The data to be coarsened may contain nan's. If a variable is nan for all
     # dimensions not part of the measures (usually just 'time') then make the
     # measure also nan.
@@ -755,7 +740,7 @@ def integrate_space(
         dset["cell_measures"]
         if "cell_measures" in dset
         and set(dset["cell_measures"].dims).issubset(var.dims)
-        else compute_cell_measures(dset)
+        else compute_cell_measures(dset, varname)
     )
     if weight is not None:
         assert isinstance(weight, xr.DataArray)
