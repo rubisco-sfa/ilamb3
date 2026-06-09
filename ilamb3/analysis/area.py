@@ -61,9 +61,19 @@ class area_analysis(ILAMBAnalysis):
         required_variable: str,
         **kwargs: Any,  # this is so we can pass extra arguments without failure
     ):
-        self.analysis_name = "Area Comparison"
         self.req_variable = required_variable
         self.kwargs = kwargs
+
+    def name(self) -> str:
+        """
+        Return the name of the analysis.
+
+        Returns
+        -------
+        str
+            The name of the analysis.
+        """
+        return "Area Comparison"
 
     def required_variables(self) -> list[str]:
         """
@@ -155,7 +165,7 @@ class area_analysis(ILAMBAnalysis):
                 {
                     "source": "Reference",
                     "region": str(ilamb3.conf["global_region"]),
-                    "analysis": self.analysis_name,
+                    "analysis": self.name(),
                     "name": "Total Area",
                     "type": "scalar",
                     "units": "megameter**2",
@@ -166,7 +176,7 @@ class area_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": str(ilamb3.conf["global_region"]),
-                    "analysis": self.analysis_name,
+                    "analysis": self.name(),
                     "name": f"{name} Area",
                     "type": "scalar",
                     "units": "megameter**2",
@@ -181,7 +191,7 @@ class area_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": str(ilamb3.conf["global_region"]),
-                    "analysis": self.analysis_name,
+                    "analysis": self.name(),
                     "name": f"{name} Score",
                     "type": "score",
                     "units": "1",
@@ -199,7 +209,7 @@ class area_analysis(ILAMBAnalysis):
         self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
     ) -> pd.DataFrame:
         path.mkdir(parents=True, exist_ok=True)
-        if self.analysis_name not in df["analysis"].unique():
+        if self.name() not in df["analysis"].unique():
             return pd.DataFrame()
         com["Reference"] = ref
         region = ilamb3.conf["global_region"]
@@ -211,7 +221,7 @@ class area_analysis(ILAMBAnalysis):
                 continue
             row = {
                 "name": "extent",
-                "analysis": "Area Comparison",
+                "analysis": self.name(),
                 "title": self.req_variable.replace("_", " ").title(),
                 "region": region,
                 "source": source,
@@ -244,7 +254,7 @@ class area_analysis(ILAMBAnalysis):
                 continue
             row = {
                 "name": "bias",
-                "analysis": "Area Comparison",
+                "analysis": self.name(),
                 "title": "Bias",
                 "region": region,
                 "source": source,

@@ -75,6 +75,17 @@ class rmse_analysis(ILAMBAnalysis):
         self.plot_unit = plot_unit
         self.kwargs = kwargs
 
+    def name(self) -> str:
+        """
+        Return the name of this analysis.
+
+        Returns
+        -------
+        str
+            The name of this analysis.
+        """
+        return "RMSE"
+
     def required_variables(self) -> list[str]:
         """
         Return the list of variables required for this analysis.
@@ -111,7 +122,6 @@ class rmse_analysis(ILAMBAnalysis):
             A dataset containing comparison grided information from the comparison.
         """
         # Initialize
-        ANALYSIS_NAME = "RMSE"
         varname = self.req_variable
 
         if not (dset.is_temporal(ref[varname]) and dset.is_temporal(com[varname])):
@@ -153,16 +163,15 @@ class rmse_analysis(ILAMBAnalysis):
 
         # Conversions
         if self.use_uncertainty:
-            ref, com, uncert = cmp.rename_dims(
-                *cmp.nest_spatial_grids(ref[varname], com[varname], uncert.fillna(0))
+            ref, com, uncert = cmp.nest_spatial_grids(
+                ref[varname], com[varname], uncert.fillna(0)
             )
         else:
-            ref, com = cmp.rename_dims(
-                *cmp.nest_spatial_grids(ref[varname], com[varname])
-            )
+            ref, com = cmp.nest_spatial_grids(ref[varname], com[varname])
 
         # Compute the RMSE and score
         rmse = np.sqrt(dset.integrate_time((com - ref) ** 2, varname, mean=True))
+        rmse.attrs["units"] = ref[varname].attrs["units"]
         ref_mean = dset.integrate_time(ref, varname, mean=True)
         com_mean = dset.integrate_time(com, varname, mean=True)
         crmse = np.sqrt(
@@ -190,7 +199,7 @@ class rmse_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": str(region),
-                    "analysis": ANALYSIS_NAME,
+                    "analysis": self.name(),
                     "name": "RMSE",
                     "type": "scalar",
                     "units": unit,
@@ -202,7 +211,7 @@ class rmse_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": str(region),
-                    "analysis": ANALYSIS_NAME,
+                    "analysis": self.name(),
                     "name": "RMSE Score",
                     "type": "score",
                     "units": "1",
@@ -220,7 +229,7 @@ class rmse_analysis(ILAMBAnalysis):
     ) -> pd.DataFrame:
 
         # This analysis was not run and we should skip plotting entirely
-        if "RMSE" not in df["analysis"].unique():
+        if self.name() not in df["analysis"].unique():
             return pd.DataFrame()
         path.mkdir(parents=True, exist_ok=True)
 
@@ -253,7 +262,7 @@ class rmse_analysis(ILAMBAnalysis):
         ).set_index("name")
         df_limits = ilp.determine_plot_limits(com)
         df = pd.merge(df_meta, df_limits, left_index=True, right_index=True)
-        df["analysis"] = "RMSE"
+        df["analysis"] = self.name()
 
         # Create each plot for each source if present in the dataset
         df_plots = []

@@ -64,13 +64,21 @@ def get_dim_name(
     """
     dim_names = {
         "time": ["time", "TIME", "month"],
-        "lat": ["lat", "latitude", "Latitude", "lat_", "Lat", "LATITUDE"],
-        "lon": ["lon", "longitude", "Longitude", "lon_", "Lon", "LONGITUDE"],
+        "lat": ["lat", "latitude", "Latitude", "lat_nested", "lat_", "Lat", "LATITUDE"],
+        "lon": [
+            "lon",
+            "longitude",
+            "Longitude",
+            "lon_nested",
+            "lon_",
+            "Lon",
+            "LONGITUDE",
+        ],
         "depth": ["depth", "lev"],
     }
     # Assumption: the 'site' dimension is what is left over after all others are removed
     if dim == "site":
-        if is_spatial(dset):
+        if is_gridded(dset):
             raise NoSiteDimension("Dataset/dataarray is spatial")
         possible_names = list(
             set(dset.dims)
@@ -116,8 +124,8 @@ def get_coord_name(
     get_dim_name : A variant when the coordinate is a dimension.
     """
     coord_names = {
-        "lat": ["lat", "latitude", "Latitude", "lat_", "Lat", "LATITUDE"],
-        "lon": ["lon", "longitude", "Longitude", "lon_", "Lon", "LONGITUDE"],
+        "lat": ["lat", "latitude", "Latitude", "lat_nested", "Lat", "LATITUDE"],
+        "lon": ["lon", "longitude", "Longitude", "lon_nested", "Lon", "LONGITUDE"],
     }
     possible_names = coord_names[coord]
     coord_name = set(dset.coords).intersection(possible_names)
@@ -136,14 +144,14 @@ def get_all_bounds_vars(ds: xr.Dataset) -> list[str]:
     return bounds
 
 
-def is_temporal(da: xr.DataArray) -> bool:
+def is_temporal(data: xr.DataArray | xr.Dataset) -> bool:
     """
     Return if the dataarray is temporal.
 
     Parameters
     ----------
-    da : xr.DataArray
-        The input dataarray.
+    data : xr.DataArray or xr.Dataset
+        The input dataarray or dataset.
 
     Returns
     -------
@@ -151,21 +159,20 @@ def is_temporal(da: xr.DataArray) -> bool:
         True if time dimension is present, False otherwise.
     """
     try:
-        get_dim_name(da, "time")
+        get_dim_name(data, "time")
         return True
     except KeyError:
         pass
     return False
 
 
-def is_spatial(da: xr.DataArray) -> bool:
+def is_gridded(data: xr.DataArray | xr.Dataset) -> bool:
     """
-    Return if the dataarray is spatial.
+    Return if the dataarray is gridded, i.e., has latitude and longitude dimensions.
 
     Parameters
-    ----------
-    da : xr.DataArray
-        The input dataarray.
+    data : xr.DataArray or xr.Dataset
+        The input dataarray or dataset.
 
     Returns
     -------
@@ -173,20 +180,21 @@ def is_spatial(da: xr.DataArray) -> bool:
         True if latitude and longitude dimensions are present, False otherwise.
     """
     try:
-        get_dim_name(da, "lat")
-        get_dim_name(da, "lon")
+        get_dim_name(data, "lat")
+        get_dim_name(data, "lon")
         return True
     except KeyError:
         pass
     # Ocean grids have 2D lat/lons sometimes stored in their coordinates
-    if is_latlon2d(da):
+    if is_latlon2d(data):
         return True
     return False
 
 
 def is_site(da: xr.DataArray) -> bool:
     """
-    Return if the dataarray is a collection of sites.
+    Return if the dataarray is a collection of sites, i.e., has latitude and longitude
+    coordinates but no corresponding dimensions.
 
     Parameters
     ----------
@@ -220,7 +228,7 @@ def is_site(da: xr.DataArray) -> bool:
 
 def is_layered(da: xr.DataArray) -> bool:
     """
-    Return if the dataarray is layered.
+    Return if the dataarray is layered, i.e., has a depth dimension.
 
     Parameters
     ----------
@@ -240,14 +248,14 @@ def is_layered(da: xr.DataArray) -> bool:
     return False
 
 
-def get_integer_dims(da: xr.DataArray) -> list[str]:
+def get_integer_dims(data: xr.DataArray | xr.Dataset) -> list[str]:
     """
     Return which dimensions are integers and therefore likely indices.
     """
-    return [d for d in da.dims if d in da.coords and da[d].dtype.kind == "i"]
+    return [d for d in data.dims if d in data.coords and data[d].dtype.kind == "i"]
 
 
-def is_latlon2d(da: xr.DataArray) -> bool:
+def is_latlon2d(data: xr.DataArray | xr.Dataset) -> bool:
     """
     Return if the dataarray has 2D latitudes and longitudes.
 
@@ -257,16 +265,16 @@ def is_latlon2d(da: xr.DataArray) -> bool:
     integer type and then 2d latitude/longitude coordinates in those indexing
     dimensions.
     """
-    index_dims = get_integer_dims(da)
+    index_dims = get_integer_dims(data)
     if not index_dims:
         return False
     try:
-        lat_coord = get_coord_name(da, "lat")
-        lon_coord = get_coord_name(da, "lon")
+        lat_coord = get_coord_name(data, "lat")
+        lon_coord = get_coord_name(data, "lon")
     except KeyError:
         return False
     # Are the index dimensions of da also the dimensions of the the coordinates?
-    if set(da[lon_coord].dims) == set(da[lat_coord].dims) == set(index_dims):
+    if set(data[lon_coord].dims) == set(data[lat_coord].dims) == set(index_dims):
         return True
     return False
 
@@ -376,7 +384,7 @@ def compute_time_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
             msg = "Cannot estimate time measures from single value without bounds"
             raise ValueError(msg)
         # compute time measures as differences (timedelta64[ns]) converted to days
-        delt = time.diff(dim=time_name).to_numpy().astype(float) * 1e-9 / 3600 / 24
+        delt = time.diff(dim=time_name).dt.total_seconds() / 3600 / 24
         # pad the array to match the original time array size
         delt = np.hstack([delt[0], delt, delt[-1]])
         # compute the average measure in days for each time step
@@ -395,7 +403,7 @@ def compute_time_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     delt = dset[timeb_name]
     nbnd = delt.dims[-1]
     delt = delt.diff(nbnd).squeeze().compute()
-    measure = delt.astype("float") * 1e-9 / 86400  # .diff [ns] to [d]
+    measure = delt.dt.total_seconds() / 3600 / 24
     measure.attrs["units"] = "d"
     return measure
 
@@ -451,14 +459,18 @@ def get_bounds_variable(ds: xr.Dataset, varname: str) -> xr.DataArray | None:
     return ds[bnd_var]
 
 
-def compute_cell_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
+def compute_cell_measures(
+    data: xr.Dataset | xr.DataArray, varname: str | None = None
+) -> xr.DataArray:
     """
     Return the area of each spatial cell.
 
     Parameters
     ----------
-    dset : xr.Dataset or xr.DataArray
+    data : xr.Dataset or xr.DataArray
         The input dataset.
+    varname : str, optional
+        If a dataset is given, the DataArray for which we will compute the measures.
 
     Returns
     -------
@@ -470,52 +482,33 @@ def compute_cell_measures(dset: xr.Dataset | xr.DataArray) -> xr.DataArray:
     It would be better to get these from the model data itself, but they are not always
     provided, particularly in reference data.
     """
+    da = data
+    ds = data
+    if isinstance(data, xr.Dataset):
+        assert varname is not None
+        da = data[varname]
+        ds = data
+    if isinstance(data, xr.DataArray):
+        da = data
+        ds = da.to_dataset()
     earth_radius = 6.371e6  # [m]
-    lat_name = get_dim_name(dset, "lat")
-    lon_name = get_dim_name(dset, "lon")
-    lat = dset[lat_name]
-    lon = dset[lon_name]
-    latb_name = lat.attrs["bounds"] if "bounds" in lat.attrs else None
-    lonb_name = lon.attrs["bounds"] if "bounds" in lon.attrs else None
-    # we prefer to compute your cell areas from the lat/lon bounds if they are
-    # part of the dataset...
-    if has_bounds(dset, lat_name, latb_name) & has_bounds(dset, lon_name, lonb_name):
-        delx = dset[lonb_name] * np.pi / 180
-        dely = np.sin(dset[latb_name] * np.pi / 180)
-        other_dims = delx.dims[-1]
-        delx = earth_radius * delx.diff(other_dims).squeeze()
-        dely = earth_radius * dely.diff(other_dims).squeeze()  # type: ignore
-        msr = dely * delx
-        msr.attrs["units"] = "m2"
-        return msr
-    # ...and if they aren't, we assume the lat/lon we have is a cell centroid
-    # and compute the area.
-    lon = lon.values
-    lat = lat.values
-    delx = 0.5 * (lon[:-1] + lon[1:])
-    dely = 0.5 * (lat[:-1] + lat[1:])
-    delx = np.vstack(
-        [
-            np.hstack([lon[0] - 0.5 * (lon[1] - lon[0]), delx]),
-            np.hstack([delx, lon[-1] + 0.5 * (lon[-1] - lon[-2])]),
-        ]
-    ).T
-    dely = np.vstack(
-        [
-            np.hstack([lat[0] - 0.5 * (lat[1] - lat[0]), dely]),
-            np.hstack([dely, lat[-1] + 0.5 * (lat[-1] - lat[-2])]),
-        ]
-    ).T
-    delx = delx * np.pi / 180
-    dely = np.sin(dely * np.pi / 180)
-    delx = earth_radius * np.diff(delx, axis=1).squeeze()
-    dely = earth_radius * np.diff(dely, axis=1).squeeze()
-    delx = xr.DataArray(
-        data=np.abs(delx), dims=[lon_name], coords={lon_name: dset[lon_name]}
-    )
-    dely = xr.DataArray(
-        data=np.abs(dely), dims=[lat_name], coords={lat_name: dset[lat_name]}
-    )
+    lat_name = get_dim_name(da, "lat")
+    lon_name = get_dim_name(da, "lon")
+    lat = da[lat_name]
+    lon = da[lon_name]
+    latb_name = lat.attrs.get("bounds", None)
+    lonb_name = lon.attrs.get("bounds", None)
+    if not has_bounds(ds, lat_name, latb_name):
+        ds = ds.cf.add_bounds(lat_name)
+        latb_name = f"{lat_name}_bounds"
+    if not has_bounds(ds, lon_name, lonb_name):
+        ds = ds.cf.add_bounds(lon_name)
+        lonb_name = f"{lon_name}_bounds"
+    delx = ds[lonb_name] * np.pi / 180
+    dely = np.sin(ds[latb_name] * np.pi / 180)
+    other_dims = delx.dims[-1]
+    delx = earth_radius * delx.diff(other_dims).squeeze()
+    dely = earth_radius * dely.diff(other_dims).squeeze()  # type: ignore
     msr = dely * delx
     msr.attrs["units"] = "m2"
     return msr
@@ -554,7 +547,7 @@ def coarsen_dataset(dset: xr.Dataset, varname: str, res: float = 0.5) -> xr.Data
     fine_per_coarse = int(round(res / ds_res))
     # In order for our coarsening to be conservative, we will need to use cell measures
     if "cell_measures" not in dset:
-        dset["cell_measures"] = compute_cell_measures(dset)
+        dset["cell_measures"] = compute_cell_measures(dset, varname)
     # The data to be coarsened may contain nan's. If a variable is nan for all
     # dimensions not part of the measures (usually just 'time') then make the
     # measure also nan.
@@ -582,17 +575,22 @@ def coarsen_dataset(dset: xr.Dataset, varname: str, res: float = 0.5) -> xr.Data
 
 
 def integrate_time(
-    dset: xr.Dataset | xr.DataArray,
+    data: xr.Dataset | xr.DataArray,
     varname: str | None = None,
     mean: bool = False,
 ) -> xr.DataArray:
     """
-    Return the time integral or mean of the dataset.
+    Return the time integral or time mean of a variable.
+
+    Climate analyses often need totals for extensive quantities (total carbon mass,
+    accumulated precipitation) and means for intensive ones (temperature, mixing
+    ratios). The ``mean`` flag selects between the two so a single call site can
+    handle both cases.
 
     Parameters
     ----------
-    dset : xr.Dataset or xr.DataArray
-        The input dataset/dataarray.
+    data : xarray.Dataset or xarray.DataArray
+        The input dataset or dataarray.
     varname : str, optional
         The variable to integrate, must be given if a dataset is passed in.
     mean : bool, optional
@@ -601,39 +599,46 @@ def integrate_time(
 
     Returns
     -------
-    integral
-        The integral or mean as a DataArray.
+    xarray.DataArray
+        The time integral (or time mean if ``mean=True``) of ``varname``, with the time
+        dimension removed. Other dimensions are preserved.
 
     Notes
     -----
-    This interface is useful in our analysis as many times we want to report the total
-    of a quantity (total mass of carbon) and other times we want the mean value (e.g.
-    temperature). This allows the analysis code to read the same where a flag can be
-    passed to change the behavior. We could consider replacing with xarray.integrate.
-    However, as of `v2023.6.0`, this does not handle the `pint` units correctly, and can
-    only be done in a single dimension at a time, leaving the spatial analog to be hand
-    coded. It also uses trapezoidal rule which should return the same integration, but
-    could have small differences depending on how endpoints are interpretted.
+    We do not use :meth:`~xarray.DataArray.integrate` because as of ``v2023.6.0``,
+    xarray does not handle the ``pint`` units correctly, and can only be applied to a
+    single dimension at a time, leaving the spatial analog to be hand-coded. It also
+    uses the trapezoidal rule, which should return the same integration, but could have
+    small differences depending on how endpoints are interpreted.
     """
-    time_name = get_dim_name(dset, "time")
-    if isinstance(dset, xr.Dataset):
-        assert varname is not None
-        var = dset[varname]
+    time_name = get_dim_name(data, "time")
+
+    # If dataset, select the variable as data array
+    if isinstance(data, xr.Dataset):
+        if varname is None:
+            raise ValueError("Must provide varname if input is a dataset.")
+        da = data[varname]
         msr = (
-            dset["time_measures"]
-            if "time_measures" in dset
-            else compute_time_measures(dset)
+            data["time_measures"]
+            if "time_measures" in data
+            else compute_time_measures(data)
         )
+
+    # Otherwise, if dataarray, use directly
     else:
-        var = dset
-        msr = compute_time_measures(dset)
+        da = data
+        msr = compute_time_measures(data)
+
+    # If mean, weight the var by time measures then take the mean
     if mean:
-        return var.weighted(msr.fillna(0)).mean(dim=time_name)
-    var = var.pint.quantify()
+        return da.weighted(msr.fillna(0)).mean(dim=time_name)
+
+    # Otherwise, weight the var by time measures, then take the sum; handle unit change
+    da = da.pint.quantify()
     msr = msr.pint.quantify()
-    out = var.weighted(msr.fillna(0)).sum(dim=time_name)
-    out = out.pint.dequantify()
-    return out
+    out_da = da.weighted(msr.fillna(0)).sum(dim=time_name)
+    out_da = out_da.pint.dequantify()
+    return out_da
 
 
 def accumulate_time(
@@ -755,7 +760,7 @@ def integrate_space(
         dset["cell_measures"]
         if "cell_measures" in dset
         and set(dset["cell_measures"].dims).issubset(var.dims)
-        else compute_cell_measures(var)
+        else compute_cell_measures(dset, varname)
     )
     if weight is not None:
         assert isinstance(weight, xr.DataArray)
@@ -827,7 +832,7 @@ def sel(dset: xr.Dataset, coord: str, cmin: Any, cmax: Any) -> xr.Dataset:
     bnds = dset[coord].attrs["bounds"]
     dset[bnds][0, 0] = cmin
     dset[bnds][-1, 1] = cmax
-    dim = dset[coord].to_numpy()
+    dim = dset[coord].to_numpy().copy()
     dim[0] = dset[bnds][0, 0].values + 0.5 * (
         dset[bnds][0, 1].values - dset[bnds][0, 0].values
     )
@@ -863,7 +868,7 @@ def integrate_depth(
         The depth integral or sum.
     """
     if isinstance(dset, xr.DataArray):
-        varname = dset.name
+        varname = str(dset.name)
         dset = dset.to_dataset(name=varname)
     else:
         assert varname is not None
@@ -987,16 +992,11 @@ def coarsen_annual(dset: xr.Dataset) -> xr.Dataset:
         The coarsened dataset.
     """
     # Can't sum time objects so find them and remove
-    time_name = get_dim_name(dset, "time")
-    if "bounds" in dset[time_name].attrs:
-        bounds = dset[time_name].attrs["bounds"]
-        if bounds in dset:
-            dset = dset.drop_vars(bounds)
-    msr = compute_time_measures(dset).pint.dequantify()
-    ann = (dset * msr).groupby(f"{time_name}.year").sum() / msr.groupby(
-        f"{time_name}.year"
-    ).sum()
-    return ann
+    time_dim = get_dim_name(dset, "time")
+    dset = dset.resample({time_dim: xr.groupers.TimeResampler("YS")}).mean()
+    dset[time_dim] = dset[time_dim].dt.year
+    dset = dset.rename_dims({time_dim: "year"}).rename_vars({time_dim: "year"})
+    return dset
 
 
 def shift_lon(dset: xr.Dataset) -> xr.Dataset:
@@ -1154,7 +1154,7 @@ def fix_missing_bounds_attrs(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-def get_mean_time_frequency(ds: xr.Dataset) -> float:
+def get_mean_time_frequency(ds: xr.Dataset | xr.DataArray) -> float:
     """
     Return the mean time frequency of the dataset.
     """
@@ -1164,7 +1164,8 @@ def get_mean_time_frequency(ds: xr.Dataset) -> float:
 
 def get_frequency_label(ds: xr.Dataset) -> str | None:
     """
-    Return the CMIP time frequency label of the dataset.
+    Return the CMIP time frequency label of the dataset. One of "3hr",
+    "6hr", "day", "mon", "yr", or "fx" if the dataset is not temporal.
     """
     if not is_temporal(ds):
         return "fx"
@@ -1175,28 +1176,197 @@ def get_frequency_label(ds: xr.Dataset) -> str | None:
 
 def compute_monthly_mean(ds: xr.Dataset) -> xr.Dataset:
     """
-    Return the monthly mean of the input dataset in a `noleap` calendar.
+    One time-weighted mean per month of data.
+
+    For example, given 5 years of daily input, the result has 60 (12*5) timesteps.
     """
     if not is_temporal(ds):
         raise ValueError("Input dataset has no temporal dimension.")
-    dt = get_mean_time_frequency(ds)
-    if dt > 31:
-        raise ValueError(f"Input dataset is already coarser than monthly {dt=}.")
+    freq = get_mean_time_frequency(ds)
+    if freq > 31:
+        raise ValueError(f"Input dataset is already coarser than monthly {freq=}.")
+
+    # 3hr, 6hr, and 1day timesteps are always msr = 3, 6, and 24 hours respectively
+    # So (non-weighted) mean is fine
     ds = ds.resample(time=xr.groupers.TimeResampler("MS")).mean()
+    return ds
+
+
+def compute_monthly_climatology(ds: xr.Dataset) -> xr.Dataset:
+    """
+    One time-weighted mean per month of the year of data.
+
+    For example, given 5 years of daily input, the result has 12 timesteps.
+    """
     return ds
 
 
 def compute_annual_mean(ds: xr.Dataset) -> xr.Dataset:
     """
-    Return the annual mean of the input dataset.
+    One time-weighted mean per year of data.
+
+    For example, given 5 years of daily input, the result has 5 timesteps.
     """
     if not is_temporal(ds):
         raise ValueError("Input dataset has no temporal dimension.")
-    dt = get_mean_time_frequency(ds)
-    if dt > 366:
-        raise ValueError(f"Input dataset is already coarser than annual {dt=}.")
+    freq = get_mean_time_frequency(ds)
+    if freq > 366:
+        raise ValueError(f"Input dataset is already coarser than annual {freq=}.")
     ds = ds.resample(time=xr.groupers.TimeResampler("YS")).mean()
     return ds
+
+
+def compute_seasonal_mean(
+    ds: xr.Dataset,
+    seasons: list[str] = ["DJF", "MAM", "JJA", "SON"],
+    varname: str | None = None,
+) -> xr.Dataset:
+    """
+    One time-weighted mean per season of data.
+
+    For example, given 5 years of daily input starting in Dec and ending in Nov, the
+    result has 20 (4*5) timesteps. The default seasons are ["DJF", "MAM", "JJA", "SON"],
+    but they can be any list of seasons supported by
+    :class:`xr.groupers.SeasonResampler`. Only complete seasons are included in the
+    output. E.g., if input data starts in January, the first DJF will be incomplete and
+    dropped, and if it ends in December, the last DJF will be incomplete and dropped,
+    so the result will have 19 timesteps.
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        The input dataset.
+    seasons : list of str, optional
+        The seasons to use, default is ["DJF", "MAM", "JJA", "SON"].
+    varname : str, optional
+        If ``ds`` is a dataset, the variable name to subselect.
+
+    Returns
+    -------
+    xarray.Dataset
+        The seasonal mean of the input data, with the time dimension resampled to the
+        seasons.
+
+    Notes
+    -----
+    The time-weighted mean is only computed if a dataset and variable name are provided.
+    If a dataset is provided without a variable name, the regular mean is taken for all
+    variables, which is not time-weighted. While this preserves the full dataset,
+    variables like time_bounds will be incorrect because the new seasonal time steps are
+    the first day of the season rather than the midpoint. Providing a variable name,
+    which drops all other variables, is safer.
+    """
+
+    # Ensure data is temporal and not already coarser than seasonal
+    if not is_temporal(ds):
+        raise ValueError("Input dataset has no temporal dimension.")
+    freq = get_mean_time_frequency(ds)
+    if freq > 31:
+        raise ValueError(f"Input dataset is already coarser than monthly {freq=}.")
+    grouper = xr.groupers.SeasonResampler(seasons, drop_incomplete=True)
+
+    # Time data needs to be decoded for season resampler
+    ds = xr.decode_cf(ds)  # type: ignore
+
+    # Helper func to do the weighted mean for each season
+    def _weighted_mean(da: xr.DataArray) -> xr.DataArray:
+        return integrate_time(da, mean=True)
+
+    # Dataset with varname -> weighted mean
+    if varname is not None:
+        if varname not in ds:
+            raise ValueError(f"Variable {varname=} not found in dataset.")
+        out = ds[varname].resample(time=grouper).map(_weighted_mean)
+        out_ds = out.to_dataset(name=varname)
+        return out_ds
+
+    # Dataset without varname -> regular mean for all variables
+    return ds.resample(time=grouper).mean()
+
+
+def compute_seasonal_climatology(
+    data: xr.Dataset,
+    seasons: list[str] = ["DJF", "MAM", "JJA", "SON"],
+    varname: str | None = None,
+) -> xr.Dataset:
+    """
+    Time-weighted mean of each season across all complete years of data.
+
+    First subsets the input to only timesteps that fall within complete season-years
+    using ``SeasonResampler(drop_incomplete=True)`` to identify them. Then, a
+    single-pass time-weighted mean is calculated per season label. For example, given 5
+    years of daily data and seasons = ["DJF", "MAM", "JJA", "SON"], the result has
+    4 timesteps, one for each season, where the ``data[varname]`` is the weighted mean
+    of the 5 DJF seasons (incomplete seasons are dropped). The time coordinate of the
+    result is the first day of each season, e.g. "1990-12-01" for DJF, "1990-03-01" for
+    MAM, etc.
+
+    Parameters
+    ----------
+    data : xarray.Dataset
+        The input dataset.
+    seasons : list of str, optional
+        The seasons to use, default is ["DJF", "MAM", "JJA", "SON"]. Can be any list of
+        seasons supported by :class:`xarray.groupers.SeasonResampler`.
+    varname : str, optional
+        If ``data`` is a dataset, the variable name to subselect.
+
+    Returns
+    -------
+    xarray.Dataset
+        The seasonal climatology of the input data, with the time dimension resampled to
+        the seasons and reduced to a single time step per season.
+
+    Notes
+    -----
+    The time-weighted mean is only computed if a dataset and variable name are provided.
+    If a dataset is provided without a variable name, the regular mean is taken for all
+    variables, which is not time-weighted. While this preserves the full dataset,
+    variables like time_bounds will be incorrect because the new seasonal time steps are
+    the first day of the season rather than the midpoint. Providing a variable name,
+    which drops all other variables, is safer.
+    """
+
+    # Ensure data is temporal and not already coarser than seasonal
+    if not is_temporal(data):
+        raise ValueError("Input dataset has no temporal dimension.")
+    freq = get_mean_time_frequency(data)
+    if freq > 31:
+        raise ValueError(f"Input dataset is already coarser than monthly {freq=}.")
+    grouper = xr.groupers.SeasonGrouper(seasons)
+
+    # Time data needs to be decoded for season resampler
+    data = xr.decode_cf(data) if isinstance(data, xr.Dataset) else data  # type: ignore
+
+    # Compute weights NOW, while time is contiguous and time_bnds (if present) can be
+    # used. Doing this inside each season group would yield wrong weights because the
+    # timesteps within a group are gappy (e.g. DJF jumps from Feb to the following Dec)
+    msr = compute_time_measures(data)
+
+    # Subset both data and weights to timesteps in complete season-years
+    resampler = xr.groupers.SeasonResampler(seasons, drop_incomplete=True)
+    groups = data.resample(time=resampler).groups
+    keep = sorted(i for indices in groups.values() for i in indices)  # type: ignore
+    data = data.isel(time=keep)
+    msr = msr.isel(time=keep)
+
+    # Time-weighted mean per season label
+    time_name = get_dim_name(data, "time")
+
+    def _weighted_mean(da: xr.DataArray) -> xr.DataArray:
+        w = msr.sel(time=da[time_name])
+        return da.weighted(w.fillna(0)).mean(dim="time")
+
+    # Dataset with varname -> weighted mean
+    if varname is not None:
+        if varname not in data:
+            raise ValueError(f"Variable {varname=} not found in dataset.")
+        out = data[varname].groupby(time=grouper).map(_weighted_mean)
+        out_ds = out.to_dataset(name=varname)
+        return out_ds
+
+    # Dataset without varname -> regular mean for all variables
+    return data.groupby(time=grouper).mean()
 
 
 def shift_time_by_years(ds: xr.Dataset, years: int) -> xr.Dataset:
@@ -1277,3 +1447,25 @@ def cmip_cell_measures(ds: xr.Dataset, varname: str) -> xr.Dataset:
     msr = xr.where(msr > 0, msr, np.nan)
     ds["cell_measures"] = msr
     return ds
+
+
+def which_cell_measures(
+    data: xr.Dataset | xr.DataArray, varname: str | None
+) -> list[str]:
+    """
+    Return the name of the cell measures variable for the given variable, if present.
+    """
+    if isinstance(data, xr.Dataset) and varname is None:
+        raise ValueError("varname must be specified when data is a Dataset")
+    da = data if isinstance(data, xr.DataArray) else data[varname]
+    measures = []
+    if "cell_measures" in da.attrs:
+        m = re.search(r"area:\s(.*)", da.attrs["cell_measures"])
+        if m:
+            measures.append(m.group(1))
+    if "cell_methods" in da.attrs:
+        if "where land" in da.attrs["cell_methods"]:
+            measures.append("sftlf")
+        elif "where sea" in da.attrs["cell_methods"]:
+            measures.append("sftof")
+    return measures

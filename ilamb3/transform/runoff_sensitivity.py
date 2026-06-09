@@ -103,7 +103,7 @@ def compute_runoff_sensitivity(
     ds = dset.shift_lon(ds)
     space = [dset.get_dim_name(ds, "lat"), dset.get_dim_name(ds, "lon")]
     if "cell_measures" not in ds:
-        ds["cell_measures"] = dset.compute_cell_measures(ds).pint.dequantify()
+        ds["cell_measures"] = dset.compute_cell_measures(ds, "mrro").pint.dequantify()
     if "time_measures" not in ds:
         ds["time_measures"] = dset.compute_time_measures(ds).pint.dequantify()
         if "bounds" in ds[dset.get_dim_name(ds, "time")].attrs:

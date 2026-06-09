@@ -1,65 +1,61 @@
 Ecosystem and Carbon Cycle:
-
   Biomass:
-
     Thurner:
       sources:
         biomass: biomass/Thurner/biomass_0.5x0.5.nc
       alternate_vars:
-      - cVeg
+        - cVeg
       variable_cmap: Greens
 
     XuSaatchi2021:
       sources:
         biomass: biomass/XuSaatchi2021/XuSaatchi.nc
       alternate_vars:
-      - cVeg
+        - cVeg
       variable_cmap: Greens
 
     USForest:
       sources:
         biomass: biomass/USForest/biomass_0.5x0.5.nc
       alternate_vars:
-      - cVeg
+        - cVeg
       variable_cmap: Greens
 
     ESACCI:
       sources:
         biomass: biomass/ESACCI/biomass.nc
       alternate_vars:
-      - cVeg
+        - cVeg
       variable_cmap: Greens
 
     Saatchi2011:
       sources:
         biomass: biomass/Saatchi2011/biomass_0.5x0.5.nc
       alternate_vars:
-      - cVeg
+        - cVeg
       variable_cmap: Greens
 
     NBCD2000:
       sources:
         biomass: biomass/NBCD2000/biomass_0.5x0.5.nc
       alternate_vars:
-      - cVeg
+        - cVeg
       variable_cmap: Greens
 
     GEOCARBON:
       sources:
         biomass: biomass/GEOCARBON/biomass.nc
       alternate_vars:
-      - cVeg
+        - cVeg
       variable_cmap: Greens
 
   Burnt Area:
-
     GFED-5-0:
       sources:
         burntFractionAll: GFED-5-0/obs4MIPs_NASA-NOSR_GFED-5-0_mon_burntFractionAll_gr_v20260302.nc
       variable_cmap: YlOrBr
 
   Gross Primary Productivity:
-
     Fluxnet-2015:
       sources:
         gpp: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_gpp_site_v20260302.nc
@@ -90,7 +86,6 @@ Ecosystem and Carbon Cycle:
       plot_unit: g m-2 d-1
 
   Leaf Area Index:
-
     GIMMS_LAI4g:
       sources:
         lai: lai/GIMMS_LAI4g/cao2023_lai.nc
@@ -120,54 +115,50 @@ Ecosystem and Carbon Cycle:
       variable_cmap: Greens
 
   Global Net Ecosystem Carbon Balance:
-
     Hoffman-1-0:
       sources:
         nbp: Hoffman-1-0/obs4MIPs_UCI-ORNL_Hoffman-1-0_yr_nbp_gm_v20260302.nc
       transforms:
-      - integrate_space:
-          varname: nbp
+        - integrate_space:
+            varname: nbp
       analyses:
-      - nbp
+        - nbp
 
     GCP:
       sources:
         nbp: nbp/GCP/nbp_1959-2016.nc
       transforms:
-      - integrate_space:
-          varname: nbp
+        - integrate_space:
+            varname: nbp
       analyses:
-      - nbp
+        - nbp
       evaluation_year: 2014
 
   Net Ecosystem Exchange:
-
     Fluxnet-2015:
       sources:
         nee: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_nee_site_v20260302.nc
       transforms:
-      - expression:
-          expr: "nee = ra + rh - gpp"
+        - expression:
+            expr: "nee = ra + rh - gpp"
       variable_cmap: Greens
 
   Ecosystem Respiration:
-
     Fluxnet-2015:
       sources:
         reco: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_reco_site_v20260302.nc
       transforms:
-      - expression:
-          expr: "reco = ra + rh"
+        - expression:
+            expr: "reco = ra + rh"
 
     FLUXCOM-1:
       sources:
         reco: FLUXCOM-1/obs4MIPs_MPI-BGC-BGI_FLUXCOM-1_mon_reco_gn_v20260302.nc
       transforms:
-      - expression:
-          expr: "reco = ra + rh"
+        - expression:
+            expr: "reco = ra + rh"
 
   Soil Carbon:
-
     Wang2024:
       sources:
         cSoil: cSoil/Wang2024/wang2024_cSoil.nc
@@ -180,10 +171,9 @@ Ecosystem and Carbon Cycle:
       sources:
         cSoilAbove1m: cSoil/NCSCDV22/soilc_0.5x0.5.nc
       alternate_vars:
-      - cSoil
+        - cSoil
 
   Nitrogen Fixation:
-
     Davies-Barnard:
       sources:
         fBNF: fBNF/DaviesBarnard/fBNF_0.5x0.5.nc
@@ -193,9 +183,7 @@ Ecosystem and Carbon Cycle:
       plot_unit: kg ha-1 yr-1
 
 Hydrology Cycle:
-
   Evapotranspiration:
-
     MOD16A2:
       sources:
         et: evspsbl/MOD16A2/et.nc
@@ -204,7 +192,7 @@ Hydrology Cycle:
         tas: tas/CRU4.02/tas.nc
       variable_cmap: Blues
       alternate_vars:
-      - evspsbl
+        - evspsbl
 
     MODIS:
       sources:
@@ -214,7 +202,7 @@ Hydrology Cycle:
         tas: tas/CRU4.02/tas.nc
       variable_cmap: Blues
       alternate_vars:
-      - evspsbl
+        - evspsbl
 
     GLEAMv3.3a:
       sources:
@@ -224,27 +212,26 @@ Hydrology Cycle:
         tas: tas/CRU4.02/tas.nc
       variable_cmap: Blues
       alternate_vars:
-      - evspsbl
+        - evspsbl
 
   Evaporative Fraction:
-
     WECANN-1-0:
       analysis_variable: evapfrac
       sources:
         hfss: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfss_gn_v20260302.nc
         hfls: WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_hfls_gn_v20260302.nc
       transforms:
-      - select_time:
-          vmin: 2007-01
-          vmax: 2015-01
-      - integrate_time:
-          varname: hfss
-          mean: true
-      - integrate_time:
-          varname: hfls
-          mean: true
-      - expression:
-          expr: "evapfrac = hfls / (hfls + hfss)"
+        - select_time:
+            vmin: 2007-01
+            vmax: 2015-01
+        - integrate_time:
+            varname: hfss
+            mean: true
+        - integrate_time:
+            varname: hfls
+            mean: true
+        - expression:
+            expr: "evapfrac = hfls / (hfls + hfss)"
 
     CLASS-1-1:
       analysis_variable: evapfrac
@@ -252,17 +239,17 @@ Hydrology Cycle:
         hfss: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_hfss_gn_v20260302.nc
         hfls: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_hfls_gn_v20260302.nc
       transforms:
-      - select_time:
-          vmin: 2003-01
-          vmax: 2009-12
-      - integrate_time:
-          varname: hfss
-          mean: true
-      - integrate_time:
-          varname: hfls
-          mean: true
-      - expression:
-          expr: "evapfrac = hfls / (hfls + hfss)"
+        - select_time:
+            vmin: 2003-01
+            vmax: 2009-12
+        - integrate_time:
+            varname: hfss
+            mean: true
+        - integrate_time:
+            varname: hfls
+            mean: true
+        - expression:
+            expr: "evapfrac = hfls / (hfls + hfss)"
 
     Fluxnet-2015:
       analysis_variable: evapfrac
@@ -270,20 +257,19 @@ Hydrology Cycle:
         hfss: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_hfss_site_v20260302.nc
         hfls: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_hfls_site_v20260302.nc
       transforms:
-      - select_time:
-          vmin: 1991-01
-          vmax: 2015-01
-      - integrate_time:
-          varname: hfss
-          mean: true
-      - integrate_time:
-          varname: hfls
-          mean: true
-      - expression:
-          expr: "evapfrac = hfls / (hfls + hfss)"
+        - select_time:
+            vmin: 1991-01
+            vmax: 2015-01
+        - integrate_time:
+            varname: hfss
+            mean: true
+        - integrate_time:
+            varname: hfls
+            mean: true
+        - expression:
+            expr: "evapfrac = hfls / (hfls + hfss)"
 
   Latent Heat:
-
     Fluxnet-2015:
       sources:
         hfls: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_hfls_site_v20260302.nc
@@ -310,7 +296,6 @@ Hydrology Cycle:
       variable_cmap: Blues
 
   Runoff:
-
     LORA-1-0:
       sources:
         mrro: LORA-1-0/obs4MIPs_ARCCSS_LORA-1-0_mon_mrro_gn_v20260302.nc
@@ -322,7 +307,6 @@ Hydrology Cycle:
       variable_cmap: Blues
 
   Sensible Heat:
-
     Fluxnet-2015:
       sources:
         hfss: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_hfss_site_v20260302.nc
@@ -344,106 +328,98 @@ Hydrology Cycle:
       variable_cmap: Blues
 
   Surface Soil Moisture:
-
     WangMao:
       sources:
         mrsol: mrsol/WangMao/mrsol_olc.nc
       variable_cmap: Blues
       transforms:
-      - soil_moisture_to_vol_fraction
-      - select_depth:
-          value: 0
+        - soil_moisture_to_vol_fraction
+        - select_depth:
+            value: 0
       alternate_vars:
-      - mrsos
+        - mrsos
 
   Soil Moisture 1m:
-
     WangMao:
       sources:
         mrsol: mrsol/WangMao/mrsol_olc.nc
       variable_cmap: Blues
       transforms:
-      - soil_moisture_to_vol_fraction
-      - select_depth:
-          value: 1.
+        - soil_moisture_to_vol_fraction
+        - select_depth:
+            value: 1.
 
 Cryosphere:
-
   Snow Cover:
-
     CCI-CryoClim-FSC-1:
       sources:
         snc: CCI-CryoClim-FSC-1/snc_mon_Snow-cci_BE_gn_198201-201906.nc
       variable_cmap: BuPu
 
   Permafrost Extent:
-
     Brown2002:
       sources:
         permafrost_extent: permafrost/Brown2002/Brown2002.nc
       transforms:
-      - select_time:
-          vmin: 1960-01
-          vmax: 1993-01
-      - select_lat:
-          vmin: 30.
-          vmax: 90.
-      - permafrost_extent:
-          method: slater2013
+        - select_time:
+            vmin: 1960-01
+            vmax: 1993-01
+        - select_lat:
+            vmin: 30.
+            vmax: 90.
+        - permafrost_extent:
+            method: slater2013
       analyses:
-      - Area Comparison
+        - area
 
     Obu2018:
       sources:
         permafrost_extent: permafrost/Obu2018/Obu2018.nc
       transforms:
-      - select_time:
-          vmin: 2000-01
-          vmax: 2016-01
-      - select_lat:
-          vmin: -10.
-          vmax: 90.
-      - permafrost_extent:
-          method: slater2013
+        - select_time:
+            vmin: 2000-01
+            vmax: 2016-01
+        - select_lat:
+            vmin: -10.
+            vmax: 90.
+        - permafrost_extent:
+            method: slater2013
       analyses:
-      - Area Comparison
+        - area
 
   Active Layer Thickness:
-
     CALM:
       sources:
         active_layer_thickness: active_layer_thickness/CALM/CALM_1990-2024.nc
       transforms:
-      - select_time:
-          vmin: 1990-01
-          vmax: 2023-01
-      - select_lat:
-          vmin: 30.
-          vmax: 90.
-      - active_layer_thickness:
-          method: slater2013
+        - select_time:
+            vmin: 1990-01
+            vmax: 2023-01
+        - select_lat:
+            vmin: 30.
+            vmax: 90.
+        - active_layer_thickness:
+            method: slater2013
 
 Radiation and Energy Cycle:
-
   Albedo:
-
     CERES-EBAF-4-2-1:
       analysis_variable: albedo
       sources:
         rsus: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsus_gn_v20260302.nc
         rsds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsds_gn_v20260302.nc
       transforms:
-      - select_time:
-          vmin: 2000-03
-          vmax: 2015-01
-      - integrate_time:
-          varname: rsus
-          mean: true
-      - integrate_time:
-          varname: rsds
-          mean: true
-      - expression:
-          expr: "albedo = rsus / rsds"
+        - select_time:
+            vmin: 2000-03
+            vmax: 2015-01
+        - integrate_time:
+            varname: rsus
+            mean: true
+        - integrate_time:
+            varname: rsds
+            mean: true
+        - expression:
+            expr: "albedo = rsus / rsds"
 
     Fluxnet-2015:
       analysis_variable: albedo
@@ -451,17 +427,17 @@ Radiation and Energy Cycle:
         rsus: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rsus_site_v20260302.nc
         rsds: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rsds_site_v20260302.nc
       transforms:
-      - select_time:
-          vmin: 1991-01
-          vmax: 2015-01
-      - integrate_time:
-          varname: rsus
-          mean: true
-      - integrate_time:
-          varname: rsds
-          mean: true
-      - expression:
-          expr: "albedo = rsus / rsds"
+        - select_time:
+            vmin: 1991-01
+            vmax: 2015-01
+        - integrate_time:
+            varname: rsus
+            mean: true
+        - integrate_time:
+            varname: rsds
+            mean: true
+        - expression:
+            expr: "albedo = rsus / rsds"
 
     GEWEX-SRB-4-IP:
       analysis_variable: albedo
@@ -469,20 +445,19 @@ Radiation and Energy Cycle:
         rsus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsus_gn_v20260302.nc
         rsds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsds_gn_v20260302.nc
       transforms:
-      - select_time:
-          vmin: 1988-01
-          vmax: 2009-12
-      - integrate_time:
-          varname: rsus
-          mean: true
-      - integrate_time:
-          varname: rsds
-          mean: true
-      - expression:
-          expr: "albedo = rsus / rsds"
+        - select_time:
+            vmin: 1988-01
+            vmax: 2009-12
+        - integrate_time:
+            varname: rsus
+            mean: true
+        - integrate_time:
+            varname: rsds
+            mean: true
+        - expression:
+            expr: "albedo = rsus / rsds"
 
   Surface Upward SW Radiation:
-
     Fluxnet-2015:
       sources:
         rsus: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rsus_site_v20260302.nc
@@ -504,7 +479,6 @@ Radiation and Energy Cycle:
       variable_cmap: RdPu
 
   Surface Upward LW Radiation:
-
     Fluxnet-2015:
       sources:
         rlus: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rlus_site_v20260302.nc
@@ -526,13 +500,12 @@ Radiation and Energy Cycle:
       variable_cmap: RdPu
 
   Surface Net SW Radiation:
-
     Fluxnet-2015:
       sources:
         rns: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rns_site_v20260302.nc
       transforms:
-      - expression:
-          expr: "rns = rsds - rsus"
+        - expression:
+            expr: "rns = rsds - rsus"
       variable_cmap: RdPu
 
     CERES-EBAF-4-2-1:
@@ -540,8 +513,8 @@ Radiation and Energy Cycle:
       sources:
         rss: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rss_gn_v20260302.nc
       transforms:
-      - expression:
-          expr: "rss = rsds - rsus"
+        - expression:
+            expr: "rss = rsds - rsus"
       variable_cmap: RdPu
 
     GEWEX-SRB-4-IP:
@@ -550,36 +523,35 @@ Radiation and Energy Cycle:
         rsds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsds_gn_v20260302.nc
         rsus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsus_gn_v20260302.nc
       transforms:
-      - expression:
-          expr: "rns = rsds - rsus"
+        - expression:
+            expr: "rns = rsds - rsus"
       variable_cmap: RdPu
 
     WRMC.BSRN:
       sources:
         rsns: rsns/WRMC.BSRN/rsns.nc
       transforms:
-      - expression:
-          expr: "rsns = rsds - rsus"
+        - expression:
+            expr: "rsns = rsds - rsus"
       variable_cmap: RdPu
 
   Surface Net LW Radiation:
-
     Fluxnet-2015:
       analysis_variable: rls
       sources:
         rlds: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rlds_site_v20260302.nc
         rlus: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rlus_site_v20260302.nc
       transforms:
-      - expression:
-          expr: "rls = rlds - rlus"
+        - expression:
+            expr: "rls = rlds - rlus"
       variable_cmap: RdPu
 
     CERES-EBAF-4-2-1:
       sources:
         rls: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rls_gn_v20260302.nc
       transforms:
-      - expression:
-          expr: "rls = rlds - rlus"
+        - expression:
+            expr: "rls = rlds - rlus"
       variable_cmap: RdPu
 
     GEWEX-SRB-4-IP:
@@ -588,26 +560,25 @@ Radiation and Energy Cycle:
         rlds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rlds_gn_v20260302.nc
         rlus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rlus_gn_v20260302.nc
       transforms:
-      - expression:
-          expr: "rls = rlds - rlus"
+        - expression:
+            expr: "rls = rlds - rlus"
       variable_cmap: RdPu
 
     WRMC.BSRN:
       sources:
         rlns: rlns/WRMC.BSRN/rlns.nc
       transforms:
-      - expression:
-          expr: "rlns = rlds - rlus"
+        - expression:
+            expr: "rlns = rlds - rlus"
       variable_cmap: RdPu
 
   Surface Net Radiation:
-
     Fluxnet-2015:
       sources:
         rns: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rns_site_v20260302.nc
       transforms:
-      - expression:
-          expr: "rns = rlds - rlus + rsds - rsus"
+        - expression:
+            expr: "rns = rlds - rlus + rsds - rsus"
       variable_cmap: RdPu
 
     CERES-EBAF-4-2-1:
@@ -618,8 +589,8 @@ Radiation and Energy Cycle:
         rsds: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsds_gn_v20260302.nc
         rsus: CERES-EBAF-4-2-1/obs4MIPs_NASA-LaRC_CERES-EBAF-4-2-1_mon_rsus_gn_v20260302.nc
       transforms:
-      - expression:
-          expr: "rns = rlds - rlus + rsds - rsus"
+        - expression:
+            expr: "rns = rlds - rlus + rsds - rsus"
       variable_cmap: RdPu
 
     GEWEX-SRB-4-IP:
@@ -630,30 +601,28 @@ Radiation and Energy Cycle:
         rsds: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsds_gn_v20260302.nc
         rsus: GEWEX-SRB-4-IP/obs4MIPs_NASA-LaRC_GEWEX-SRB-4-IP_mon_rsus_gn_v20260302.nc
       transforms:
-      - expression:
-          expr: "rns = rlds - rlus + rsds - rsus"
+        - expression:
+            expr: "rns = rlds - rlus + rsds - rsus"
       variable_cmap: RdPu
 
     WRMC.BSRN:
       sources:
         rns: rns/WRMC.BSRN/rns.nc
       transforms:
-      - expression:
-          expr: "rns = rlds - rlus + rsds - rsus"
+        - expression:
+            expr: "rns = rlds - rlus + rsds - rsus"
       variable_cmap: RdPu
 
     CLASS-1-1:
       sources:
         rns: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_rns_gn_v20260302.nc
       transforms:
-      - expression:
-          expr: "rns = rlds - rlus + rsds - rsus"
+        - expression:
+            expr: "rns = rlds - rlus + rsds - rsus"
       variable_cmap: RdPu
 
 Forcings:
-
   Surface Air Temperature:
-
     Fluxnet-2015:
       sources:
         tas: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_tas_site_v20260302.nc
@@ -665,31 +634,27 @@ Forcings:
       variable_cmap: cool
 
   Diurnal Maximum Temperature:
-
     CRU4.02:
       sources:
         tasmax: tasmax/CRU4.02/tasmax.nc
       variable_cmap: cool
 
   Diurnal Minimum Temperature:
-
     CRU4.02:
       sources:
         tasmin: tasmin/CRU4.02/tasmin.nc
       variable_cmap: cool
 
   Diurnal Temperature Range:
-
     CRU4.02:
       sources:
         dtr: dtr/CRU4.02/dtr.nc
       variable_cmap: cool
       transforms:
-      - expression:
-          expr: "dtr = tasmax - tasmin"
+        - expression:
+            expr: "dtr = tasmax - tasmin"
 
   Precipitation:
-
     CMAPv1904:
       sources:
         pr: pr/CMAPv1904/pr.nc
@@ -716,16 +681,14 @@ Forcings:
       variable_cmap: Blues
 
   Surface Relative Humidity:
-
     CRU4.02:
       sources:
         rhums: rhums/CRU4.02/rhums.nc
       variable_cmap: Blues
     alternate_vars:
-    - hurs
+      - hurs
 
   Surface Downward SW Radiation:
-
     Fluxnet-2015:
       sources:
         rsds: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rsds_site_v20260302.nc
@@ -747,7 +710,6 @@ Forcings:
       variable_cmap: RdPu
 
   Surface Downward LW Radiation:
-
     Fluxnet-2015:
       sources:
         rlds: Fluxnet-2015/obs4MIPs_Fluxnet_Fluxnet-2015_mon_rlds_site_v20260302.nc
@@ -769,16 +731,14 @@ Forcings:
       variable_cmap: RdPu
 
 Sensitivities:
-
   Runoff:
-
     G-RUN:
       sources:
         psens_obs: G-RUN/runoff_sensitivity_obs.nc
       transforms:
-      - select_time:
-          vmin: 1940-01
-          vmax: 2015-01
-      - runoff_sensitivity
+        - select_time:
+            vmin: 1940-01
+            vmax: 2015-01
+        - runoff_sensitivity
       analyses:
-      - Runoff Sensitivity
+        - runoff_sensitivity

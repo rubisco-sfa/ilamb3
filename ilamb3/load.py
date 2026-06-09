@@ -2,6 +2,8 @@
 Functions encapsulating the logic of how ilamb3 loads data during a run.
 """
 
+import functools
+import operator
 import os
 from collections.abc import Callable
 from functools import partial
@@ -12,10 +14,50 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+import ilamb3
 import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 from ilamb3.exceptions import VarNotInModel
 from ilamb3.transform.base import ILAMBTransform
+
+
+def load_key_or_filename(asset_name: str) -> xr.Dataset:
+    """
+    Load an asset using the following priority:
+
+    1. If a key in our registry, load/download and open with xarray.
+    2. If not, treat it as an absolute path and open with xarray.
+    3. Finally check if a relative path to the ILAMB_ROOT environment variable.
+
+    Parameters
+    ----------
+    asset_name : str
+        The name of the asset to load.
+
+    Returns
+    -------
+    xr.Dataset
+        The loaded dataset.
+    """
+    # First check each catalog
+    for cat in [ilamb3.ilamb3_catalog(), ilamb3.ilamb_catalog(), ilamb3.iomb_catalog()]:
+        try:
+            ds = xr.open_dataset(cat.fetch(asset_name))
+            return ds
+        except ValueError:
+            pass
+    # Next treat it like an absolute path
+    asset_path = Path(asset_name)
+    if asset_path.is_file():
+        ds = xr.open_dataset(asset_path)
+        return ds
+    # Finally treat it like relative to ILAMB_ROOT
+    if "ILAMB_ROOT" in os.environ:
+        asset_path = Path(os.environ["ILAMB_ROOT"]) / asset_path
+        if asset_path.is_file():
+            ds = xr.open_dataset(asset_path)
+            return ds
+    raise FileNotFoundError(f"Could not find {asset_name=}")
 
 
 def fix_pint_units(ds: xr.Dataset) -> xr.Dataset:
@@ -168,7 +210,7 @@ def load_reference_data(
     ref = {key: dset.fix_missing_bounds_attrs(ds) for key, ds in ref.items()}
     # Merge all the data together
     if len(ref) > 1:
-        if _is_uniform(dset.is_spatial, ref):
+        if _is_uniform(dset.is_gridded, ref):
             grid_variable = variable_id if variable_id in ref else next(iter(ref))
             ref = cmp.same_spatial_grid(ref[grid_variable], **ref)
         if _is_uniform(dset.is_temporal, ref):
@@ -241,6 +283,19 @@ def load_comparison_data(
         )
         for var in df["variable_id"].unique()
     }
+    # Remove measure variables that aren't needed, we don't know until the
+    # datasets are loaded
+    measures_used = functools.reduce(
+        operator.or_,
+        [
+            set(dset.which_cell_measures(ds, var))
+            for var, ds in com.items()
+            if var not in ["areacella", "sftlf", "areacello", "sftof"]
+        ],
+    )
+    for unused in set(["areacella", "sftlf", "areacello", "sftof"]) - measures_used:
+        com.pop(unused, None)
+
     # If the variable_id is not present, it may be called something else
     if alternate_vars is not None and variable_id not in com:
         found = [v for v in alternate_vars if v in com]

@@ -4,7 +4,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ilamb3.analysis import hydro_analysis
+from ilamb3.analysis.hydro import hydro_analysis
 from ilamb3.tests.test_run import generate_test_dset
 
 

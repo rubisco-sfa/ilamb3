@@ -102,8 +102,8 @@ def run(
             help="The model database file(s) in CSV format. Use the option multiple times to specify multiple files."
         ),
     ],
-    regions: Annotated[
-        str | None,
+    region: Annotated[
+        list[str] | None,
         typer.Option(
             help="The region label over which the analysis is run. Use the option multiple times to specify multiple regions."
         ),
@@ -111,7 +111,7 @@ def run(
     region_source: Annotated[
         list[Path] | None,
         typer.Option(
-            help="The file (text or netCDF) which provides more regions over which the analysis may be run. Use the option multiple times to specify multiple files."
+            help="The file or key which provides more regions over which the analysis may be run. Use the option multiple times to specify multiple files."
         ),
     ] = None,
     output_path: Annotated[
@@ -142,15 +142,16 @@ def run(
     ] = None,
 ):
     ilamb3.conf.reset()
-    if region_source is not None:
-        cat = ilamb3.ilamb_catalog()
-        for source in region_source:
-            ilr.Regions().add_netcdf(cat.fetch(source))
-        ilamb3.conf["region_sources"] = region_source
+    region_sources = (
+        list() if region_source is None else [str(r) for r in region_source]
+    )
+    ilamb3.conf["region_sources"] = region_sources
+    for source in region_sources:
+        ilr.Regions().add_netcdf(ill.load_key_or_filename(str(source)))
 
     # set options
     ilamb3.conf.set(
-        regions=regions,
+        regions=region,
         use_cached_results=cache,
         use_uncertainty=True,
         plot_central_longitude=central_longitude,
@@ -162,9 +163,9 @@ def run(
     # load local databases
     df_ref = form_reference_dataframe(parse_registry_keys(config))
     if df_ref["path"].isnull().any():
-        config = str(config)
+        sconfig = str(config)
         raise ValueError(
-            f"Some of the reference data keys you specify in {config=} is not locally available: {list(df_ref[df_ref['path'].isnull()].index)}.\nRun `ilamb fetch {config}` to download files locally."
+            f"Some of the reference data keys you specify in {sconfig=} is not locally available: {list(df_ref[df_ref['path'].isnull()].index)}.\nRun `ilamb fetch {sconfig}` to download files locally."
         )
     df_com = pd.concat([pd.read_csv(f) for f in model_db])
     df_com = ill.add_frequency_column(df_com)
@@ -172,14 +173,14 @@ def run(
     # execute
     if HAS_MPI4PY:
         run_study_parallel(
-            config,
+            str(config),
             df_com,
             df_ref,
             output_path=output_path,
         )
     else:
         run_study(
-            config,
+            str(config),
             df_com,
             ref_datasets=df_ref,
             output_path=output_path,
@@ -192,13 +193,25 @@ def run(
 
 @app.command(help="Fetch reference data if part of an ILAMB catalog.")
 def fetch(
-    config: Annotated[Path, typer.Argument(help="The benchmark study yaml file.")],
+    config: Annotated[
+        Path | None, typer.Argument(help="The benchmark study yaml file.")
+    ] = None,
+    key: Annotated[
+        list[str] | None,
+        typer.Option(
+            help="Additional keys to fetch from the catalog. Especially useful to pre-download region files prior to running the study. Use the option multiple times to specify multiple files."
+        ),
+    ] = None,
 ):
     catalogs = [ilamb3.ilamb_catalog(), ilamb3.iomb_catalog(), ilamb3.ilamb3_catalog()]
-    df = form_reference_dataframe(parse_registry_keys(config))
-    df = df[df["path"].isnull()]
-    for key in df.index:
-        fetch_key(key, catalogs)
+    keys = []
+    if config is not None:
+        df = form_reference_dataframe(parse_registry_keys(config))
+        df = df[df["path"].isnull()]  # just the datasets we don't have
+        keys += [str(key) for key in df.index]
+    keys += key or []
+    for download_key in keys:
+        fetch_key(download_key, catalogs)
 
 
 @app.command(help="What went wrong in the run?")

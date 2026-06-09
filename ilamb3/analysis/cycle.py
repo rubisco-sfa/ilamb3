@@ -84,6 +84,17 @@ class cycle_analysis(ILAMBAnalysis):
         self.plot_unit = plot_unit
         self.kwargs = kwargs
 
+    def name(self) -> str:
+        """
+        Return the name of this analysis.
+
+        Returns
+        -------
+        str
+            The name of this analysis.
+        """
+        return "Annual Cycle"
+
     def required_variables(self) -> list[str]:
         """
         Return the list of variables required for this analysis.
@@ -120,7 +131,6 @@ class cycle_analysis(ILAMBAnalysis):
             A dataset containing comparison grided information from the comparison.
         """
         # Initialize
-        analysis_name = "Annual Cycle"
         varname = self.req_variable
 
         # Make the variables comparable and force loading into memory
@@ -146,7 +156,7 @@ class cycle_analysis(ILAMBAnalysis):
 
         # Compute the phase shift (difference in max month)
         ref_tmax_, com_tmax_ = cmp.nest_spatial_grids(ref_tmax, com_tmax)
-        shift = com_tmax_ - ref_tmax_
+        shift = com_tmax_[varname] - ref_tmax_[varname]
         shift = xr.where(shift > 6, shift - 12, shift)
         shift = xr.where(shift < -6, shift + 12, shift)
         shift_score = 1 - np.abs(shift) / 6
@@ -155,15 +165,9 @@ class cycle_analysis(ILAMBAnalysis):
 
         # Build output datasets
         ref_out = ref_tmax.to_dataset(name="tmax")
-        com_out = shift.to_dataset(name="shift")
-        com_out["cyclescore"] = shift_score
-        try:
-            lat_name = dset.get_dim_name(com_tmax, "lat")
-            lon_name = dset.get_dim_name(com_tmax, "lon")
-            com_tmax = com_tmax.rename({lat_name: "lat_", lon_name: "lon_"})
-        except KeyError:
-            pass
-        com_out["tmax"] = com_tmax
+        com_out = xr.Dataset(
+            {"tmax": com_tmax, "shift": shift, "cyclescore": shift_score}
+        )
 
         # Compute scalars over all regions
         dfs = []
@@ -182,7 +186,7 @@ class cycle_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": str(region),
-                    "analysis": analysis_name,
+                    "analysis": self.name(),
                     "name": "Phase Shift",
                     "type": "scalar",
                     "units": unit,
@@ -196,7 +200,7 @@ class cycle_analysis(ILAMBAnalysis):
                 {
                     "source": "Comparison",
                     "region": str(region),
-                    "analysis": analysis_name,
+                    "analysis": self.name(),
                     "name": "Seasonal Cycle Score",
                     "type": "score",
                     "units": unit,
@@ -212,7 +216,7 @@ class cycle_analysis(ILAMBAnalysis):
     ) -> pd.DataFrame:
 
         # This analysis was not run and we should skip plotting entirely
-        if "Annual Cycle" not in df["analysis"].unique():
+        if self.name() not in df["analysis"].unique():
             return pd.DataFrame()
         path.mkdir(parents=True, exist_ok=True)
 
@@ -244,7 +248,7 @@ class cycle_analysis(ILAMBAnalysis):
         ).set_index("name")
         df_limits = ilp.determine_plot_limits(com)
         df = pd.merge(df_meta, df_limits, left_index=True, right_index=True)
-        df["analysis"] = "Annual Cycle"
+        df["analysis"] = self.name()
 
         # Override a few limits and set plot options
         df.loc["tmax", ["low", "high"]] = -0.5, 11.5

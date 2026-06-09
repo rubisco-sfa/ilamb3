@@ -37,6 +37,17 @@ class ILAMBAnalysis(ABC):
         raise NotImplementedError()  # pragma: no cover
 
     @abstractmethod
+    def name(self) -> str:
+        """
+        Return the name of the analysis.
+
+        When results from your analysis are presented in the data dashboard, this
+        name will be used as the clickable section title. It should be a short but
+        human-readable name.
+        """
+        raise NotImplementedError()  # pragma: no cover
+
+    @abstractmethod
     def required_variables(self) -> list[str] | dict[str, list[str]]:
         """
         Return the variables used in this analysis.
@@ -142,7 +153,7 @@ def integrate_or_mean(
     Integration/average the input dataarray/dataset to reduce in space/site.
     """
     da = var[varname] if isinstance(var, xr.Dataset) else var
-    if dset.is_spatial(da):
+    if dset.is_gridded(da):
         da = dset.integrate_space(var, varname, region=region, mean=mean, weight=weight)
     elif dset.is_site(da):
         da = ilr.Regions().restrict_to_region(da, region)
