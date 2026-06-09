@@ -66,6 +66,11 @@ def score_difference(ref: xr.Dataset, com: xr.Dataset) -> xr.Dataset:
     # Compute differences and scores
     ref_, com_ = cmp.nest_spatial_grids(ref, com)
     diff = com_ - ref_
+
+    # Changes in xarray require explicit setting of attributes
+    for var in diff:
+        diff[var].attrs["units"] = ref_[var].attrs["units"]
+
     diff = diff.rename_vars({v: f"{v}_difference" for v in diff})
     # Add scores to the means that also have std's
     diff = diff.merge(
@@ -86,7 +91,7 @@ def score_difference(ref: xr.Dataset, com: xr.Dataset) -> xr.Dataset:
     # Rename the lat dimension for merging with the comparison on return
     lat_name = dset.get_dim_name(diff, "lat")
     lon_name = dset.get_dim_name(diff, "lon")
-    com = com.merge(diff.rename({lat_name: f"{lat_name}_", lon_name: f"{lon_name}_"}))
+    com = com.merge(diff.rename({lat_name: "lat_nested", lon_name: "lon_nested"}))
     return com
 
 
@@ -197,11 +202,11 @@ class hydro_analysis(ILAMBAnalysis):
         # ensure longitudes are uniform
         ref, com = cmp.adjust_lon(ref, com)
         # ensure the lat/lon dims are sorted
-        if dset.is_spatial(ref):
+        if dset.is_gridded(ref):
             ref = ref.sortby(
                 [dset.get_dim_name(ref, "lat"), dset.get_dim_name(ref, "lon")]
             )
-        if dset.is_spatial(com):
+        if dset.is_gridded(com):
             com = com.sortby(
                 [dset.get_dim_name(com, "lat"), dset.get_dim_name(com, "lon")]
             )
@@ -332,7 +337,7 @@ class hydro_analysis(ILAMBAnalysis):
             for source, ds in com.items():
                 if plot not in ds:
                     continue
-                if not dset.is_spatial(ds[plot]):
+                if not dset.is_gridded(ds[plot]):
                     continue
                 for region in self.regions:
                     row = {

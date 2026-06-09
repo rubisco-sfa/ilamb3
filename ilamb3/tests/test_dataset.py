@@ -130,12 +130,12 @@ def test_integrate_space_weighted():
 
 def test_integrate_depth():
     ds = generate_test_dset_with_depth()
-    ds = dset.integrate_space(
-        dset.integrate_time(dset.integrate_depth(ds, "da"), "da"), "da"
-    )
-    ds = ds.to_dataset(name="da")
-    ds = dset.convert(ds, "Pg", varname="da")
-    assert np.allclose(ds["da"], 1002.990371115)
+    ds = ds.cf.add_bounds("depth")
+    ds["da"][...] = 1.0
+    da = dset.integrate_depth(ds, "da")
+    assert np.allclose(da, ds["depth_bounds"].max() - ds["depth_bounds"].min())
+    da = dset.integrate_depth(ds, "da", mean=True)
+    assert np.allclose(da, 1.0)
 
 
 def test_mean():
@@ -179,12 +179,12 @@ def test_scale_water():
     assert np.allclose(da.pint.dequantify(), 1)
 
 
-def test_is_spatial_or_site():
+def test_is_gridded_or_site():
     ds = generate_test_dset()
-    assert dset.is_spatial(ds)
+    assert dset.is_gridded(ds)
     assert not dset.is_site(ds)
     ds = generate_test_site_dset()
-    assert not dset.is_spatial(ds)
+    assert not dset.is_gridded(ds)
     assert dset.is_site(ds)
 
 
@@ -210,7 +210,7 @@ def test_cell_measures():
     ds["lon_bnds"] = (("lon", "nb"), np.array([lons[:-1], lons[1:]]).T)
     ds["lat"].attrs["bounds"] = "lat_bnds"
     ds["lon"].attrs["bounds"] = "lon_bnds"
-    assert np.allclose(dset.compute_cell_measures(ds).mean(), 2.83369151e13)
+    assert np.allclose(dset.compute_cell_measures(ds, "da").mean(), 2.83369151e13)
 
 
 def test_get_frequency_label():

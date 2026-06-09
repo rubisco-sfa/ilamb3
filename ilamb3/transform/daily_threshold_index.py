@@ -45,7 +45,7 @@ def _ensure_daily(da: xr.DataArray, reduction: DailyReductionType) -> xr.DataArr
     # If cannot convert to seconds, it's coarser than daily, so we can't compute
     try:
         seconds = pd.Timedelta(
-            pd.tseries.frequencies.to_offset(freq_str)  # type: ignore
+            freq_str if freq_str[0].isdigit() else f"1{freq_str}"
         ).total_seconds()
     except (ValueError, TypeError) as exc:
         raise ValueError(
