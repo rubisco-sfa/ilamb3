@@ -131,6 +131,7 @@ class dispersion_analysis(ILAMBAnalysis):
         ],
         regions: list[str | None] = [None],
         display_units: str | None = None,
+        variable_cmap: str = "viridis",
         **kwargs: Any,
     ):
         self.req_variable = required_variable
@@ -138,6 +139,7 @@ class dispersion_analysis(ILAMBAnalysis):
         self.required_num_years = required_num_years
         self.quantiles = quantiles
         self.display_units = display_units
+        self.variable_cmap = variable_cmap
         self.kwargs = kwargs
 
     def required_variables(self) -> list[str]:
@@ -245,7 +247,6 @@ class dispersion_analysis(ILAMBAnalysis):
             return pd.DataFrame()
         path.mkdir(parents=True, exist_ok=True)
         regions = [None if r == "None" else r for r in df["region"].unique()]
-        com["Reference"] = ref
 
         # Setup a dataframe with the information we will need for each plot in
         # this analysis.
@@ -266,8 +267,18 @@ class dispersion_analysis(ILAMBAnalysis):
                     "title": "Kurtosis Bias",
                 },
             ]
+            + [
+                {
+                    "name": v,
+                    "cmap": self.variable_cmap,
+                    "title": f"{str(v).replace('q', '')}% Quantile",
+                }
+                for v in com[next(iter(com))]
+                if str(v).startswith("q")
+            ]
         ).set_index("name")
 
+        com["Reference"] = ref
         df_limits = ilp.determine_plot_limits(
             com, symmetrize=["diffskewness", "diffkurtosis", "diffiqr"]
         )
