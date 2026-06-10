@@ -54,6 +54,39 @@ def _compute_dispersion_stats(
     return ds
 
 
+def _create_scalar_dataframe(
+    ref: xr.Dataset,
+    com: xr.Dataset,
+    regions: list[str | None],
+    plot_to_name: dict[str, str],
+    analysis_name: str,
+) -> pd.DataFrame:
+    df = []
+    for region in regions:
+        for var_name, scalar_name in plot_to_name.items():
+            for src, ds in zip(["Reference", "Comparison"], [ref, com]):
+                if var_name not in ds:
+                    continue
+                val, unit = scalarify(ds, str(var_name), region, mean=True)
+                df += [
+                    {
+                        "source": src,
+                        "region": str(region),
+                        "analysis": analysis_name,
+                        "name": scalar_name,
+                        "type": "score" if "score" in var_name else "scalar",
+                        "units": unit,
+                        "value": val,
+                    },
+                ]
+    return pd.DataFrame(df)
+
+
+def _time_extent_years(ds) -> float:
+    t0, tf = dset.get_time_extent(ds)
+    return float((tf - t0).dt.total_seconds()) / 86400 / 365
+
+
 class dispersion_analysis(ILAMBAnalysis):
     """
     The ILAMB dispersion methodology.
@@ -97,12 +130,14 @@ class dispersion_analysis(ILAMBAnalysis):
             1.0,
         ],
         regions: list[str | None] = [None],
+        display_units: str | None = None,
         **kwargs: Any,
     ):
         self.req_variable = required_variable
         self.regions = regions
         self.required_num_years = required_num_years
         self.quantiles = quantiles
+        self.display_units = display_units
         self.kwargs = kwargs
 
     def required_variables(self) -> list[str]:
@@ -150,15 +185,14 @@ class dispersion_analysis(ILAMBAnalysis):
 
         # Make the variables comparable and force loading into memory
         ref, com = cmp.make_comparable(ref, com, varname, **self.kwargs)
+        if self.display_units is not None:
+            ref[varname] = dset.convert(ref[varname], self.display_units)
+            com[varname] = dset.convert(com[varname], self.display_units)
 
         # Is the time series long enough for this to be meaningful?
-        def _time_extent_years(ds) -> float:
-            t0, tf = dset.get_time_extent(ds)
-            return float((tf - t0).dt.total_seconds()) / 86400 / 365
-
         if (
             _time_extent_years(ref) < self.required_num_years
-            or _time_extent_years(ref) < self.required_num_years
+            or _time_extent_years(com) < self.required_num_years
         ):
             raise AnalysisNotAppropriate()
 
@@ -179,37 +213,28 @@ class dispersion_analysis(ILAMBAnalysis):
                 if var not in ["cell_measures"]
             ]
         )
-        com_nested = com_nested.rename({v: str(v).replace("_", "") for v in com_nested})
-        com = xr.merge([com, com_nested], compat="override")
+        com_nested = com_nested.rename(
+            {
+                v: str(v).replace("_", "")
+                for v in com_nested
+                if str(v).startswith("diff") or str(v).startswith("score")
+            }
+        )
+        com = xr.merge([com, com_nested])
 
         # Compute scalars
-        def _plot_to_title(name) -> str:
-            if name.startswith("diff"):
-                return f"{name.replace('diff', '').capitalize()} Difference"
-            if name.startswith("score"):
-                return f"{name.replace('score', '').capitalize()} Score"
-            if name == "iqr":
-                return "Interquantile Range"
-            return name.capitalize()
+        df = _create_scalar_dataframe(
+            ref,
+            com,
+            self.regions,
+            {
+                "iqr": "Interquantile Range",
+                "skewness": "Skewness",
+                "kurtosis": "Kurtosis",
+            },
+            self.name(),
+        )
 
-        df = []
-        for region in self.regions:
-            for name in ["kurtosis", "skewness", "iqr"]:
-                for src, ds in zip(["Reference", "Comparison"], [ref, com]):
-                    val, unit = scalarify(ds, str(name), region, mean=True)
-                    df += [
-                        {
-                            "source": src,
-                            "region": str(region),
-                            "analysis": self.name(),
-                            "name": _plot_to_title(name),
-                            "type": "scalar",
-                            "units": unit,
-                            "value": val,
-                        },
-                    ]
-
-        df = pd.DataFrame(df)
         return df, ref, com
 
     def plots(
@@ -226,14 +251,20 @@ class dispersion_analysis(ILAMBAnalysis):
         # this analysis.
         df_meta = pd.DataFrame(
             [
+                {"name": "iqr", "cmap": "YlGnBu", "title": "Interquantile Range"},
+                {
+                    "name": "diffiqr",
+                    "cmap": "seismic",
+                    "title": "Interquantile Range Bias",
+                },
+                {"name": "skewness", "cmap": "YlGn", "title": "Skewness"},
+                {"name": "diffskewness", "cmap": "seismic", "title": "Skewness Bias"},
                 {"name": "kurtosis", "cmap": "PuRd", "title": "Kurtosis"},
                 {
                     "name": "diffkurtosis",
                     "cmap": "seismic",
-                    "title": "Kurtosis Difference",
+                    "title": "Kurtosis Bias",
                 },
-                {"name": "skewness", "cmap": "YlGn", "title": "Skewness"},
-                {"name": "iqr", "cmap": "YlGnBu", "title": "Interquantile Range"},
             ]
         ).set_index("name")
 
