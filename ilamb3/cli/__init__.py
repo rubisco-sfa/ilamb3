@@ -290,8 +290,8 @@ def esgf(
     ) -> pd.DataFrame:
         df = []
         for key, paths in path_dict.items():
-            row = {col: value for col, value in zip(facets, key.split("."))}
             for path in paths:
+                row = {col: value for col, value in zip(facets, key.split("."))}
                 row["path"] = str(path)
                 df.append(row)
         df = pd.DataFrame(df)
