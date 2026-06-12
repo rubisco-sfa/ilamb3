@@ -173,7 +173,7 @@ def _load_local_csvs(csv_files: list[Path]) -> pd.DataFrame:
     df = pd.concat(
         [pd.read_csv(str(csv_file)) for csv_file in csv_files]
     ).drop_duplicates(subset=["source", "region", "analysis", "name"])
-    df["region"] = df["region"].astype(str).str.replace("nan", "None")
+    df["region"] = df["region"].fillna("None")
     df = add_overall_score(df)
     return df
 
