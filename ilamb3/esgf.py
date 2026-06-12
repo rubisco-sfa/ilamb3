@@ -153,6 +153,36 @@ def esgf_remove_nonmax(cat: ESGFCatalog) -> ESGFCatalog:
     return cat
 
 
+def esgf_prefer_regridded(cat: ESGFCatalog) -> ESGFCatalog:
+    """
+    Remove other gridding options if regridded is available.
+
+    Note
+    ----
+    Especially with ocean variables, modeling centers submit both natural
+    gridded objects as well as regridded. Since we will need to regrid in
+    ilamb3 at some point, we prefer to use those that the modeling centers
+    have presented if available.
+    """
+    # compute which labels are available/preferred
+    pref = (
+        cat.model_groups()
+        .reset_index()
+        .groupby(["source_id", "member_id"])["grid_label"]
+        .apply(lambda v: sorted(v, key=lambda x: (x == "gn", x)))
+        .apply(lambda v: v[0])
+    )
+    to_remove = []
+    for lbl, grp in cat.df.groupby(
+        cat.project.modelgroup_facets()[:2] + [cat.project.variable_facet()]
+    ):
+        preferred_label = str(pref[lbl[0]].values[0])
+        if len(grp["grid_label"].unique()) > 1:
+            to_remove += list(grp[grp["grid_label"] != preferred_label].index)
+    cat.df = cat.df.drop(to_remove, axis=0)
+    return cat
+
+
 def get_esgf_catalog(
     df: pd.DataFrame, source_ids: list[str] | None = None
 ) -> ESGFCatalog:
@@ -178,6 +208,7 @@ def get_esgf_catalog(
     cat = ESGFCatalog().search(**kwargs)
     cat = esgf_remove_duplicate_tables(cat)
     cat = esgf_remove_nonmax(cat)
+    cat = esgf_prefer_regridded(cat)
     cat.remove_ensembles()
     return cat
 
