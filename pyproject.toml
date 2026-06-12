@@ -49,6 +49,9 @@ docs = [
   "jupyterlab-myst>=2.6.0",
   "mystmd>=1.8.3",
 ]
+esgf = [
+    "intake-esgf>=2026.6.4",
+]
 gcb = ["gsw>=3.6.19"]
 parallel = ["mpi4py>=4.1.0"]
 

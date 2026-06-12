@@ -685,8 +685,8 @@ Forcings:
       sources:
         rhums: rhums/CRU4.02/rhums.nc
       variable_cmap: Blues
-    alternate_vars:
-      - hurs
+      alternate_vars:
+        - hurs
 
   Surface Downward SW Radiation:
     Fluxnet-2015:
