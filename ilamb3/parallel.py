@@ -171,7 +171,7 @@ def _perform_work_phase2(setup, output_path):
         df = pd.concat(df_all).drop_duplicates(
             subset=["source", "region", "analysis", "name"]
         )
-        df["region"] = df["region"].astype(str).str.replace("nan", "None")
+        df["region"] = df["region"].fillna("None")
         df = run.add_overall_score(df)
     except Exception:
         with open(log_file, "a") as log:
