@@ -2,6 +2,7 @@ import re
 from typing import Any
 
 import xarray as xr
+from loguru import logger
 
 from ilamb3.transform.base import ILAMBTransform
 
@@ -107,6 +108,7 @@ class expression(ILAMBTransform):
             return ds
 
         # Evaluate the expression and add to dataset
+        logger.info(f"Applying expression={self.expression}")
         ds[lhs] = eval(
             self.expression,
             {"__builtins__": {}},

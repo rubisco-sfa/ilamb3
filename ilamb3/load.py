@@ -200,6 +200,7 @@ def load_reference_data(
     Load the reference data into containers and merge if more than 1 variable is
     used.
     """
+    logger.info("Loading reference data.")
     # First load all variables defined as `sources` or in `relationships`.
     if relationships is not None:
         sources = sources | relationships
@@ -230,7 +231,7 @@ def load_reference_data(
         ds_ref = ref[variable_id]
     ds_ref = fix_pint_units(ds_ref)
     # Finally apply transforms
-    for transform in transforms:
+    for transform in transforms or []:
         ds_ref = transform(ds_ref)
     if variable_id not in ds_ref:
         raise VarNotInModel(
@@ -263,6 +264,7 @@ def load_comparison_data(
     related_vars: list, optional
         All variables used from all transforms and all analyses.
     """
+    logger.info("Loading comparison data.")
     # First load all variables passed into the input dataframe. This will
     # include all relationship variables as well as alternates.
     pre_merge = partial(
@@ -281,6 +283,7 @@ def load_comparison_data(
             sorted((df[df["variable_id"] == var]["path"]).to_list()),
             preprocess=pre_merge,
             data_vars="minimal",
+            compat="override",
         )
         for var in df["variable_id"].unique()
     }
@@ -296,7 +299,7 @@ def load_comparison_data(
     )
     for unused in set(["areacella", "sftlf", "areacello", "sftof"]) - measures_used:
         com.pop(unused, None)
-    logger.info(f"Found and loaded these variables={list(com.keys())}")
+    logger.info(f"Found these variables={list(com.keys())}")
 
     # If the variable_id is not present, it may be called something else
     if alternate_vars is not None and variable_id not in com:
@@ -327,8 +330,7 @@ def load_comparison_data(
     # pint can't handle some units like `0.001`, so we have to intercept and fix
     ds_com = fix_pint_units(ds_com)
     # Finally apply transforms. These may create the needed variable.
-    for transform in transforms:
-        logger.info(f"Applying {transform=}")
+    for transform in transforms or []:
         ds_com = transform(ds_com)
     if variable_id not in ds_com:
         raise VarNotInModel(
