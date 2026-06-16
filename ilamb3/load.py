@@ -13,6 +13,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import xarray as xr
+from loguru import logger
 
 import ilamb3
 import ilamb3.compare as cmp
@@ -295,12 +296,14 @@ def load_comparison_data(
     )
     for unused in set(["areacella", "sftlf", "areacello", "sftof"]) - measures_used:
         com.pop(unused, None)
+    logger.info(f"Found and loaded these variables={list(com.keys())}")
 
     # If the variable_id is not present, it may be called something else
     if alternate_vars is not None and variable_id not in com:
         found = [v for v in alternate_vars if v in com]
         if found:
             found = found[0]
+            logger.info(f"Using '{found}' as an alternate for '{variable_id}'")
             com[variable_id] = (
                 com[found].rename_vars({found: variable_id})
                 if found in com[found]
@@ -325,6 +328,7 @@ def load_comparison_data(
     ds_com = fix_pint_units(ds_com)
     # Finally apply transforms. These may create the needed variable.
     for transform in transforms:
+        logger.info(f"Applying {transform=}")
         ds_com = transform(ds_com)
     if variable_id not in ds_com:
         raise VarNotInModel(
