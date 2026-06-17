@@ -156,20 +156,25 @@ def _lookup(df: pd.DataFrame, key: str) -> list[str]:
         return [df.loc[key, "path"]]
     except KeyError:
         pass
-    out = sorted(df[df.index.str.contains(key)]["path"].to_list())
-    if out:
-        return out
-    # The key could rather be an absolute/relative path
-    path = Path(key)
-    if path.is_file():
-        return [key]
-    if "ILAMB_ROOT" in os.environ:
-        path = Path(os.environ["ILAMB_ROOT"]) / path
-        if path.is_file():
-            return [str(path)]
-    raise ValueError(
-        f"Could not find {key} in the reference dataframe or locate it as a data file."
-    )
+
+    # Setup ilamb_root
+    ilamb_root = os.environ.get("ILAMB_ROOT", None)
+    ilamb_root = Path(ilamb_root) if ilamb_root is not None else None
+
+    # key could be a path, so first expand any wildcards
+    path = list(Path(key).parent.glob(Path(key).name)) if "*" in key else [Path(key)]
+    to_return = []
+    for p in path:
+        if p.absolute().is_file():
+            to_return += [str(p.absolute())]
+        if ilamb_root is not None and (ilamb_root / p).absolute().is_file():
+            to_return += [str((ilamb_root / p).absolute())]
+
+    if not to_return:
+        raise ValueError(
+            f"Could not find {key} in the reference dataframe or locate it as a data file."
+        )
+    return to_return
 
 
 def _is_uniform(
