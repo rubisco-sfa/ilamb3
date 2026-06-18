@@ -10,6 +10,7 @@ from traceback import format_exc
 
 import pandas as pd
 import xarray as xr
+from loguru import logger
 from matplotlib import pyplot as plt
 from mpi4py import MPI
 from mpi4py.futures import MPIPoolExecutor, get_comm_workers
@@ -49,7 +50,11 @@ def _perform_work_phase1(work, reference_data, output_path):
     com_file = local_path / f"{source_name}.nc"
     log_file = local_path / f"{source_name}.log"
     log_file.unlink(missing_ok=True)
+    log_id = logger.add(log_file, backtrace=True, diagnose=True)
+    logger.info(f"Start of {block_name} | {source_name}")
     if ilamb3.conf["use_cached_results"] and csv_file.is_file() and com_file.is_file():
+        logger.info(f"Using cached results {com_file}")
+        logger.remove(log_id)
         return
 
     # setup the analysis
@@ -78,11 +83,10 @@ def _perform_work_phase1(work, reference_data, output_path):
             transforms=transforms,
         )
     except Exception:
-        with open(log_file, "a") as log:
-            log.write(
-                f"ILAMB analysis '{block_name}' failed for '{source_name}' when loading reference data on {process_name} ({rank}/{size})\n"
-            )
-            log.write(format_exc())
+        logger.exception(
+            f"ILAMB analysis '{block_name}' failed for '{source_name}' when loading reference data on {process_name} ({rank}/{size})\n"
+        )
+        logger.remove(log_id)
         return
 
     # load comparison data
@@ -99,11 +103,10 @@ def _perform_work_phase1(work, reference_data, output_path):
             related_vars=related_vars,
         )
     except Exception:
-        with open(log_file, "a") as log:
-            log.write(
-                f"ILAMB analysis '{block_name}' failed for '{source_name}' when loading comparison data on {process_name} ({rank}/{size})\n"
-            )
-            log.write(format_exc())
+        logger.exception(
+            f"ILAMB analysis '{block_name}' failed for '{source_name}' when loading comparison data on {process_name} ({rank}/{size})\n"
+        )
+        logger.remove(log_id)
         return
 
     # run the analyses
@@ -130,13 +133,13 @@ def _perform_work_phase1(work, reference_data, output_path):
         ds_com.to_netcdf(com_file)
 
     except Exception:
-        with open(log_file, "a") as log:
-            log.write(
-                f"ILAMB analysis '{block_name}' failed for '{source_name}' on {process_name} ({rank}/{size})\n"
-            )
-            log.write(format_exc())
+        logger.exception(
+            f"ILAMB analysis '{block_name}' failed for '{source_name}' when running analyses on {process_name} ({rank}/{size})\n"
+        )
+        logger.remove(log_id)
         return
 
+    logger.remove(log_id)
     return
 
 

@@ -5,6 +5,7 @@ from typing import Any
 import cftime as cf
 import numpy as np
 import xarray as xr
+from loguru import logger
 
 import ilamb3
 from ilamb3 import dataset as dset
@@ -312,6 +313,9 @@ def handle_timescale_mismatch(
         return ref, com
     if len(ref[dset.get_dim_name(ref, "time")]) == 1:
         t0, tf = dset.get_time_extent(ref, include_bounds=True)
+        logger.info(
+            f"Selecting comparison data over reference range {t0.dt.year:04d}-{t0.dt.month:02d}"
+        )
         com = com.sel(
             {
                 dset.get_dim_name(com, "time"): slice(
@@ -322,9 +326,15 @@ def handle_timescale_mismatch(
         )
         return ref, com
     if np.allclose(dt_ref, 30, atol=3) and dt_com < 28:
+        logger.info(
+            f"Reference data is monthly, computing a monthly mean of the comparison {dt_com=}"
+        )
         com = dset.compute_monthly_mean(com)
         return ref, com
     if np.allclose(dt_ref, 365, atol=6) and dt_com < 350:
+        logger.info(
+            f"Reference data is annual, computing a annual mean of the comparison  {dt_com=}"
+        )
         com = dset.compute_annual_mean(com)
         return ref, com
     raise NotImplementedError(
@@ -347,6 +357,7 @@ def make_comparable(
 
     # Lat/lon needs to be 1D arrays
     if dset.is_latlon2d(com[varname]):
+        logger.info("Converting the 2D grid to a Cartesian lat/lon grid")
         com = dset.latlon2d_to_1d(ref, com[varname]).to_dataset(name=varname)
 
     # Ensure longitudes are uniform
@@ -365,16 +376,19 @@ def make_comparable(
     extraction_fcn = SITE_EXTRACT[site_extraction_opts["method"]]
     if dset.is_site(com[varname]):
         if dset.is_site(ref[varname]):
-            # If the comparison dataset is sites, we assume that users ran their
-            # models at distinct locations and want to see the nearest
-            # reference. So if the reference is also sites, we need to match the
-            # reference to the comparison.
+            logger.info(
+                f"Both reference and comparison data are sites, comparing the comparison data to the nearest reference site using {site_extraction_opts=}"
+            )
             ref = extraction_fcn(ref, com, **site_extraction_opts)
         else:
-            # Just extract sites from the reference like usual.
-            com = extraction_fcn(com, ref, **site_extraction_opts)
+            logger.info(
+                f"Selecting sites from the gridded reference data at the comparison sites using {site_extraction_opts=}"
+            )
+            ref = extraction_fcn(ref, com, **site_extraction_opts)
     elif dset.is_site(ref[varname]):
-        # Just extract sites from the reference like usual.
+        logger.info(
+            f"Selecting sites from the gridded comparison data at the reference sites using {site_extraction_opts=}"
+        )
         com = extraction_fcn(com, ref, **site_extraction_opts)
 
     # Convert units
