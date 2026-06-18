@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 import numpy as np
 import xarray as xr
+from loguru import logger
 
 import ilamb3.dataset as dset
 from ilamb3.transform.base import ILAMBTransform
@@ -88,6 +89,7 @@ class permafrost_extent(ILAMBTransform):
             return ds
         if not set(self.required_variables()).issubset(ds):
             return ds
+        logger.info(f"Estimating permafrost extent by the {self.method} method")
         ds = EXTENT_METHODS[self.method](ds)
         ds = ds["permafrost_extent"].any(dim="year").squeeze().to_dataset()
         ds["permafrost_extent"] = xr.where(
@@ -124,7 +126,11 @@ class active_layer_thickness(ILAMBTransform):
         if "active_layer_thickness" in ds:
             return ds
         if not set(self.required_variables()).issubset(ds):
+            logger.warning(
+                f"Could not estimate the active layer thickness because the required variables are not present {self.required_variables()}"
+            )
             return ds
+        logger.info(f"Estimating active layer thickness by the {self.method} method")
         ds = ALT_METHODS[self.method](ds)
         ds = ds.drop_vars("tsl")
         ds = dset.convert_year_to_datetime(ds)

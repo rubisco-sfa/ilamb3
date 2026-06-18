@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 import numpy as np
 import xarray as xr
+from loguru import logger
 
 import ilamb3.dataset as dset
 
@@ -39,7 +40,10 @@ def extract_sites_closest(
     width = kwargs.get("window_half_width", 2.0)
     scale = kwargs.get("scale_width_by_grid_resolution", None)
     if scale is not None and dset.is_gridded(ds):
-        width = scale * dset.get_mean_spatial_resolution(ds)
+        width = float(scale * dset.get_mean_spatial_resolution(ds))
+        logger.info(
+            f"Neighborhood selected by scaling the grid resolution {width=:.3f}"
+        )
     ds_neighborhood = extract_neighbors_by_window(
         ds,
         ds_sites,
@@ -47,6 +51,7 @@ def extract_sites_closest(
         window_shape=kwargs.get("window_shape", "circle"),
     )
     if label is not None:
+        logger.info(f"Neighborhood restricted to cells which match {label=}")
         ds_neighborhood = match_label(ds_neighborhood, ds_sites, label)
     ds_out = neighborhood_closest(ds_neighborhood, ds_sites)
     return ds_out
@@ -87,7 +92,10 @@ def extract_sites_mean(
     width = kwargs.get("window_half_width", 2.0)
     scale = kwargs.get("scale_width_by_grid_resolution", None)
     if scale is not None and dset.is_gridded(ds):
-        width = scale * dset.get_mean_spatial_resolution(ds)
+        width = float(scale * dset.get_mean_spatial_resolution(ds))
+        logger.info(
+            f"Neighborhood selected by scaling the grid resolution {width=:.3f}"
+        )
     ds_neighborhood = extract_neighbors_by_window(
         ds,
         ds_sites,
@@ -95,6 +103,7 @@ def extract_sites_mean(
         window_shape=kwargs.get("window_shape", "circle"),
     )
     if label is not None:
+        logger.info(f"Neighborhood restricted to cells which match {label=}")
         ds_neighborhood = match_label(ds_neighborhood, ds_sites, label)
     ds_out = neighborhood_mean(ds_neighborhood, ds_sites, weighted=weighted)
     return ds_out
