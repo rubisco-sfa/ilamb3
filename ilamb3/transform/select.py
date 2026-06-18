@@ -5,6 +5,7 @@ ILAMB transforms for selecting data.
 from typing import Any
 
 import xarray as xr
+from loguru import logger
 
 import ilamb3.dataset as dset
 from ilamb3.transform.base import ILAMBTransform
@@ -71,8 +72,12 @@ class select_dim(ILAMBTransform):
             return ds
         ds = ds.sortby(dim_name)
         if self.value is not None:
+            logger.info(f"Selecting closest '{dim_name}' to {self.value}")
             return ds.sel({dim_name: self.value}, method="nearest", drop=True)
         else:
+            logger.info(
+                f"Selecting range in '{dim_name}' from {slice(self.vmin, self.vmax)}"
+            )
             return ds.sel({dim_name: slice(self.vmin, self.vmax)})
 
 

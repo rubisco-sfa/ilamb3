@@ -40,7 +40,7 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install ilamb3 and dependencies
-        run: uv sync
+        run: uv sync --group esgf
 
       - name: Run Tests
         run: uv run pytest
