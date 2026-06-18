@@ -200,7 +200,7 @@ def load_reference_data(
     Load the reference data into containers and merge if more than 1 variable is
     used.
     """
-    logger.info("Loading reference data.")
+    logger.info("Loading reference data...")
     # First load all variables defined as `sources` or in `relationships`.
     if relationships is not None:
         sources = sources | relationships
@@ -264,7 +264,7 @@ def load_comparison_data(
     related_vars: list, optional
         All variables used from all transforms and all analyses.
     """
-    logger.info("Loading comparison data.")
+    logger.info("Loading comparison data...")
     # First load all variables passed into the input dataframe. This will
     # include all relationship variables as well as alternates.
     pre_merge = partial(
@@ -274,7 +274,7 @@ def load_comparison_data(
                 [variable_id],
                 [] if alternate_vars is None else alternate_vars,
                 [] if related_vars is None else related_vars,
-                *[t.required_variables() for t in transforms],
+                *[t.required_variables() for t in transforms or []],
             )
         ),
     )

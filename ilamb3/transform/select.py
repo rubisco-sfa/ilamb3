@@ -72,11 +72,11 @@ class select_dim(ILAMBTransform):
             return ds
         ds = ds.sortby(dim_name)
         if self.value is not None:
-            logger.info(f"Selecting closest '{dim_name}' to {self.value}.")
+            logger.info(f"Selecting closest '{dim_name}' to {self.value}")
             return ds.sel({dim_name: self.value}, method="nearest", drop=True)
         else:
             logger.info(
-                f"Selecting range in '{dim_name}' from {slice(self.vmin, self.vmax)}."
+                f"Selecting range in '{dim_name}' from {slice(self.vmin, self.vmax)}"
             )
             return ds.sel({dim_name: slice(self.vmin, self.vmax)})
 

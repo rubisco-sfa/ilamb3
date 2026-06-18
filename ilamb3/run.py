@@ -346,7 +346,7 @@ def run_single_block(
             )
         except Exception:  # pragma: no cover
             logger.exception(
-                f"ILAMB analysis '{block_name}' failed for '{source_name}' when loading the reference data."
+                f"ILAMB analysis '{block_name}' failed for '{source_name}' when loading the reference data"
             )
             logger.remove(log_id)
             continue
@@ -365,7 +365,7 @@ def run_single_block(
             )
         except Exception:  # pragma: no cover
             logger.exception(
-                f"ILAMB analysis '{block_name}' failed for '{source_name}' when loading the comparison data."
+                f"ILAMB analysis '{block_name}' failed for '{source_name}' when loading the comparison data"
             )
             logger.remove(log_id)
             continue
@@ -396,7 +396,7 @@ def run_single_block(
             df_all.append(dfs)
         except Exception:  # pragma: no cover
             logger.exception(
-                f"ILAMB analysis '{block_name}' failed for '{source_name}'."
+                f"ILAMB analysis '{block_name}' failed for '{source_name}'"
             )
             logger.remove(log_id)
             continue
@@ -424,7 +424,7 @@ def run_single_block(
         df = add_overall_score(df)
         df_plots = plot_analyses(df, ds_ref, ds_com, analyses, output_path)
     except Exception:
-        logger.exception(f"ILAMB analysis '{block_name}' failed in plotting.")
+        logger.exception(f"ILAMB analysis '{block_name}' failed in plotting")
         logger.remove(log_id)
         return
 
@@ -438,7 +438,7 @@ def run_single_block(
         with open(output_path / "index.html", mode="w") as out:
             out.write(html)
     except Exception:
-        logger.exception(f"ILAMB analysis '{block_name}' failed in generating html.")
+        logger.exception(f"ILAMB analysis '{block_name}' failed in generating html")
         logger.remove(log_id)
         return
     logger.remove(log_id)
