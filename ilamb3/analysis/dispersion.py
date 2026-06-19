@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -17,41 +18,50 @@ import ilamb3.plot as ilp
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name, scalarify
-from ilamb3.analysis.bias import evaluate_difference
 from ilamb3.exceptions import AnalysisNotAppropriate
 
 
-def _compute_dispersion_stats(
-    ds: xr.Dataset, varname: str, quantiles: list[float]
-) -> xr.Dataset:
+def _compute_binned_distribution(ds: xr.Dataset, varname: str, bins) -> xr.DataArray:
     time_dim = dset.get_dim_name(ds, "time")
-    ds["mean"] = dset.integrate_time(ds, varname, mean=True)
-    ds["stdev"] = dset.std_time(ds, varname)
-    ds["qs"] = ds[varname].quantile(q=quantiles, dim=time_dim)
-    ds["iqr"] = ds["qs"].sel(quantile=0.75) - ds["qs"].sel(quantile=0.25)
-    ds["skewness"] = (ds["mean"] - ds["qs"].sel(quantile=0.5)) / ds["stdev"]
-    ds["kurtosis"] = ((ds[varname] - ds["mean"]) ** 4).mean(dim=time_dim) / (
-        ds["stdev"] ** 4
-    )
-    # Correct units
-    for var in ["skewness", "kurtosis"]:
-        ds[var].attrs["units"] = "1"
-    # Expand the quantiles out into separate variables with a better name
-    for q in ds["quantile"]:
-        ds[f"q{round(100 * float(q), 1):g}"] = ds["qs"].sel(quantile=q)
-    # Drop the variables we will not need
-    ds = ds.drop_vars(
+    var = ds[varname]
+    out = xr.concat(
         [
-            varname,
-            time_dim,
-            "mean",
-            "stdev",
-            "qs",
-            ds[time_dim].attrs.get("bounds", ""),
+            ((var >= bins[i]) * (var < bins[i + 1])).sum(dim=time_dim)
+            for i in range(len(bins) - 1)
         ],
-        errors="ignore",
+        dim="bin",
     )
-    return ds
+    return out
+
+
+def _hellinger_score(ds1: xr.Dataset, ds2: xr.Dataset) -> xr.Dataset:
+    """
+    Compute the Hellinger score (1-distance) between two distributions.
+
+    Note
+    ----
+    The Hellinger distance is a statistical measures used to quantify the similarity
+    between two probability distributions, returning values between 0 and 1.
+
+    https://en.wikipedia.org/wiki/Hellinger_distance
+
+    In ILAMB we seek to synthesize performance in the reciprocal sense, where 1 is
+    perfect and 0 is poor so we return 1-distance and call it a score.
+    """
+    if "dist" not in ds1 or "dist" not in ds2:
+        raise ValueError(
+            "The 'dist' variable created by `_compute_binned_distribution` must be in both input Datasets"
+        )
+    ds1, ds2 = cmp.nest_spatial_grids(ds1, ds2)
+    da1_norm = ds1["dist"] / ds1["dist"].sum(dim="bin")
+    da2_norm = ds2["dist"] / ds2["dist"].sum(dim="bin")
+    score = 1 - np.sqrt(
+        ((np.sqrt(da1_norm) - np.sqrt(da2_norm)) ** 2).sum(dim="bin")
+    ) / np.sqrt(2)
+    score.attrs["units"] = "1"
+    ds2["hellingerscore"] = score
+    ds2 = ds2.drop_vars(["dist", "cell_measures"], errors="ignore")
+    return ds2
 
 
 def _create_scalar_dataframe(
@@ -110,36 +120,14 @@ class dispersion_analysis(ILAMBAnalysis):
         self,
         required_variable: str,
         required_num_years: int = 10,
-        quantiles: list[float] = [
-            0.001,
-            0.01,
-            0.05,
-            1 / 8,
-            1 / 6,
-            1 / 4,
-            1 / 3,
-            1 / 2,
-            2 / 3,
-            3 / 4,
-            5 / 6,
-            7 / 8,
-            9 / 10,
-            0.95,
-            0.99,
-            0.999,
-            1.0,
-        ],
+        nbins: int = 25,
         regions: list[str | None] = [None],
-        display_units: str | None = None,
-        variable_cmap: str = "viridis",
         **kwargs: Any,
     ):
         self.req_variable = required_variable
-        self.regions = regions
         self.required_num_years = required_num_years
-        self.quantiles = quantiles
-        self.display_units = display_units
-        self.variable_cmap = variable_cmap
+        self.nbins = nbins
+        self.regions = regions
         self.kwargs = kwargs
 
     def required_variables(self) -> list[str]:
@@ -162,7 +150,7 @@ class dispersion_analysis(ILAMBAnalysis):
         com: xr.Dataset,
     ) -> tuple[pd.DataFrame, xr.Dataset, xr.Dataset]:
         """
-        Apply the ILAMB bias methodology on the given datasets.
+        Apply the methodology on the given datasets.
 
         Parameters
         ----------
@@ -187,9 +175,6 @@ class dispersion_analysis(ILAMBAnalysis):
 
         # Make the variables comparable and force loading into memory
         ref, com = cmp.make_comparable(ref, com, varname, **self.kwargs)
-        if self.display_units is not None:
-            ref[varname] = dset.convert(ref[varname], self.display_units)
-            com[varname] = dset.convert(com[varname], self.display_units)
 
         # Is the time series long enough for this to be meaningful?
         if (
@@ -199,29 +184,16 @@ class dispersion_analysis(ILAMBAnalysis):
             raise AnalysisNotAppropriate()
 
         # Compute and compare maps of dispersion metrics
-        ref = _compute_dispersion_stats(ref, varname, self.quantiles)
-        com = _compute_dispersion_stats(com, varname, self.quantiles)
-        com_nested = xr.merge(
-            [
-                evaluate_difference(
-                    ref,
-                    com,
-                    str(var),
-                    xr.ones_like(ref[var]),
-                    xr.zeros_like(ref[var]),
-                    method="RegionalQuantiles",
-                )
-                for var in com
-                if var not in ["cell_measures"]
-            ]
+        bins = np.linspace(
+            min(float(ref[varname].min()), float(com[varname].min())),
+            max(float(ref[varname].max()), float(com[varname].max())),
+            self.nbins + 1,
         )
-        com_nested = com_nested.rename(
-            {
-                v: str(v).replace("_", "")
-                for v in com_nested
-                if str(v).startswith("diff") or str(v).startswith("score")
-            }
-        )
+        ref["dist"] = _compute_binned_distribution(ref, varname, bins)
+        com["dist"] = _compute_binned_distribution(com, varname, bins)
+        ref = ref.drop_vars(varname)
+        com = com.drop_vars(varname)
+        com_nested = _hellinger_score(ref, com)
         com = xr.merge([com, com_nested])
 
         # Compute scalars
@@ -230,9 +202,7 @@ class dispersion_analysis(ILAMBAnalysis):
             com,
             self.regions,
             {
-                "iqr": "Interquantile Range",
-                "skewness": "Skewness",
-                "kurtosis": "Kurtosis",
+                "hellingerscore": "Dispersion Score",
             },
             self.name(),
         )
@@ -252,36 +222,16 @@ class dispersion_analysis(ILAMBAnalysis):
         # this analysis.
         df_meta = pd.DataFrame(
             [
-                {"name": "iqr", "cmap": "YlGnBu", "title": "Interquantile Range"},
                 {
-                    "name": "diffiqr",
-                    "cmap": "seismic",
-                    "title": "Interquantile Range Bias",
+                    "name": "hellingerscore",
+                    "cmap": "plasma",
+                    "title": "Dispersion Score",
                 },
-                {"name": "skewness", "cmap": "YlGn", "title": "Skewness"},
-                {"name": "diffskewness", "cmap": "seismic", "title": "Skewness Bias"},
-                {"name": "kurtosis", "cmap": "PuRd", "title": "Kurtosis"},
-                {
-                    "name": "diffkurtosis",
-                    "cmap": "seismic",
-                    "title": "Kurtosis Bias",
-                },
-            ]
-            + [
-                {
-                    "name": v,
-                    "cmap": self.variable_cmap,
-                    "title": f"{str(v).replace('q', '')}% Quantile",
-                }
-                for v in com[next(iter(com))]
-                if str(v).startswith("q")
             ]
         ).set_index("name")
 
         com["Reference"] = ref
-        df_limits = ilp.determine_plot_limits(
-            com, symmetrize=["diffskewness", "diffkurtosis", "diffiqr"]
-        )
+        df_limits = ilp.determine_plot_limits(com)
         df = pd.merge(df_meta, df_limits, left_index=True, right_index=True)
         df["analysis"] = self.name()
 
