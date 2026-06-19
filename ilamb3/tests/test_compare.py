@@ -83,6 +83,28 @@ def test_trim_time():
     assert len(out2) == 2
 
 
+def test_trim_time_aligns_unequal_monthly_coverage():
+    # Reference is missing an interior month, so trim_time must still return
+    # equal-length, month-aligned series.
+    times = pd.date_range(start="2004-04-01", periods=130, freq="MS")
+    com = xr.Dataset(
+        {"amoc": xr.DataArray(np.arange(130.0), coords=[times], dims=["time"])}
+    )
+    com["amoc"].attrs["units"] = "1"
+    ref_times = times.delete(50)  # drop one interior month -> 129 points
+    ref = xr.Dataset(
+        {"amoc": xr.DataArray(np.arange(129.0), coords=[ref_times], dims=["time"])}
+    )
+    ref["amoc"].attrs["units"] = "1"
+
+    ref_out, com_out = cmp.trim_time(ref, com)
+
+    # Equal length and month-aligned, so the correlation no longer raises.
+    assert ref_out["time"].size == com_out["time"].size == 129
+    assert (ref_out["time"].values == com_out["time"].values).all()
+    np.corrcoef(ref_out["amoc"], com_out["amoc"].squeeze())
+
+
 def test_same_spatial_grid():
     grid = generate_test_dset(nlat=2, nlon=2)
     out = cmp.same_spatial_grid(
