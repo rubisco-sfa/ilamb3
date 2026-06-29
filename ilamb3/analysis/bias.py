@@ -283,6 +283,8 @@ class bias_analysis(ILAMBAnalysis):
             if dset.is_temporal(com[varname])
             else com[varname]
         )
+        print(f"Reference mean {varname} units: {out_ref['mean'].attrs['units']}")
+        print(f"Comparison mean {varname} units: {out_com['mean'].attrs['units']}")
 
         # Create error normalizer xr.DataArray depending on chosen method
         error_norm = out_ref["mean"]  # Default error normalizer if no time dim
@@ -323,6 +325,10 @@ class bias_analysis(ILAMBAnalysis):
         if self.use_uncertainty:
             out_ref["uncert"] = uncert
 
+        print("After time integration: -------------------------------")
+        print(f"Reference mean {varname} units: {out_ref['mean'].attrs['units']}")
+        print(f"Comparison mean {varname} units: {out_com['mean'].attrs['units']}")
+
         # ------------------------------------------------------------------------------
         # 2.b. Calculate scalars/score
         # ------------------------------------------------------------------------------
@@ -346,6 +352,14 @@ class bias_analysis(ILAMBAnalysis):
             }
         )
         out_com = xr.merge([out_com, out_nested], compat="override")
+
+        print("After evaluating difference: -------------------------------")
+        print(f"Reference mean {varname} units: {out_ref['mean'].attrs['units']}")
+        print(f"Comparison mean {varname} units: {out_com['mean'].attrs['units']}")
+        print(f"Comparison bias {varname} units: {out_com['bias'].attrs['units']}")
+        print(
+            f"Comparison biasscore {varname} units: {out_com['biasscore'].attrs['units']}"
+        )
 
         # Before doing regional integration, gather cell_measures if present
         if "cell_measures" in ref:
