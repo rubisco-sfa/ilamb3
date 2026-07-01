@@ -84,7 +84,12 @@ def fetch_key(key: str, catalogs: list[pooch.Pooch]) -> None:
     """
     for cat in catalogs:
         if key in cat.registry_files:
-            cat.fetch(key)
+            path = Path(cat.fetch(key))
+            # On OLCF we experienced that pooch downloads were only `rw` for the
+            # user, causing trouble with shared ilamb data caches. Here will fix
+            # this by setting all downloads to be readable by everyone and
+            # writable by the user (644).
+            path.chmod(0o664)
 
 
 def form_reference_dataframe(keys: list[str]) -> pd.DataFrame:
