@@ -89,7 +89,7 @@ def fetch_key(key: str, catalogs: list[pooch.Pooch]) -> None:
             # user, causing trouble with shared ilamb data caches. Here will fix
             # this by setting all downloads to be readable by everyone and
             # writable by the user (644).
-            path.chmod(0o664)
+            path.chmod(0o644)
 
 
 def form_reference_dataframe(keys: list[str]) -> pd.DataFrame:
