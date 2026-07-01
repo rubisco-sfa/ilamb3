@@ -8,9 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import pint
 import xarray as xr
-from pint_xarray.errors import PintExceptionGroup
 
 import ilamb3.dataset as dset
 import ilamb3.regions as ilr
@@ -177,13 +175,9 @@ def scalarify(
     Integration/average the input dataarray/dataset to generate a scalar.
     """
     da = integrate_or_mean(var, varname, region, mean, weight)
-    da = da.pint.quantify()
     if unit is not None:
-        try:
-            da = da.pint.to(unit)
-        except (PintExceptionGroup, pint.DimensionalityError):
-            with pint.get_application_registry().context("hydrology"):
-                da = da.pint.to(unit)
+        da = dset.convert(da, unit)
+    da = da.pint.quantify()
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore", "divide by zero encountered in divide", RuntimeWarning
