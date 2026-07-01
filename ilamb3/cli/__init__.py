@@ -314,5 +314,23 @@ def esgf(
         out.to_csv(f"{s}.csv", index=False)
 
 
+@app.command(help="Initialize the package before first use.")
+def init():
+
+    # Cartopy needs to download assets when it plots. If you first launch
+    # ilamb-run in parallel the server blocks your downloads and then plotting
+    # will fail.
+
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(subplot_kw={"projection": ccrs.Robinson()})
+    ax.add_feature(cfeature.NaturalEarthFeature("physical", "land", "110m"))  # type: ignore
+    ax.add_feature(cfeature.NaturalEarthFeature("physical", "ocean", "110m"))  # type: ignore
+    fig.savefig("junk.png")
+    Path("junk.png").unlink()
+
+
 if __name__ == "__main__":
     app()
