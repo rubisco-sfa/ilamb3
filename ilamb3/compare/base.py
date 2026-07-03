@@ -212,37 +212,27 @@ def trim_time(*args: xr.Dataset, **kwargs: xr.Dataset) -> tuple[xr.Dataset]:
     for key, arg in kwargs.items():
         kwargs[key] = arg.sel({dset.get_dim_name(arg, "time"): tslice})
 
-    # Align unequal-length monthly series on their (year, month) keys, leaving
-    # single-timestep means untouched.
+    # Align unequal-length monthly series on their (year, month) keys,
+    # leaving single-timestep means untouched.
+    # Assumes at most one timestep per month
+    def _month_keys(ds: xr.Dataset) -> list[tuple[int, int]]:
+        time = ds[dset.get_dim_name(ds, "time")]
+        return list(zip(time.dt.year.values.tolist(), time.dt.month.values.tolist()))
+
     temporal = [arg for arg in args + list(kwargs.values()) if dset.is_temporal(arg)]
-    sizes = {arg[dset.get_dim_name(arg, "time")].size for arg in temporal}
+    sizes = {len(_month_keys(arg)) for arg in temporal}
     if len(sizes) > 1 and min(sizes) > 1:
+        common = set.intersection(*[set(_month_keys(arg)) for arg in temporal])
 
-        def _month_keys(ds: xr.Dataset) -> set[tuple[int, int]]:
-            time = ds[dset.get_dim_name(ds, "time")]
-            return set(
-                zip(time.dt.year.values.tolist(), time.dt.month.values.tolist())
-            )
-
-        common = set.intersection(*[_month_keys(arg) for arg in temporal])
-
-        def _select_common(ds: xr.Dataset) -> xr.Dataset:
+        def _align(ds: xr.Dataset) -> xr.Dataset:
+            if not dset.is_temporal(ds):
+                return ds
             time_dim = dset.get_dim_name(ds, "time")
-            time = ds[time_dim]
-            keep = np.array(
-                [
-                    (year, month) in common
-                    for year, month in zip(
-                        time.dt.year.values.tolist(), time.dt.month.values.tolist()
-                    )
-                ]
-            )
-            return ds.isel({time_dim: np.flatnonzero(keep)})
+            keep = np.flatnonzero([key in common for key in _month_keys(ds)])
+            return ds.isel({time_dim: keep})
 
-        args = [_select_common(a) if dset.is_temporal(a) else a for a in args]
-        for key in list(kwargs.keys()):
-            if dset.is_temporal(kwargs[key]):
-                kwargs[key] = _select_common(kwargs[key])
+        args = [_align(a) for a in args]
+        kwargs = {key: _align(arg) for key, arg in kwargs.items()}
 
     # Conditional returns based on what was passed in
     if args and not kwargs:
