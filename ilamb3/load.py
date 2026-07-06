@@ -88,7 +88,7 @@ def load_key_or_filename(asset_name: str) -> xr.Dataset:
             sorted(asset_paths),
             preprocess=_daymet_hack,
             data_vars=None,
-            use_cftime=True,
+            decode_times=xr.coders.CFDatetimeCoder(use_cftime=True),
         )
         return ds
     # Finally treat it like relative to ILAMB_ROOT
@@ -99,7 +99,7 @@ def load_key_or_filename(asset_name: str) -> xr.Dataset:
                 sorted(asset_paths),
                 preprocess=_daymet_hack,
                 data_vars=None,
-                use_cftime=True,
+                decode_times=xr.coders.CFDatetimeCoder(use_cftime=True),
             )
             return ds
     raise FileNotFoundError(f"Could not find {asset_name=}")
