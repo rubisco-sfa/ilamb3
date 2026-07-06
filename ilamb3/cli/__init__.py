@@ -98,7 +98,8 @@ def form_reference_dataframe(keys: list[str]) -> pd.DataFrame:
     """
     catalogs = [ilamb3.ilamb_catalog(), ilamb3.iomb_catalog(), ilamb3.ilamb3_catalog()]
     df = pd.DataFrame(
-        [{"key": key, "path": get_local_path(key, catalogs)} for key in keys]
+        [{"key": key, "path": get_local_path(key, catalogs)} for key in keys],
+        columns=["key", "path"],
     )
     df = df.set_index("key")
     return df
