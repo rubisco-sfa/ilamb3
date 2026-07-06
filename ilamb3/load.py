@@ -247,10 +247,7 @@ def load_reference_data(
     # First load all variables defined as `sources` or in `relationships`.
     if relationships is not None:
         sources = sources | relationships
-    ref = {
-        key: xr.open_mfdataset(_lookup(reference_data, str(filename)))
-        for key, filename in sources.items()
-    }
+    ref = {key: load_key_or_filename(filename) for key, filename in sources.items()}
     # Sometimes there is a bounds variable but it isn't in the attributes
     ref = {key: dset.fix_missing_bounds_attrs(ds) for key, ds in ref.items()}
     # Merge all the data together
@@ -271,7 +268,9 @@ def load_reference_data(
             compat="override",
         )
     else:
-        ds_ref = ref[variable_id]
+        # there is only 1 item in the dictionary but it is not necesarily our
+        # variable_id
+        _, ds_ref = next(iter(ref.items()))
     ds_ref = fix_pint_units(ds_ref)
     # Finally apply transforms
     for transform in transforms or []:
