@@ -22,6 +22,21 @@ from ilamb3.exceptions import VarNotInModel
 from ilamb3.transform.base import ILAMBTransform
 
 
+def _path_or_paths(asset_name: str, prepend: Path | None = None) -> list[Path]:
+    """
+    Allow wildcards in the names.
+    """
+    out = []
+    asset_path = Path(asset_name)
+    if "*" in asset_path.name:
+        out += list(asset_path.parent.glob(asset_path.name))
+    else:
+        out += [asset_path]
+    if prepend is not None:
+        out = [prepend / path for path in out]
+    return out
+
+
 def load_key_or_filename(asset_name: str) -> xr.Dataset:
     """
     Load an asset using the following priority:
@@ -48,15 +63,15 @@ def load_key_or_filename(asset_name: str) -> xr.Dataset:
         except ValueError:
             pass
     # Next treat it like an absolute path
-    asset_path = Path(asset_name)
-    if asset_path.is_file():
-        ds = xr.open_dataset(asset_path)
+    asset_paths = _path_or_paths(asset_name)
+    if all([asset_path.is_file() for asset_path in asset_paths]):
+        ds = xr.open_mfdataset(sorted(asset_paths), data_vars=None)
         return ds
     # Finally treat it like relative to ILAMB_ROOT
     if "ILAMB_ROOT" in os.environ:
-        asset_path = Path(os.environ["ILAMB_ROOT"]) / asset_path
-        if asset_path.is_file():
-            ds = xr.open_dataset(asset_path)
+        asset_paths = _path_or_paths(asset_name, Path(os.environ["ILAMB_ROOT"]))
+        if all([asset_path.is_file() for asset_path in asset_paths]):
+            ds = xr.open_mfdataset(sorted(asset_paths), data_vars=None)
             return ds
     raise FileNotFoundError(f"Could not find {asset_name=}")
 
