@@ -13,7 +13,7 @@ from ilamb3.compare.neighborhood import SITE_EXTRACT
 from ilamb3.exceptions import TemporalOverlapIssue
 
 
-def nest_spatial_grids(*args):
+def nest_spatial_grids(*args: xr.Dataset | xr.DataArray) -> list[xr.Dataset]:
     """Return the arguments interpolated to a nested grid.
 
     In order to avoid loss of information to interpolation, when comparing two or more

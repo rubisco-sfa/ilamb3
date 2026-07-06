@@ -1,5 +1,5 @@
 """
-The ILAMB bias methodology.
+The ILAMB annual cycle methodology.
 
 See Also
 --------
@@ -53,6 +53,40 @@ def _has_annual_cycle(ds: xr.Dataset, varname: str) -> bool:
     return False
 
 
+def _compute_cycle_maps(ds: xr.Dataset, varname: str) -> xr.Dataset:
+    da = ds[varname]
+    time_dim = dset.get_dim_name(da, "time")
+    grp = da.groupby(f"{time_dim}.year")
+    amp = grp.max() - grp.min()
+    ds["ampmean"] = amp.mean(dim="year")
+    ds["ampstd"] = amp.std(dim="year")
+    ds["cycle"] = da.groupby(f"{time_dim}.month").mean()
+    ds["tmax"] = xr.where(
+        ds["cycle"].notnull().any("month"),
+        ds["cycle"].fillna(0).argmax("month"),
+        np.nan,
+    )
+    ds = ds.drop_vars(varname)
+    return ds
+
+
+def _score_tmax_shift(ref: xr.Dataset, com: xr.Dataset):
+    ref, com = cmp.nest_spatial_grids(
+        ref.drop_vars(["ampmean", "ampstd", "cycle"]),
+        com.drop_vars(["ampmean", "ampstd", "cycle"]),
+    )
+    shift = com["tmax"] - ref["tmax"]
+    shift = xr.where(shift > 6, shift - 12, shift)
+    shift = xr.where(shift < -6, shift + 12, shift)
+    shift.attrs["units"] = "month"
+    score = 1 - np.abs(shift) / 6
+    score.attrs["units"] = "1"
+    com["shift"] = shift
+    com["cyclescore"] = score
+    com = com.drop_vars("tmax")
+    return com
+
+
 class cycle_analysis(ILAMBAnalysis):
     """
     The ILAMB annual cycle methodology.
@@ -77,11 +111,13 @@ class cycle_analysis(ILAMBAnalysis):
         required_variable: str,
         regions: list[str | None] = [None],
         plot_unit: str | None = None,
+        variable_cmap: str = "viridis",
         **kwargs: Any,  # this is so we can pass extra arguments without failure
     ):
         self.req_variable = required_variable
         self.regions = regions
         self.plot_unit = plot_unit
+        self.variable_cmap = variable_cmap
         self.kwargs = kwargs
 
     def name(self) -> str:
@@ -142,46 +178,25 @@ class cycle_analysis(ILAMBAnalysis):
         if not (_has_annual_cycle(ref, varname) & _has_annual_cycle(com, varname)):
             raise AnalysisNotAppropriate()
 
-        # Compute the mean annual cycles
-        ref = ref[varname].groupby("time.month").mean()
-        com = com[varname].groupby("time.month").mean()
+        if self.plot_unit is not None:
+            ref = dset.convert(ref, self.plot_unit, varname)
+            com = dset.convert(com, self.plot_unit, varname)
 
-        # Get the timing of the maximum
-        ref_tmax = xr.where(
-            ref.notnull().any("month"), ref.fillna(0).argmax("month"), np.nan
-        )
-        com_tmax = xr.where(
-            com.notnull().any("month"), com.fillna(0).argmax("month"), np.nan
-        )
-
-        # Compute the phase shift (difference in max month)
-        ref_tmax_, com_tmax_ = cmp.nest_spatial_grids(ref_tmax, com_tmax)
-        shift = com_tmax_[varname] - ref_tmax_[varname]
-        shift = xr.where(shift > 6, shift - 12, shift)
-        shift = xr.where(shift < -6, shift + 12, shift)
-        shift_score = 1 - np.abs(shift) / 6
-        shift.attrs["units"] = "month"
-        shift_score.attrs["units"] = "1"
-
-        # Build output datasets
-        ref_out = ref_tmax.to_dataset(name="tmax")
-        com_out = xr.Dataset(
-            {"tmax": com_tmax, "shift": shift, "cyclescore": shift_score}
-        )
+        # Compute the annual cycle maps and metrics
+        ref = _compute_cycle_maps(ref, varname)
+        com = _compute_cycle_maps(com, varname)
+        com_nested = _score_tmax_shift(ref, com)
+        com = xr.merge([com, com_nested], compat="override")
 
         # Compute scalars over all regions
         dfs = []
         for region in self.regions:
             # Regional annual cycles
-            ref_out[f"cycle_{region}"] = integrate_or_mean(
-                ref, varname, region, mean=True
-            )
-            com_out[f"cycle_{region}"] = integrate_or_mean(
-                com, varname, region, mean=True
-            )
+            ref[f"cycle_{region}"] = integrate_or_mean(ref, "cycle", region, mean=True)
+            com[f"cycle_{region}"] = integrate_or_mean(com, "cycle", region, mean=True)
 
             # Regional mean phase shift
-            val, unit = scalarify(com_out, "shift", region, mean=True)
+            val, unit = scalarify(com, "shift", region, mean=True)
             dfs.append(
                 {
                     "source": "Comparison",
@@ -195,7 +210,7 @@ class cycle_analysis(ILAMBAnalysis):
             )
 
             # Regional cycle scores
-            val, unit = scalarify(com_out, "cyclescore", region, mean=True)
+            val, unit = scalarify(com, "cyclescore", region, mean=True)
             dfs.append(
                 {
                     "source": "Comparison",
@@ -209,7 +224,7 @@ class cycle_analysis(ILAMBAnalysis):
             )
 
         dfs = pd.DataFrame(dfs)
-        return dfs, ref_out, com_out
+        return dfs, ref, com
 
     def plots(
         self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
@@ -240,6 +255,16 @@ class cycle_analysis(ILAMBAnalysis):
                 {"name": "tmax", "cmap": "rainbow", "title": "Month of Maximum"},
                 {"name": "shift", "cmap": "PRGn", "title": "Phase Shift"},
                 {"name": "cyclescore", "cmap": "plasma", "title": "Cycle Score"},
+                {
+                    "name": "ampmean",
+                    "cmap": self.variable_cmap,
+                    "title": "Cycle Amplitude Mean",
+                },
+                {
+                    "name": "ampstd",
+                    "cmap": self.variable_cmap,
+                    "title": "Cycle Amplitude Stdev",
+                },
             ]
             + [
                 {"name": cycle, "cmap": None, "title": "Time Series"}
@@ -261,6 +286,8 @@ class cycle_analysis(ILAMBAnalysis):
             },
             "shift": {},
             "cyclescore": {},
+            "ampmean": {},
+            "ampstd": {},
         }
 
         # Create each plot for each source if present in the dataset
@@ -270,7 +297,7 @@ class cycle_analysis(ILAMBAnalysis):
                 if plot not in ds:
                     continue
                 # cycle plots have already been regionalized
-                if plot.startswith("cycle_"):
+                if str(plot).startswith("cycle_"):
                     # Reference cycles don't get plots of their own
                     if source == "Reference":
                         continue
