@@ -51,7 +51,7 @@ def _daymet_hack(ds: xr.Dataset) -> xr.Dataset:
     ds["time"] = cf.num2date(
         ds[time_name],
         units=ds[time_name].attrs["long_name"],
-        calendar=ds[time_name].get_attr("calendar", "standard"),
+        calendar=ds[time_name].attrs.get("calendar", "standard"),
     )
     return ds
 
