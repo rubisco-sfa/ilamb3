@@ -10,6 +10,7 @@ from functools import partial
 from itertools import chain
 from pathlib import Path
 
+import cftime as cf
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -35,6 +36,24 @@ def _path_or_paths(asset_name: str, prepend: Path | None = None) -> list[Path]:
     if prepend is not None:
         out = [prepend / path for path in out]
     return out
+
+
+def _daymet_hack(ds: xr.Dataset) -> xr.Dataset:
+    """
+    Our local Daymet data has wrong units on times and I am tired of asking for things to be fixed.
+    """
+    if not dset.is_temporal(ds):
+        return ds
+    time_name = dset.get_dim_name(ds, "time")
+    if hasattr(ds[time_name], "dt"):
+        return ds
+    # This means xarray couldn't decode the time and we assume now that it is Daymet
+    ds["time"] = cf.num2date(
+        ds[time_name],
+        units=ds[time_name].attrs["long_name"],
+        calendar=ds[time_name].get_attr("calendar", "standard"),
+    )
+    return ds
 
 
 def load_key_or_filename(asset_name: str) -> xr.Dataset:
@@ -65,13 +84,17 @@ def load_key_or_filename(asset_name: str) -> xr.Dataset:
     # Next treat it like an absolute path
     asset_paths = _path_or_paths(asset_name)
     if all([asset_path.is_file() for asset_path in asset_paths]):
-        ds = xr.open_mfdataset(sorted(asset_paths), data_vars=None)
+        ds = xr.open_mfdataset(
+            sorted(asset_paths), preprocess=_daymet_hack, data_vars=None
+        )
         return ds
     # Finally treat it like relative to ILAMB_ROOT
     if "ILAMB_ROOT" in os.environ:
         asset_paths = _path_or_paths(asset_name, Path(os.environ["ILAMB_ROOT"]))
         if all([asset_path.is_file() for asset_path in asset_paths]):
-            ds = xr.open_mfdataset(sorted(asset_paths), data_vars=None)
+            ds = xr.open_mfdataset(
+                sorted(asset_paths), preprocess=_daymet_hack, data_vars=None
+            )
             return ds
     raise FileNotFoundError(f"Could not find {asset_name=}")
 
