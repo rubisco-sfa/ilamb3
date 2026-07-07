@@ -11,6 +11,7 @@ import pooch
 import xarray as xr
 from cf_xarray.units import units
 from numpy.exceptions import RankWarning
+from pint import Context as _Context
 
 from ilamb3._version import __version__  # noqa
 from ilamb3.config import conf  # noqa
@@ -23,6 +24,21 @@ units.define("Pg = 1e15 * g")
 units.define("Sv = 1e6 m**3 / s")
 units.define("gC = g")
 units.define("@alias W = Watt")
+
+# unit context for hydrological unit conversions (e.g., kg/m2/s to mm/d)
+_hydrology = _Context("hydrology")
+_water_density = "998.2071 kg/m^3"
+_hydrology.add_transformation(
+    "[mass] / [length] ** 2 / [time]",
+    "[length] / [time]",
+    lambda ureg, x: x / ureg(_water_density),  # type: ignore
+)
+_hydrology.add_transformation(
+    "[length] / [time]",
+    "[mass] / [length] ** 2 / [time]",
+    lambda ureg, x: x * ureg(_water_density),  # type: ignore
+)
+units.add_context(_hydrology)
 
 # fix the backend to avoid Tk bugs
 matplotlib.use("Agg")
