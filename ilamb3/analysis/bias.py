@@ -494,7 +494,7 @@ class bias_analysis(ILAMBAnalysis):
                             [
                                 src,
                                 str(region),
-                                self.name(),
+                                f"{self.name()} {season}",
                                 f"Mean {season}",
                                 "scalar",
                                 unit,
@@ -526,7 +526,7 @@ class bias_analysis(ILAMBAnalysis):
                         [
                             "Comparison",
                             str(region),
-                            self.name(),
+                            f"{self.name()} {season}",
                             f"Bias {season}",
                             "scalar",
                             unit,
@@ -607,34 +607,54 @@ class bias_analysis(ILAMBAnalysis):
         # this analysis.
         df_meta = pd.DataFrame(
             [
-                {"name": "mean", "cmap": self.cmap, "title": "Period Mean"},
-                {"name": "bias", "cmap": "seismic", "title": "Bias"},
-                {"name": "biasscore", "cmap": "plasma", "title": "Bias Score"},
-                {"name": "uncert", "cmap": "Reds", "title": "Uncertainty"},
+                {
+                    "name": "mean",
+                    "cmap": self.cmap,
+                    "title": "Period Mean",
+                    "analysis": self.name(),
+                },
+                {
+                    "name": "bias",
+                    "cmap": "seismic",
+                    "title": "Bias",
+                    "analysis": self.name(),
+                },
+                {
+                    "name": "biasscore",
+                    "cmap": "plasma",
+                    "title": "Bias Score",
+                    "analysis": self.name(),
+                },
+                {
+                    "name": "uncert",
+                    "cmap": "Reds",
+                    "title": "Uncertainty",
+                    "analysis": self.name(),
+                },
+            ]
+            + [
+                {
+                    "name": f"mean{s}",
+                    "cmap": self.cmap,
+                    "title": f"Mean {s}",
+                    "analysis": f"{self.name()} {s}",
+                }
+                for s in self.seasons or []
+            ]
+            + [
+                {
+                    "name": f"bias{s}",
+                    "cmap": "seismic",
+                    "title": f"Bias {s}",
+                    "analysis": f"{self.name()} {s}",
+                }
+                for s in self.seasons or []
             ]
         ).set_index("name")
-        df_limits = ilp.determine_plot_limits(com)
+        df_limits = ilp.determine_plot_limits(
+            com, symmetrize=[p for p in plot_vars if p.startswith("bias")]
+        )
         df = pd.merge(df_meta, df_limits, left_index=True, right_index=True)
-        df["analysis"] = "Bias"
-
-        # Update df_meta for seasonal analyses; same color scales as period mean/bias
-        if self.seasons:
-            season_rows = []
-            for season in self.seasons:
-                if f"mean{season}" in df.index:
-                    row = df.loc[f"mean{season}"].to_dict()
-                    row.update(name=f"mean{season}", title=f"Mean {season}")
-                    season_rows.append(row)
-                if f"bias{season}" in df.index:
-                    row = df.loc[f"bias{season}"].to_dict()
-                    row.update(
-                        name=f"bias{season}",
-                        cmap="seismic",
-                        title=f"Bias {season}",
-                    )
-                    season_rows.append(row)
-            if season_rows:
-                df = pd.concat([df, pd.DataFrame(season_rows).set_index("name")])
 
         # Create each plot for each source if present in the dataset
         df_plots = []
