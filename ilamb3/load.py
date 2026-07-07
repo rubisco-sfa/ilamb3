@@ -75,7 +75,12 @@ def load_key_or_filename(asset_name: str) -> xr.Dataset:
         The loaded dataset.
     """
     # First check each catalog
-    for cat in [ilamb3.ilamb3_catalog(), ilamb3.ilamb_catalog(), ilamb3.iomb_catalog()]:
+    for cat in [
+        ilamb3.ilamb3_catalog(),
+        ilamb3.ilamb_catalog(),
+        ilamb3.iomb_catalog(),
+        ilamb3.test_catalog(),
+    ]:
         try:
             ds = xr.open_dataset(cat.fetch(asset_name))
             return ds
