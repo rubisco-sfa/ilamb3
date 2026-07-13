@@ -41,6 +41,7 @@ Expanded descriptions of how key functionality works in the `ilamb3` internals.
 :link: ./datasets.md
 Documentation for all `ilamb3` internals.
 - [Glossary](glossary)
+- [API Reference](api)
 - Auto-generated API documentation
 - A list of every markdown file in the doc for easy search
 - Links/ descriptions to our supported runs
