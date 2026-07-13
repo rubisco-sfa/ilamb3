@@ -10,6 +10,7 @@ from functools import partial
 from itertools import chain
 from pathlib import Path
 
+import cftime as cf
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -20,6 +21,39 @@ import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 from ilamb3.exceptions import VarNotInModel
 from ilamb3.transform.base import ILAMBTransform
+
+
+def _path_or_paths(asset_name: str, prepend: Path | None = None) -> list[Path]:
+    """
+    Allow wildcards in the names.
+    """
+    out = []
+    asset_path = Path(asset_name)
+    if "*" in asset_path.name:
+        out += list(asset_path.parent.glob(asset_path.name))
+    else:
+        out += [asset_path]
+    if prepend is not None:
+        out = [prepend / path for path in out]
+    return out
+
+
+def _daymet_hack(ds: xr.Dataset) -> xr.Dataset:
+    """
+    Our local Daymet data has wrong units on times and I am tired of asking for things to be fixed.
+    """
+    if not dset.is_temporal(ds):
+        return ds
+    time_name = dset.get_dim_name(ds, "time")
+    if hasattr(ds[time_name], "dt"):
+        return ds
+    # This means xarray couldn't decode the time and we assume now that it is Daymet
+    ds["time"] = cf.num2date(
+        ds[time_name],
+        units=ds[time_name].attrs["long_name"],
+        calendar=ds[time_name].attrs.get("calendar", "standard"),
+    )
+    return ds
 
 
 def load_key_or_filename(asset_name: str) -> xr.Dataset:
@@ -41,22 +75,37 @@ def load_key_or_filename(asset_name: str) -> xr.Dataset:
         The loaded dataset.
     """
     # First check each catalog
-    for cat in [ilamb3.ilamb3_catalog(), ilamb3.ilamb_catalog(), ilamb3.iomb_catalog()]:
+    for cat in [
+        ilamb3.ilamb3_catalog(),
+        ilamb3.ilamb_catalog(),
+        ilamb3.iomb_catalog(),
+        ilamb3.test_catalog(),
+    ]:
         try:
             ds = xr.open_dataset(cat.fetch(asset_name))
             return ds
         except ValueError:
             pass
     # Next treat it like an absolute path
-    asset_path = Path(asset_name)
-    if asset_path.is_file():
-        ds = xr.open_dataset(asset_path)
+    asset_paths = _path_or_paths(asset_name)
+    if all([asset_path.is_file() for asset_path in asset_paths]):
+        ds = xr.open_mfdataset(
+            sorted(asset_paths),
+            preprocess=_daymet_hack,
+            data_vars=None,
+            decode_times=xr.coders.CFDatetimeCoder(use_cftime=True),
+        )
         return ds
     # Finally treat it like relative to ILAMB_ROOT
     if "ILAMB_ROOT" in os.environ:
-        asset_path = Path(os.environ["ILAMB_ROOT"]) / asset_path
-        if asset_path.is_file():
-            ds = xr.open_dataset(asset_path)
+        asset_paths = _path_or_paths(asset_name, Path(os.environ["ILAMB_ROOT"]))
+        if all([asset_path.is_file() for asset_path in asset_paths]):
+            ds = xr.open_mfdataset(
+                sorted(asset_paths),
+                preprocess=_daymet_hack,
+                data_vars=None,
+                decode_times=xr.coders.CFDatetimeCoder(use_cftime=True),
+            )
             return ds
     raise FileNotFoundError(f"Could not find {asset_name=}")
 
@@ -157,20 +206,25 @@ def _lookup(df: pd.DataFrame, key: str) -> list[str]:
         return [df.loc[key, "path"]]
     except KeyError:
         pass
-    out = sorted(df[df.index.str.contains(key)]["path"].to_list())
-    if out:
-        return out
-    # The key could rather be an absolute/relative path
-    path = Path(key)
-    if path.is_file():
-        return [key]
-    if "ILAMB_ROOT" in os.environ:
-        path = Path(os.environ["ILAMB_ROOT"]) / path
-        if path.is_file():
-            return [str(path)]
-    raise ValueError(
-        f"Could not find {key} in the reference dataframe or locate it as a data file."
-    )
+
+    # Setup ilamb_root
+    ilamb_root = os.environ.get("ILAMB_ROOT", None)
+    ilamb_root = Path(ilamb_root) if ilamb_root is not None else None
+
+    # key could be a path, so first expand any wildcards
+    path = list(Path(key).parent.glob(Path(key).name)) if "*" in key else [Path(key)]
+    to_return = []
+    for p in path:
+        if p.absolute().is_file():
+            to_return += [str(p.absolute())]
+        if ilamb_root is not None and (ilamb_root / p).absolute().is_file():
+            to_return += [str((ilamb_root / p).absolute())]
+
+    if not to_return:
+        raise ValueError(
+            f"Could not find {key} in the reference dataframe or locate it as a data file."
+        )
+    return to_return
 
 
 def _is_uniform(
@@ -204,10 +258,7 @@ def load_reference_data(
     # First load all variables defined as `sources` or in `relationships`.
     if relationships is not None:
         sources = sources | relationships
-    ref = {
-        key: xr.open_mfdataset(_lookup(reference_data, str(filename)))
-        for key, filename in sources.items()
-    }
+    ref = {key: load_key_or_filename(filename) for key, filename in sources.items()}
     # Sometimes there is a bounds variable but it isn't in the attributes
     ref = {key: dset.fix_missing_bounds_attrs(ds) for key, ds in ref.items()}
     # Merge all the data together
@@ -228,7 +279,9 @@ def load_reference_data(
             compat="override",
         )
     else:
-        ds_ref = ref[variable_id]
+        # there is only 1 item in the dictionary but it is not necesarily our
+        # variable_id
+        _, ds_ref = next(iter(ref.items()))
     ds_ref = fix_pint_units(ds_ref)
     # Finally apply transforms
     for transform in transforms or []:

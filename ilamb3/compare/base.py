@@ -212,6 +212,28 @@ def trim_time(*args: xr.Dataset, **kwargs: xr.Dataset) -> tuple[xr.Dataset]:
     for key, arg in kwargs.items():
         kwargs[key] = arg.sel({dset.get_dim_name(arg, "time"): tslice})
 
+    # Align unequal-length monthly series on their (year, month) keys,
+    # leaving single-timestep means untouched.
+    # Assumes at most one timestep per month
+    def _month_keys(ds: xr.Dataset) -> list[tuple[int, int]]:
+        time = ds[dset.get_dim_name(ds, "time")]
+        return list(zip(time.dt.year.values.tolist(), time.dt.month.values.tolist()))
+
+    temporal = [arg for arg in args + list(kwargs.values()) if dset.is_temporal(arg)]
+    sizes = {len(_month_keys(arg)) for arg in temporal}
+    if len(sizes) > 1 and min(sizes) > 1:
+        common = set.intersection(*[set(_month_keys(arg)) for arg in temporal])
+
+        def _align(ds: xr.Dataset) -> xr.Dataset:
+            if not dset.is_temporal(ds):
+                return ds
+            time_dim = dset.get_dim_name(ds, "time")
+            keep = np.flatnonzero([key in common for key in _month_keys(ds)])
+            return ds.isel({time_dim: keep})
+
+        args = [_align(a) for a in args]
+        kwargs = {key: _align(arg) for key, arg in kwargs.items()}
+
     # Conditional returns based on what was passed in
     if args and not kwargs:
         return args

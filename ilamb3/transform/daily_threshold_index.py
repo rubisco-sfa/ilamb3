@@ -212,12 +212,13 @@ class count_wet_days(daily_threshold_index):
 
     def __init__(
         self,
+        var: str = "pr",
         freq: str = "mon",
         agg: str = "sum",
     ):
         super().__init__(
             condname="wet_days",
-            var="pr",
+            var=var,
             threshold="1 [mm/day]",
             operator=">=",
             daily_reduction="mean",

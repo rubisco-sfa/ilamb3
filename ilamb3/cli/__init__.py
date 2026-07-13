@@ -84,7 +84,12 @@ def fetch_key(key: str, catalogs: list[pooch.Pooch]) -> None:
     """
     for cat in catalogs:
         if key in cat.registry_files:
-            cat.fetch(key)
+            path = Path(cat.fetch(key))
+            # On OLCF we experienced that pooch downloads were only `rw` for the
+            # user, causing trouble with shared ilamb data caches. Here will fix
+            # this by setting all downloads to be readable by everyone and
+            # writable by the user (644).
+            path.chmod(0o644)
 
 
 def form_reference_dataframe(keys: list[str]) -> pd.DataFrame:
@@ -93,7 +98,8 @@ def form_reference_dataframe(keys: list[str]) -> pd.DataFrame:
     """
     catalogs = [ilamb3.ilamb_catalog(), ilamb3.iomb_catalog(), ilamb3.ilamb3_catalog()]
     df = pd.DataFrame(
-        [{"key": key, "path": get_local_path(key, catalogs)} for key in keys]
+        [{"key": key, "path": get_local_path(key, catalogs)} for key in keys],
+        columns=["key", "path"],
     )
     df = df.set_index("key")
     return df
@@ -307,6 +313,24 @@ def esgf(
             {key: val for key, val in path_dict.items() if s in key},
         )
         out.to_csv(f"{s}.csv", index=False)
+
+
+@app.command(help="Initialize the package before first use.")
+def init():
+
+    # Cartopy needs to download assets when it plots. If you first launch
+    # ilamb-run in parallel the server blocks your downloads and then plotting
+    # will fail.
+
+    import cartopy.crs as ccrs
+    import cartopy.feature as cfeature
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(subplot_kw={"projection": ccrs.Robinson()})
+    ax.add_feature(cfeature.NaturalEarthFeature("physical", "land", "110m"))  # type: ignore
+    ax.add_feature(cfeature.NaturalEarthFeature("physical", "ocean", "110m"))  # type: ignore
+    fig.savefig("junk.png")
+    Path("junk.png").unlink()
 
 
 if __name__ == "__main__":

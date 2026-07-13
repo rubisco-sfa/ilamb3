@@ -27,15 +27,19 @@ def gen_quantile_dbase(seed=1):
 
 
 @pytest.mark.parametrize(
-    "use_uncertainty,mass_weighting,score",
+    "use_uncertainty,mass_weighting,score,table_unit",
     [
-        (True, False, 0.5037343625713414),
-        (False, False, 0.49809129117395395),
-        (True, True, 0.6211524133325482),
-        (False, True, 0.6162697692652096),
+        (True, False, 0.5037343625713414, "kg m-2 s-1"),
+        (False, False, 0.49809129117395395, "kg m-2 s-1"),
+        (True, True, 0.6211524133325482, "kg m-2 s-1"),
+        (False, True, 0.6162697692652096, "kg m-2 s-1"),
+        (True, False, 0.5037343625713414, "mm d-1"),
+        (False, False, 0.49809129117395395, "mm d-1"),
     ],
 )
-def test_bias_collier2018(use_uncertainty: bool, mass_weighting: bool, score: float):
+def test_bias_collier2018(
+    use_uncertainty: bool, mass_weighting: bool, score: float, table_unit: str
+):
     grid = dict(nlat=10, nlon=20)
     ref = generate_test_dset(**grid)
     ref["da_bnds"] = generate_test_dset(seed=2, **grid)["da"] * 1e-2
@@ -46,6 +50,7 @@ def test_bias_collier2018(use_uncertainty: bool, mass_weighting: bool, score: fl
         method="Collier2018",
         use_uncertainty=use_uncertainty,
         mass_weighting=mass_weighting,
+        table_unit=table_unit,
     )
     df, _, _ = analysis(ref, com)
     df = df[df["type"] == "score"]

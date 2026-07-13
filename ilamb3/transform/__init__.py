@@ -26,6 +26,7 @@ from ilamb3.transform.permafrost import (  # noqa
     permafrost_extent,
 )
 from ilamb3.transform.quantile import quantile  # noqa
+from ilamb3.transform.rename import rename  # noqa
 from ilamb3.transform.runoff_sensitivity import runoff_sensitivity  # noqa
 from ilamb3.transform.select import (  # noqa
     select_depth,

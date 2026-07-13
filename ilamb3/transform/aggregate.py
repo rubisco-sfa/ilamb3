@@ -211,6 +211,6 @@ class agg_time_on_condition(ILAMBTransform):
                 f"{self._op_symbol} {self.constant} {self.unit}, else 0)"
             ),
             "standard_name": self.condname,
-            "units": self.unit,
+            "units": "day",  # FIX: this is only true if daily data was passed in
         }
         return ds.drop_dims(time_dim).assign({self.condname: result})
