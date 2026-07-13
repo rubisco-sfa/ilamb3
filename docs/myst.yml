@@ -7,6 +7,8 @@ project:
   # keywords: []
   # authors: []
   github: https://github.com/rubisco-sfa/ilamb3
+  plugins:
+    - assets/myst-apidoc/myst-apidoc-plugin/dist/index.mjs
   toc:
     - file: index.md
     - title: Getting Started
@@ -15,14 +17,14 @@ project:
         - file: installation.md
         - file: quickstart.md
         - file: datasets.md
-    - title: How Do I...
+    - title: User Guide
       file: how_do_i.md
       children:
         - file: configure_yaml.md
         - file: intake.md
         - file: organize.md
         - file: global_options.md
-    - title: Deep Dive
+    - title: Developer Guide
       file: deep_dive.md
       children:
         - file: transforms.md
@@ -30,6 +32,7 @@ project:
     - title: Reference
       children:
         - file: glossary.md
+        - file: api.md
 site:
   template: book-theme
   options:
