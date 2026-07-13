@@ -31,14 +31,28 @@ def rst2myst(rst: str | list) -> str:
 
 
 def walk_mod(mod: types.ModuleType, path: str = "") -> dict:
-    members_names = mod.__all__
+    members_names = getattr(mod, "__all__", None)
+    if members_names is None:
+        # Fall back to public names actually defined in this module
+        members_names = [
+            name for name in dir(mod)
+            if not name.startswith("_")
+            and getattr(getattr(mod, name, None), "__module__", None) == mod.__name__
+        ]
     out = {}
 
     for member_name in members_names:
         print("\033[0K", end="\r", file=sys.stderr)  # Clear line
         print(f"{path}.{member_name}", end="\r", file=sys.stderr)
 
-        member = getattr(mod, member_name)
+        try:
+            member = getattr(mod, member_name)
+        except AttributeError:
+            # Name is in __all__ but not importable as an attribute
+            # (e.g. a submodule never imported into the package namespace)
+            print(f"  skipping {path}.{member_name} (not resolvable)",
+                  file=sys.stderr)
+            continue
 
         if inspect.isfunction(member):
             if member.__doc__:
