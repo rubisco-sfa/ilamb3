@@ -1,4 +1,17 @@
-"""Modular ILAMB methodology functions."""
+"""
+Analysis Python classes are statistical comparisons between model and reference data.
+An anlaysis class must contain (1) an `__init__` abstract method that contains the
+arguments needed to initialize the analysis, (2) a `name` method that returns a
+human-readable name for the analysis, (3) a `required_variables` method that returns the
+variables needed to perform the analysis, and (4) a `__call__` method that performs the
+actual anlysis and returns a dataframe of scores, an xarray dataset of
+reference data, and an xarray dataset of comparison data.
+
+Users can directly access the analysis classes in Python scripts, they can be used in
+the benchmark run YAML file, and default analyses can be toggled on and off in the ILAMB
+config.py.
+
+"""
 
 import importlib
 import inspect
