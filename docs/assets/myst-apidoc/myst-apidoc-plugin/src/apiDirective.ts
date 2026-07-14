@@ -246,15 +246,8 @@ export function functionToMdast(
     section.push(fieldToMdast('References', [referencesAST]));
   }
   if (func.Examples) {
-    section.push(
-      fieldToMdast('Examples', [
-        {
-          type: 'code',
-          lang: 'python',
-          value: func.Examples.join('\n'),
-        },
-      ]),
-    );
+    const examples = Array.isArray(func.Examples) ? func.Examples.join('\n') : func.Examples;
+    section.push(fieldToMdast('Examples', parse(examples).children));
   }
   if (func['See Also'] && func['See Also'].length > 0) {
     const seeAlso = func['See Also'].flat(2).filter((val) => val.length > 0);

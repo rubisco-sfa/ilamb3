@@ -47,7 +47,7 @@ def document_object(member, kind: str, drop_first: bool = False) -> dict:
     )
     npdoc["Signature"] = str(signature)
 
-    rst_fields = ["Extended Summary", "Notes", "References"]
+    rst_fields = ["Extended Summary", "Notes", "References", "Examples"]
     for field in rst_fields:
         if npdoc.get(field):
             npdoc[field] = rst2myst(npdoc[field])
