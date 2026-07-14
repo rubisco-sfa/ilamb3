@@ -13,7 +13,7 @@ with resources.path("ilamb3") as path:
     func = "my_analysis_function.py"
     dest_path = path / "analysis" / func
     dest_path.unlink(missing_ok=True)
-    src_path = Path("assets") / func
+    src_path = Path("assets") / "examples" / func
     try:
         src_path.copy(dest_path)
     except FileExistsError:
@@ -439,12 +439,12 @@ mv my_function_file.py ilamb3/analysis/
 
 This will cause `ilamb3` to automatically detect the new analysis function and use it when running. We can test this by creating a configure file that instead of running the default analyses, runs just the new function we added. You will need to create a configure file that looks like this:
 
-```{literalinclude} _generated/my_analysis_test.yaml
+```{literalinclude} ../_generated/my_analysis_test.yaml
 :title: my_analysis_test.yaml
 :language: yaml
 ```
 
-You will need some model data and a CSV file database as explained in the [quickstart guide](quickstart#model-data). Here we are reusing the `CanESM5.csv` database we describe there. Then we can run the analysis using the `ilamb run` command:
+You will need some model data and a CSV file database as explained in the [quickstart guide](../getting-started/quickstart.md#model-data). Here we are reusing the `CanESM5.csv` database we describe there. Then we can run the analysis using the `ilamb run` command:
 
 ```bash
 ilamb run my_analysis_test.yaml --model-db CanESM5.csv --output-dir my_analysis_test

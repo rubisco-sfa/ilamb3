@@ -5,7 +5,7 @@ title: ilamb3.run
 
 <!-- myst-apidoc layout v3 -->
 
-:::{apidoc} ./ilamb3-api.json#run
+:::{apidoc} _generated/ilamb3-api.json#run
 :module: ilamb3
 :depth: 1
 :layout: rich-fields

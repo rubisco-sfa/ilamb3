@@ -7,7 +7,7 @@ The following tables are listings of the datasets that we support. Any `key` fou
 
 ::::{table} ilamb3 Dataset Catalog
 :label: tbl:ilamb3-catalog
-:::{include} _generated/catalog_ilamb3.html
+:::{include} ../_generated/catalog_ilamb3.html
 :::
 ::::
 
@@ -15,12 +15,12 @@ The following tables are listings of the datasets that we support. Any `key` fou
 
 ::::{table} Legacy ILAMB Dataset Catalog
 :label: tbl:ilamb-catalog
-:::{include} _generated/catalog_ilamb.html
+:::{include} ../_generated/catalog_ilamb.html
 :::
 ::::
 
 ::::{table} Legacy IOMB Dataset Catalog
 :label: tbl:iomb-catalog
-:::{include} _generated/catalog_iomb.html
+:::{include} ../_generated/catalog_iomb.html
 :::
 ::::

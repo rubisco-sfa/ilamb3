@@ -28,3 +28,9 @@ This will generate the API reference pages and the assets used in the documentat
 myst start
 ```
 This will start a local server where you can view the documentation. The server will automatically reload as you make changes to the documentation files.
+
+If your docs aren't rendering as expected, try clearing the cache first:
+
+```bash
+myst clean --site --cache --yes
+```
