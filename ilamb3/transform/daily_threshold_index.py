@@ -115,15 +115,16 @@ class daily_threshold_index(agg_time_on_condition):
     Custom daily threshold index in YAML:
 
     .. code-block:: yaml
+
         transforms:
-        - daily_threshold_index:
-          condname: windy_days
-          var: sfcWind
-          threshold: "10 [m/s]"
-          operator: ">"
-          daily_reduction: "max"
-          freq: mon
-          agg: mean
+          - daily_threshold_index:
+              condname: windy_days
+              var: sfcWind
+              threshold: "10 [m/s]"
+              operator: ">"
+              daily_reduction: "max"
+              freq: mon
+              agg: mean
 
     Custom daily threshold index transform in Python:
 
