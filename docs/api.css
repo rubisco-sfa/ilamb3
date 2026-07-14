@@ -1,0 +1,141 @@
+.api-signature {
+  margin: 1.75rem 0 1rem;
+  padding: 0.65rem 0.85rem;
+  overflow-x: auto;
+  border-top: 3px solid #6ab0de;
+  border-radius: 2px;
+  background: #e7f2fa;
+  color: #1f2933;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.api-signature code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+}
+
+.api-signature strong code {
+  color: #1f2933 !important;
+  font-weight: 800 !important;
+}
+
+.api-signature .api-kind,
+.api-signature .api-parameters {
+  font-style: italic;
+}
+
+.api-signature .api-name {
+  font-weight: 700;
+}
+
+/* Keep function headings in the page outline while the signature bar is the
+   visible heading in the article. */
+h2:has(+ .api-signature),
+h3:has(+ .api-signature),
+h4:has(+ .api-signature) {
+  width: 1px;
+  height: 3.5rem;
+  margin: 0 0 -3.5rem;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(1.75rem);
+  scroll-margin-top: 1.5rem;
+}
+
+/* Keep the current contents entry visually neutral after it is selected. */
+.myst-outline-item-active {
+  background-color: transparent !important;
+}
+
+body:has(.api-signature) .myst-outline-item a {
+  color: #64748b !important;
+  font-weight: 400 !important;
+}
+
+html.dark body:has(.api-signature) .myst-outline-item a {
+  color: #cbd5e1 !important;
+}
+
+body:has(.api-signature) .myst-outline-item-active {
+  border-left-color: #d1d5db !important;
+}
+
+html.dark body:has(.api-signature) .myst-outline-item-active {
+  border-left-color: #f8fafc !important;
+}
+
+body:has(.api-signature) .myst-outline-item-active:hover {
+  border-left-color: #3b82f6 !important;
+}
+
+.api-methods {
+  margin: 0 0 2rem 2rem;
+  padding: 0 0 0.75rem 1rem;
+  border-left: 2px solid #d1d5db;
+}
+
+.api-signature-method {
+  border-top-color: #9ca3af;
+  background: #f3f4f6;
+}
+
+.api-description {
+  margin-left: 2rem;
+}
+
+.api-module-description {
+  margin: 0 0 1.75rem;
+}
+
+.api-group-title {
+  margin: 2rem 0 1rem;
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+.api-group-title p {
+  margin: 0;
+}
+
+.api-field {
+  display: grid;
+  grid-template-columns: minmax(7rem, max-content) minmax(0, 1fr);
+  gap: 0 1.5rem;
+  margin: 1.25rem 0 1.25rem 2rem;
+  align-items: start;
+}
+
+.api-field-name > p,
+.api-field-body > :first-child {
+  margin-top: 0;
+}
+
+.api-field-name > p {
+  font-weight: 700;
+}
+
+.api-field-body ul {
+  margin-bottom: 0;
+  padding-left: 1.25rem;
+}
+
+.api-field-body li {
+  margin: 0.2rem 0;
+}
+
+@media (max-width: 700px) {
+  .api-description,
+  .api-field,
+  .api-methods {
+    margin-left: 1rem;
+  }
+
+  .api-field {
+    grid-template-columns: 1fr;
+  }
+}

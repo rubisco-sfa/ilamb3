@@ -9,11 +9,10 @@
 Learn how ILAMB works and how to add your own model or reference data.
 - [Installation](installation)
 - [Quickstart](quickstart)
-- [Datasets](datasets)
 - Reading the ILAMB results (dataset page, unified dashboard)
 :::
 
-:::{card} 🔍 How do I...
+:::{card} 🔍 Tutorials
 :link: ./how_do_i.md
 After you have learned the basics, examples of more advanced usage.
 - [Obtaining CMIP model data](intake)
@@ -41,8 +40,8 @@ Expanded descriptions of how key functionality works in the `ilamb3` internals.
 :link: ./datasets.md
 Documentation for all `ilamb3` internals.
 - [Glossary](glossary)
+- [Datasets](datasets)
 - [API Reference](api)
-- Auto-generated API documentation
 - A list of every markdown file in the doc for easy search
 - Links/ descriptions to our supported runs
 - Links/descriptions to community use

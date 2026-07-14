@@ -16,15 +16,14 @@ project:
       children:
         - file: installation.md
         - file: quickstart.md
-        - file: datasets.md
-    - title: User Guide
+    - title: Tutorials
       file: how_do_i.md
       children:
         - file: configure_yaml.md
         - file: intake.md
         - file: organize.md
         - file: global_options.md
-    - title: Developer Guide
+    - title: Deep Dive
       file: deep_dive.md
       children:
         - file: transforms.md
@@ -32,9 +31,19 @@ project:
     - title: Reference
       children:
         - file: glossary.md
+        - file: datasets.md
         - file: api.md
+          children:
+            - pattern: api/*.md
+              sort: ascending
+    - title: Contribute
+      file: contribute.md
+      children:
+        - file: replicate_docs.md
 site:
   template: book-theme
   options:
     #   favicon: favicon.ico
+    folders: true
     logo_text: ilamb3
+    style: api.css
