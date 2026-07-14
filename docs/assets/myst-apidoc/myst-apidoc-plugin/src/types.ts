@@ -9,6 +9,9 @@ export type Parameter = {
 };
 
 export type Func = {
+  Kind?: 'class' | 'function' | 'method' | 'module';
+  Bases?: string[];
+  Description?: string;
   Summary?: string[]; // Trim then join with space is fine
   'Extended Summary'?: string | []; // String with new-line chars in it
   Parameters?: Parameter[];
@@ -24,7 +27,7 @@ export type Func = {
   // No examples to confirm the following types
   Signature?: string;
   Attributes?: Parameter[];
-  Methods?: any[];
+  Methods?: Record<string, Func> | Parameter[];
   Yields?: Parameter[];
   Receives?: Parameter[];
   Warnings?: Parameter[];
@@ -39,5 +42,6 @@ export type Options = {
   depth: number;
   module?: string;
   submodule?: string;
+  className?: string;
   function?: string;
 };

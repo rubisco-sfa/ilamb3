@@ -10,73 +10,94 @@ import type { Func, Module, Options, Parameter, Parser, Submodule } from './type
 import type { VFile } from 'vfile';
 
 export function optsToLabel(opts: Options) {
-  const { module, submodule, function: func } = opts;
-  const start = module ? `${module}${submodule ? '.' : ''}` : '';
-  const middle = submodule ? `${submodule}${func ? '.' : ''}` : '';
-  const end = func ? `${func}` : '';
-  return `${start}${middle}${end}`;
+  const { module, submodule, className, function: func } = opts;
+  return [module, submodule, className, func].filter(Boolean).join('.');
 }
 
-export function parameterToMdast(param: Parameter, parse: Parser): GenericNode[] {
-  const name = param.name || param.type; // Sometimes name is "" and type should be used for the name
-  const type = param.name && param.type ? param.type : undefined;
-  const term: GenericParent = {
-    type: 'definitionTerm',
+function escapeHtml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
+function labelToId(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function sectionTitle(name: string): GenericNode {
+  return {
+    type: 'paragraph',
+    children: [{ type: 'strong', children: [{ type: 'text', value: name }] }],
+  };
+}
+
+function fieldToMdast(name: string, children: GenericNode[]): GenericNode {
+  return {
+    type: 'div',
+    class: 'api-field',
     children: [
-      {
-        type: 'text',
-        value: name,
-      },
+      { type: 'div', class: 'api-field-name', children: [sectionTitle(name)] },
+      { type: 'div', class: 'api-field-body', children },
     ],
   };
-  if (type) {
-    term.children.push(
-      {
-        type: 'text',
-        value: ' : ',
-      },
-      {
-        type: 'emphasis',
-        children: [
-          {
-            type: 'text',
-            value: type,
-          },
-        ],
-      },
-    );
-  }
-  return [
-    term,
+}
+
+export function parameterToMdast(param: Parameter, parse: Parser): GenericNode {
+  const name = param.name || param.type; // Sometimes name is "" and type should be used for the name
+  const type = param.name && param.type ? param.type : undefined;
+  const children: GenericNode[] = [
     {
-      type: 'definitionDescription',
-      children: parse(param.desc).children,
+      type: 'strong',
+      children: [{ type: 'text', value: name }],
     },
   ];
+  if (type) {
+    children.push(
+      { type: 'text', value: ' (' },
+      { type: 'emphasis', children: [{ type: 'text', value: type }] },
+      { type: 'text', value: ')' },
+    );
+  }
+
+  const description = [...parse(param.desc).children];
+  const first = description.shift();
+  if (first?.type === 'paragraph') {
+    children.push({ type: 'text', value: ' – ' }, ...(first as GenericParent).children);
+  } else if (first) {
+    description.unshift(first);
+  }
+
+  return {
+    type: 'listItem',
+    children: [
+      {
+        type: 'paragraph',
+        children,
+      },
+      ...description,
+    ],
+  };
 }
 
 export function parameterListToMdast(
   name: string,
   params: Parameter[],
   parse: Parser,
-  opts: Options,
 ): GenericNode[] {
   if (params.length === 0) return [];
   return [
-    {
-      type: 'heading',
-      depth: opts.depth,
-      children: [
-        {
-          type: 'text',
-          value: name,
-        },
-      ],
-    },
-    {
-      type: 'definitionList',
-      children: params.map((param) => parameterToMdast(param, parse)).flat(),
-    },
+    fieldToMdast(name, [
+      {
+        type: 'list',
+        ordered: false,
+        children: params.map((param) => parameterToMdast(param, parse)),
+      },
+    ]),
   ];
 }
 
@@ -86,110 +107,80 @@ export function functionToMdast(
   parse: Parser,
   opts: Options,
 ): GenericNode[] {
-  const newOpts = {
+  const kind = func.Kind ?? 'function';
+  const newOpts: Options = {
     depth: opts.depth + 1,
     module: opts.module,
     submodule: opts.submodule,
-    function: name,
+    className: kind === 'class' ? name : opts.className,
+    function: kind === 'class' ? undefined : name,
   };
-  const section: GenericNode[] = [
-    {
-      type: 'mystTarget',
-      label: optsToLabel(newOpts),
-    },
-    {
+  const signatureClass = kind === 'method' ? 'api-signature api-signature-method' : 'api-signature';
+  const label = optsToLabel(newOpts);
+  const section: GenericNode[] = kind === 'method' ? [] : [{ type: 'mystTarget', label }];
+  if (kind !== 'method') {
+    section.push({
       type: 'heading',
       depth: opts.depth,
-      children: [
-        {
-          type: 'text',
-          value: name,
-        },
-      ],
-    },
-  ];
-  if (func.Summary) {
-    section.push(...parse(func.Summary.map((line) => line.trim()).join(' ')).children);
+      children: [{ type: 'inlineCode', value: name }],
+    });
   }
+  const signatureId = kind === 'method' ? ` id="${labelToId(label)}"` : '';
+  section.push({
+    type: 'html',
+    value: `<div class="${signatureClass}"${signatureId}><em class="api-kind">${kind}</em> <strong class="api-name"><code>${escapeHtml(label)}</code></strong><em class="api-parameters">${escapeHtml(func.Signature || '()')}</em></div>`,
+  });
+  const description: GenericNode[] = [];
+  if (func.Summary)
+    description.push(...parse(func.Summary.map((line) => line.trim()).join(' ')).children);
   if (typeof func['Extended Summary'] === 'string') {
-    section.push(...parse(func['Extended Summary']).children);
+    description.push(...parse(func['Extended Summary']).children);
   }
+  if (description.length > 0)
+    section.push({ type: 'div', class: 'api-description', children: description });
   if (func.Parameters) {
-    section.push(...parameterListToMdast('Parameters', func.Parameters, parse, newOpts));
+    section.push(...parameterListToMdast('Parameters', func.Parameters, parse));
   }
   if (func['Other Parameters']) {
-    section.push(
-      ...parameterListToMdast('Other Parameters', func['Other Parameters'], parse, newOpts),
-    );
+    section.push(...parameterListToMdast('Other Parameters', func['Other Parameters'], parse));
   }
   if (func.Returns) {
-    section.push(...parameterListToMdast('Returns', func.Returns, parse, newOpts));
+    section.push(...parameterListToMdast('Returns', func.Returns, parse));
   }
   if (func.Raises) {
-    section.push(...parameterListToMdast('Raises', func.Raises, parse, newOpts));
+    section.push(...parameterListToMdast('Raises', func.Raises, parse));
   }
   if (func.Warns) {
-    section.push(...parameterListToMdast('Warns', func.Warns, parse, newOpts));
+    section.push(...parameterListToMdast('Warns', func.Warns, parse));
   }
   if (typeof func.Notes === 'string') {
-    section.push(
-      {
-        type: 'heading',
-        depth: opts.depth + 1,
-        children: [
-          {
-            type: 'text',
-            value: 'Notes',
-          },
-        ],
-      },
-      ...parse(func.Notes).children,
-    );
+    section.push(fieldToMdast('Notes', parse(func.Notes).children));
   }
   if (func.References) {
     const referencesAST = {
       type: 'list',
       ordered: true,
-      children: func.References
-        .map(text => ({
-          type: 'listItem',
-          children: [{
-            type: 'paragraph',
-            children: parse(text).children
-          }]
-        }))
-    };
-    section.push(
-      {
-        type: 'heading',
-        depth: opts.depth + 1,
+      children: func.References.map((text) => ({
+        type: 'listItem',
         children: [
           {
-            type: 'text',
-            value: 'References',
+            type: 'paragraph',
+            children: parse(text).children,
           },
         ],
-      },
-      referencesAST
-    );
+      })),
+    };
+    section.push(fieldToMdast('References', [referencesAST]));
   }
   if (func.Examples) {
     section.push(
-      {
-        type: 'heading',
-        depth: opts.depth + 1,
-        children: [
-          {
-            type: 'text',
-            value: 'Examples',
-          },
-        ],
-      },
-      {
-        type: 'code',
-        lang: 'python',
-        value: func.Examples.join('\n'),
-      },
+      fieldToMdast('Examples', [
+        {
+          type: 'code',
+          lang: 'python',
+          value: func.Examples.join('\n'),
+        },
+      ]),
     );
   }
   if (func['See Also'] && func['See Also'].length > 0) {
@@ -199,18 +190,9 @@ export function functionToMdast(
       .map(([val]) => val);
     const seeAlsoText = seeAlso.filter((val) => typeof val === 'string').join(' ');
     if (seeAlsoXrefs.length > 0 || seeAlsoText) {
-      section.push({
-        type: 'heading',
-        depth: opts.depth + 1,
-        children: [
-          {
-            type: 'text',
-            value: 'See Also',
-          },
-        ],
-      });
+      const seeAlsoContent: GenericNode[] = [];
       if (seeAlsoXrefs.length > 0) {
-        section.push({
+        seeAlsoContent.push({
           type: 'paragraph',
           children: seeAlsoXrefs
             .map((value, index) => {
@@ -239,7 +221,7 @@ export function functionToMdast(
         });
       }
       if (seeAlsoText) {
-        section.push({
+        seeAlsoContent.push({
           type: 'paragraph',
           children: [
             {
@@ -249,7 +231,15 @@ export function functionToMdast(
           ],
         });
       }
+      section.push(fieldToMdast('See Also', seeAlsoContent));
     }
+  }
+  if (kind === 'class' && func.Methods && !Array.isArray(func.Methods)) {
+    const methods: GenericNode[] = [];
+    Object.entries(func.Methods).forEach(([methodName, method]) => {
+      methods.push(...functionToMdast(methodName, method, parse, newOpts));
+    });
+    section.push({ type: 'div', class: 'api-methods', children: methods });
   }
   return section;
 }
@@ -259,39 +249,84 @@ export function submoduleToMdast(
   submodule: Submodule,
   parse: Parser,
   opts: Options,
+  includeHeading = true,
 ): GenericNode[] {
   const newOpts = {
     depth: opts.depth + 1,
     module: opts.module,
     submodule: name,
   };
-  const section: GenericNode[] = [
-    {
-      type: 'mystTarget',
-      label: optsToLabel(newOpts),
-    },
-    {
-      type: 'heading',
-      depth: opts.depth,
-      children: [
-        {
-          type: 'text',
-          value: name,
-        },
-      ],
-    },
-  ];
-  Object.entries(submodule).forEach(([funcName, func]) => {
-    section.push(...functionToMdast(funcName, func, parse, newOpts));
-  });
+  const section: GenericNode[] = [];
+  if (includeHeading) {
+    section.push(
+      { type: 'mystTarget', label: optsToLabel(newOpts) },
+      {
+        type: 'heading',
+        depth: opts.depth,
+        children: [
+          {
+            type: 'text',
+            value: opts.module ? `${opts.module}.${name}` : name,
+          },
+        ],
+      },
+    );
+  }
+  const moduleDoc = submodule.__module__;
+  if (moduleDoc?.Kind === 'module' && moduleDoc.Description) {
+    section.push({
+      type: 'div',
+      class: 'api-module-description',
+      children: parse(moduleDoc.Description).children,
+    });
+  }
+  const entries = Object.entries(submodule).filter(([, member]) => member.Kind !== 'module');
+  const functions = entries.filter(([, func]) => func.Kind !== 'class');
+  const classes = entries.filter(([, func]) => func.Kind === 'class');
+  if (classes.length > 0) {
+    const classMap = new Map(classes);
+    const classDepth = (className: string, seen = new Set<string>()): number => {
+      if (seen.has(className)) return 0;
+      const member = classMap.get(className);
+      const bases = member?.Bases?.filter((base) => classMap.has(base)) ?? [];
+      if (bases.length === 0) return 0;
+      const nextSeen = new Set(seen).add(className);
+      return 1 + Math.max(...bases.map((base) => classDepth(base, nextSeen)));
+    };
+    classes.sort(
+      ([left], [right]) => classDepth(left) - classDepth(right) || left.localeCompare(right),
+    );
+  }
+  if (functions.length > 0 && classes.length > 0) {
+    [
+      ['Classes', classes],
+      ['Functions', functions],
+    ].forEach(([title, members]) => {
+      section.push({
+        type: 'div',
+        class: 'api-group-title',
+        children: [sectionTitle(title as string)],
+      });
+      (members as [string, Func][]).forEach(([memberName, member]) => {
+        section.push(...functionToMdast(memberName, member, parse, newOpts));
+      });
+    });
+  } else {
+    const members = classes.length > 0 ? classes : entries;
+    members.forEach(([memberName, member]) => {
+      section.push(...functionToMdast(memberName, member, parse, newOpts));
+    });
+  }
   return section;
 }
 
 export function moduleToMdast(module: Module, parse: Parser, opts: Options): GenericNode[] {
   const section: GenericNode[] = [];
-  Object.entries(module).forEach(([submoduleName, submodule]) => {
-    section.push(...submoduleToMdast(submoduleName, submodule, parse, opts));
-  });
+  Object.entries(module)
+    .filter(([, submodule]) => submodule.__module__?.Kind === 'module')
+    .forEach(([submoduleName, submodule]) => {
+      section.push(...submoduleToMdast(submoduleName, submodule, parse, opts));
+    });
   return section;
 }
 
@@ -312,6 +347,10 @@ export const apiDirective: DirectiveSpec = {
       type: Number,
       doc: 'Starting heading depth',
     },
+    layout: {
+      type: String,
+      doc: 'API presentation layout.',
+    },
   },
   run(data: DirectiveData, vfile: VFile, ctx: DirectiveContext) {
     const [filename, target] = (data.arg as string).split('#');
@@ -329,7 +368,7 @@ export const apiDirective: DirectiveSpec = {
         });
       }
       if (submodule && docJson[submodule]) {
-        return submoduleToMdast(submodule, docJson[submodule], ctx.parseMyst, opts);
+        return submoduleToMdast(submodule, docJson[submodule], ctx.parseMyst, opts, false);
       }
     }
     return moduleToMdast(docJson, ctx.parseMyst, opts);

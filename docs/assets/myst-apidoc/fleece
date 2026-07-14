@@ -30,6 +30,77 @@ def rst2myst(rst: str | list) -> str:
     return rst_to_myst.mdformat_render.rst_to_myst(rst).text.strip()
 
 
+def document_object(member, kind: str, drop_first: bool = False) -> dict:
+    """Extract one function, class, or method into the plugin's JSON shape."""
+    npdoc = dict(NumpyDocString(member.__doc__ or ""))
+    npdoc["Kind"] = kind
+    signature = inspect.signature(member)
+    parameters = list(signature.parameters.values())
+    if drop_first and parameters and parameters[0].name in {"self", "cls"}:
+        parameters = parameters[1:]
+    signature = signature.replace(
+        parameters=[
+            param.replace(annotation=inspect.Parameter.empty)
+            for param in parameters
+        ],
+        return_annotation=inspect.Signature.empty,
+    )
+    npdoc["Signature"] = str(signature)
+
+    rst_fields = ["Extended Summary", "Notes", "References"]
+    for field in rst_fields:
+        if npdoc.get(field):
+            npdoc[field] = rst2myst(npdoc[field])
+
+    references = npdoc.get("References")
+    if references:
+        reference_list = [
+            " ".join(part.split())
+            for part in re.split(r'\[\^footnote-\d+\]:', references)
+            if part.strip()
+        ]
+        npdoc["References"] = [
+            re.sub(r'\{DOI\}`([^`]+)`', r'[](doi:\1)', entry)
+            for entry in reference_list
+        ]
+
+    for key, val in npdoc.items():
+        if isinstance(val, list) and val and isinstance(val[0], Parameter):
+            npdoc[key] = [
+                {
+                    "name": el.name,
+                    "type": rst2myst(el.type),
+                    "desc": rst2myst(el.desc),
+                }
+                for el in val
+            ]
+
+    if kind == "class":
+        npdoc["Bases"] = [
+            base.__name__ for base in inspect.getmro(member)[1:] if base is not object
+        ]
+        methods = {}
+        for method_name, descriptor in member.__dict__.items():
+            if method_name.startswith("_") and method_name not in {"__init__", "__call__"}:
+                continue
+            drop_method_first = True
+            if isinstance(descriptor, staticmethod):
+                method = descriptor.__func__
+                drop_method_first = False
+            elif isinstance(descriptor, classmethod):
+                method = descriptor.__func__
+            elif inspect.isfunction(descriptor):
+                method = descriptor
+            else:
+                continue
+            methods[method_name] = document_object(
+                method, "method", drop_first=drop_method_first
+            )
+        npdoc["Methods"] = methods
+
+    return npdoc
+
+
 def walk_mod(mod: types.ModuleType, path: str = "") -> dict:
     members_names = getattr(mod, "__all__", None)
     if members_names is None:
@@ -40,6 +111,12 @@ def walk_mod(mod: types.ModuleType, path: str = "") -> dict:
             and getattr(getattr(mod, name, None), "__module__", None) == mod.__name__
         ]
     out = {}
+    module_doc = inspect.getdoc(mod)
+    if module_doc:
+        out["__module__"] = {
+            "Kind": "module",
+            "Description": rst2myst(module_doc),
+        }
 
     for member_name in members_names:
         print("\033[0K", end="\r", file=sys.stderr)  # Clear line
@@ -48,54 +125,34 @@ def walk_mod(mod: types.ModuleType, path: str = "") -> dict:
         try:
             member = getattr(mod, member_name)
         except AttributeError:
-            # Name is in __all__ but not importable as an attribute
-            # (e.g. a submodule never imported into the package namespace)
-            print(f"  skipping {path}.{member_name} (not resolvable)",
-                  file=sys.stderr)
-            continue
+            # A submodule listed in __all__ may not have been imported into the
+            # package namespace yet.
+            module_name = f"{mod.__name__}.{member_name}"
+            try:
+                member = importlib.import_module(module_name)
+            except ModuleNotFoundError as exc:
+                if exc.name != module_name:
+                    raise
+                print(f"  skipping {path}.{member_name} (not resolvable)",
+                      file=sys.stderr)
+                continue
 
-        if inspect.isfunction(member):
-            if member.__doc__:
-                out[member_name] = dict(NumpyDocString(member.__doc__))
-                npdoc = out[member_name]
-
-                rst_fields = ["Extended Summary", "Notes", "References"]
-                for field in rst_fields:
-                    if npdoc.get(field):
-                        npdoc[field] = rst2myst(npdoc[field])
-
-                # Post-process references
-                references = npdoc.get("References")
-                if references:
-                    reference_list = [
-                        " ".join(p.split())
-                        for p in re.split(r'\[\^footnote-\d+\]:', references)
-                        if p.strip()
-                    ]
-                    # Perhaps we want to simply link to the DOI, but for now
-                    # this provides a nice hover with the full citation
-                    # and a link
-                    reference_list_with_doi = [
-                        re.sub(r'\{DOI\}`([^`]+)`', r'[](doi:\1)', entry)
-                        for entry in reference_list
-                    ]
-                    npdoc["References"] = reference_list_with_doi
-
-                for key, val in npdoc.items():
-                    if isinstance(val, list) and len(val) > 0:
-                        # Unpack parameter list
-                        if isinstance(val[0], Parameter):
-                            npdoc[key] = [
-                                {
-                                    "name": el.name,
-                                    "type": rst2myst(el.type),
-                                    "desc": rst2myst(el.desc),
-                                }
-                                for el in val
-                            ]
+        if inspect.isclass(member):
+            out[member_name] = document_object(member, "class")
+        elif inspect.isfunction(member) and member.__doc__:
+            out[member_name] = document_object(member, "function")
 
         if inspect.ismodule(member) and is_submodule(member, mod):
             out[member_name] = walk_mod(member, path=path + "." + member_name)
+
+    # ILAMB keeps its concrete analyses in a registry rather than exporting
+    # them from ilamb3.analysis. Read that registry without changing the
+    # package's public import surface.
+    registry = getattr(mod, "ALL_ANALYSES", {})
+    if isinstance(registry, dict):
+        for member in sorted(registry.values(), key=lambda item: item.__name__):
+            if inspect.isclass(member):
+                out[member.__name__] = document_object(member, "class")
 
     return out
 
