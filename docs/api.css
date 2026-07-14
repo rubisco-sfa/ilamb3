@@ -2,10 +2,10 @@
   margin: 1.75rem 0 1rem;
   padding: 0.65rem 0.85rem;
   overflow-x: auto;
-  border-top: 3px solid #6ab0de;
+  border-top: 3px solid #059669;
   border-radius: 2px;
-  background: #e7f2fa;
-  color: #1f2933;
+  background: #ecfdf5;
+  color: #1f2937;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.9rem;
   line-height: 1.55;
@@ -19,7 +19,7 @@
 }
 
 .api-signature strong code {
-  color: #1f2933 !important;
+  color: inherit !important;
   font-weight: 800 !important;
 }
 
@@ -32,13 +32,82 @@
   font-weight: 700;
 }
 
+.api-signature-function > em:first-child {
+  color: #047857;
+}
+
+.api-signature-base-class {
+  border-top-color: #7e22ce;
+  background: #f3e8ff;
+}
+
+.api-signature-base-class > em:first-child {
+  color: #6b21a8;
+}
+
+.api-signature-subclass {
+  border-top-color: #2563eb;
+  background: #dbeafe;
+}
+
+.api-signature-subclass > em:first-child {
+  color: #1d4ed8;
+}
+
+.api-signature-method {
+  border-top-color: #6b7280;
+  background: #f3f4f6;
+}
+
+.api-signature-method > em:first-child {
+  color: #4b5563;
+}
+
+html.dark .api-signature {
+  border-top-color: #34d399;
+  background: #022c22;
+  color: #ecfdf5;
+}
+
+html.dark .api-signature-function > em:first-child {
+  color: #6ee7b7;
+}
+
+html.dark .api-signature-base-class {
+  border-top-color: #c084fc;
+  background: #2e1065;
+  color: #f5f3ff;
+}
+
+html.dark .api-signature-base-class > em:first-child {
+  color: #d8b4fe;
+}
+
+html.dark .api-signature-subclass {
+  border-top-color: #60a5fa;
+  background: #172554;
+  color: #eff6ff;
+}
+
+html.dark .api-signature-subclass > em:first-child {
+  color: #93c5fd;
+}
+
+html.dark .api-signature-method {
+  border-top-color: #9ca3af;
+  background: #1f2937;
+  color: #f9fafb;
+}
+
+html.dark .api-signature-method > em:first-child {
+  color: #d1d5db;
+}
+
 /* Keep function headings in the page outline while the signature bar is the
    visible heading in the article. */
 h2:has(+ .api-signature),
 h3:has(+ .api-signature),
-h4:has(+ .api-signature),
-h5:has(+ .api-signature),
-h6:has(+ .api-signature) {
+h4:has(+ .api-signature) {
   width: 1px;
   height: 3.5rem;
   margin: 0 0 -3.5rem;
@@ -75,19 +144,37 @@ body:has(.api-signature) .myst-outline-item-active:hover {
   border-left-color: #3b82f6 !important;
 }
 
+.myst-outline-item .api-outline-indent-1 {
+  display: block;
+  margin-left: 1rem;
+}
+
+.myst-outline-item .api-outline-indent-2 {
+  display: block;
+  margin-left: 2rem;
+}
+
 .api-methods {
   margin: 0 0 2rem 2rem;
   padding: 0 0 0.75rem 1rem;
   border-left: 2px solid #d1d5db;
 }
 
-.api-class-children {
-  margin-left: 2rem;
+.api-inheritance {
+  margin: -0.25rem 0 1rem 2rem;
+  font-size: 0.9rem;
 }
 
-.api-signature-method {
-  border-top-color: #9ca3af;
-  background: #f3f4f6;
+.api-inheritance p {
+  margin: 0.2rem 0;
+}
+
+.api-inheritance code {
+  background: transparent;
+}
+
+.api-class-children {
+  margin-left: 2rem;
 }
 
 .api-description {

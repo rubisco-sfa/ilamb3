@@ -47,6 +47,34 @@ function fieldToMdast(name: string, children: GenericNode[]): GenericNode {
   };
 }
 
+type ClassRelations = {
+  bases: string[];
+  subclasses: string[];
+  documentedClasses: Set<string>;
+};
+
+function classRelationToMdast(
+  title: string,
+  names: string[],
+  opts: Options,
+  documentedClasses: Set<string>,
+): GenericNode {
+  const children: GenericNode[] = [
+    { type: 'strong', children: [{ type: 'text', value: `${title}: ` }] },
+  ];
+  names.forEach((name, index) => {
+    const className: GenericNode = { type: 'inlineCode', value: name };
+    if (documentedClasses.has(name)) {
+      const label = optsToLabel({ ...opts, className: name, function: undefined });
+      children.push({ type: 'link', url: `#${label}`, children: [className] });
+    } else {
+      children.push(className);
+    }
+    if (index < names.length - 1) children.push({ type: 'text', value: ', ' });
+  });
+  return { type: 'paragraph', children };
+}
+
 export function parameterToMdast(param: Parameter, parse: Parser): GenericNode {
   const name = param.name || param.type; // Sometimes name is "" and type should be used for the name
   const type = param.name && param.type ? param.type : undefined;
@@ -106,6 +134,9 @@ export function functionToMdast(
   func: Func,
   parse: Parser,
   opts: Options,
+  outlineDepth = opts.depth,
+  isSubclass = false,
+  classRelations?: ClassRelations,
 ): GenericNode[] {
   const kind = func.Kind ?? 'function';
   const newOpts: Options = {
@@ -115,14 +146,32 @@ export function functionToMdast(
     className: kind === 'class' ? name : opts.className,
     function: kind === 'class' ? undefined : name,
   };
-  const signatureClass = kind === 'method' ? 'api-signature api-signature-method' : 'api-signature';
+  const signatureVariant =
+    kind === 'method'
+      ? 'api-signature-method'
+      : kind === 'class'
+        ? isSubclass
+          ? 'api-signature-subclass'
+          : 'api-signature-base-class'
+        : 'api-signature-function';
+  const signatureClass = `api-signature ${signatureVariant}`;
   const label = optsToLabel(newOpts);
   const section: GenericNode[] = kind === 'method' ? [] : [{ type: 'mystTarget', label }];
   if (kind !== 'method') {
+    const headingText: GenericNode = { type: 'inlineCode', value: name };
     section.push({
       type: 'heading',
       depth: opts.depth,
-      children: [{ type: 'inlineCode', value: name }],
+      children:
+        outlineDepth > 4
+          ? [
+              {
+                type: 'span',
+                class: `api-outline-indent-${Math.min(outlineDepth - 4, 2)}`,
+                children: [headingText],
+              },
+            ]
+          : [headingText],
     });
   }
   const signatureId = kind === 'method' ? ` id="${labelToId(label)}"` : '';
@@ -130,6 +179,30 @@ export function functionToMdast(
     type: 'html',
     value: `<div class="${signatureClass}"${signatureId}><em class="api-kind">${kind}</em> <strong class="api-name"><code>${escapeHtml(label)}</code></strong><em class="api-parameters">${escapeHtml(func.Signature || '()')}</em></div>`,
   });
+  if (kind === 'class' && classRelations) {
+    const relations: GenericNode[] = [];
+    if (classRelations.bases.length > 0) {
+      relations.push(
+        classRelationToMdast(
+          'Bases',
+          classRelations.bases,
+          newOpts,
+          classRelations.documentedClasses,
+        ),
+      );
+    }
+    if (classRelations.subclasses.length > 0) {
+      relations.push(
+        classRelationToMdast(
+          'Direct subclasses',
+          classRelations.subclasses,
+          newOpts,
+          classRelations.documentedClasses,
+        ),
+      );
+    }
+    section.push({ type: 'div', class: 'api-inheritance', children: relations });
+  }
   const description: GenericNode[] = [];
   if (func.Summary)
     description.push(...parse(func.Summary.map((line) => line.trim()).join(' ')).children);
@@ -284,10 +357,17 @@ export function submoduleToMdast(
   const functions = entries.filter(([, func]) => func.Kind !== 'class');
   const classes = entries.filter(([, func]) => func.Kind === 'class');
   const classMap = new Map(classes);
+  const documentedClasses = new Set(classMap.keys());
   const classChildren = new Map<string, [string, Func][]>();
+  const directSubclasses = new Map<string, string[]>();
   const classRoots: [string, Func][] = [];
   classes.forEach(([className, member]) => {
-    const parent = member.Bases?.find((base) => classMap.has(base));
+    const directBases = member['Direct Bases'] ?? member.Bases?.slice(0, 1) ?? [];
+    const documentedBases = directBases.filter((base) => classMap.has(base));
+    documentedBases.forEach((base) => {
+      directSubclasses.set(base, [...(directSubclasses.get(base) ?? []), className]);
+    });
+    const parent = documentedBases[0] ?? member.Bases?.find((base) => classMap.has(base));
     if (!parent) {
       classRoots.push([className, member]);
       return;
@@ -298,23 +378,46 @@ export function submoduleToMdast(
     members.sort(([left], [right]) => left.localeCompare(right));
   sortClasses(classRoots);
   classChildren.forEach(sortClasses);
+  directSubclasses.forEach((subclasses) => {
+    subclasses.sort((left, right) => left.localeCompare(right));
+  });
 
   function classTreeToMdast(
     members: [string, Func][],
-    depth: number,
+    headingDepth: number,
+    inheritanceDepth = headingDepth,
     ancestors = new Set<string>(),
   ): GenericNode[] {
     const nodes: GenericNode[] = [];
     members.forEach(([className, member]) => {
       if (ancestors.has(className)) return;
-      nodes.push(...functionToMdast(className, member, parse, { ...newOpts, depth }));
+      nodes.push(
+        ...functionToMdast(
+          className,
+          member,
+          parse,
+          { ...newOpts, depth: headingDepth },
+          inheritanceDepth,
+          inheritanceDepth > newOpts.depth,
+          {
+            bases: member['Direct Bases'] ?? member.Bases?.slice(0, 1) ?? [],
+            subclasses: directSubclasses.get(className) ?? [],
+            documentedClasses,
+          },
+        ),
+      );
       const children = classChildren.get(className);
       if (!children?.length) return;
       const nextAncestors = new Set(ancestors).add(className);
       nodes.push({
         type: 'div',
         class: 'api-class-children',
-        children: classTreeToMdast(children, Math.min(depth + 1, 6), nextAncestors),
+        children: classTreeToMdast(
+          children,
+          Math.min(headingDepth + 1, 4),
+          inheritanceDepth + 1,
+          nextAncestors,
+        ),
       });
     });
     return nodes;

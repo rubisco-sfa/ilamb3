@@ -11,6 +11,7 @@ export type Parameter = {
 export type Func = {
   Kind?: 'class' | 'function' | 'method' | 'module';
   Bases?: string[];
+  'Direct Bases'?: string[];
   Description?: string;
   Summary?: string[]; // Trim then join with space is fine
   'Extended Summary'?: string | []; // String with new-line chars in it

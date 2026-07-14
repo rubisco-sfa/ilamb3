@@ -76,6 +76,9 @@ def document_object(member, kind: str, drop_first: bool = False) -> dict:
             ]
 
     if kind == "class":
+        npdoc["Direct Bases"] = [
+            base.__name__ for base in member.__bases__ if base is not object
+        ]
         npdoc["Bases"] = [
             base.__name__ for base in inspect.getmro(member)[1:] if base is not object
         ]
@@ -117,6 +120,7 @@ def walk_mod(mod: types.ModuleType, path: str = "") -> dict:
             "Kind": "module",
             "Description": rst2myst(module_doc),
         }
+    documented_classes = []
 
     for member_name in members_names:
         print("\033[0K", end="\r", file=sys.stderr)  # Clear line
@@ -139,6 +143,7 @@ def walk_mod(mod: types.ModuleType, path: str = "") -> dict:
 
         if inspect.isclass(member):
             out[member_name] = document_object(member, "class")
+            documented_classes.append(member)
         elif inspect.isfunction(member) and member.__doc__:
             out[member_name] = document_object(member, "function")
 
@@ -153,6 +158,21 @@ def walk_mod(mod: types.ModuleType, path: str = "") -> dict:
         for member in sorted(registry.values(), key=lambda item: item.__name__):
             if inspect.isclass(member):
                 out[member.__name__] = document_object(member, "class")
+                documented_classes.append(member)
+
+    # Include unexported in-package ancestors that are needed to represent the
+    # inheritance tree, without changing the package's public ``__all__``.
+    for member in documented_classes:
+        for base in inspect.getmro(member)[1:]:
+            if base is object:
+                continue
+            if not (
+                base.__module__ == mod.__name__
+                or base.__module__.startswith(mod.__name__ + ".")
+            ):
+                continue
+            if base.__name__ not in out:
+                out[base.__name__] = document_object(base, "class")
 
     return out
 
