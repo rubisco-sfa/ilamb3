@@ -36,7 +36,9 @@
    visible heading in the article. */
 h2:has(+ .api-signature),
 h3:has(+ .api-signature),
-h4:has(+ .api-signature) {
+h4:has(+ .api-signature),
+h5:has(+ .api-signature),
+h6:has(+ .api-signature) {
   width: 1px;
   height: 3.5rem;
   margin: 0 0 -3.5rem;
@@ -77,6 +79,10 @@ body:has(.api-signature) .myst-outline-item-active:hover {
   margin: 0 0 2rem 2rem;
   padding: 0 0 0.75rem 1rem;
   border-left: 2px solid #d1d5db;
+}
+
+.api-class-children {
+  margin-left: 2rem;
 }
 
 .api-signature-method {
@@ -130,6 +136,7 @@ body:has(.api-signature) .myst-outline-item-active:hover {
 
 @media (max-width: 700px) {
   .api-description,
+  .api-class-children,
   .api-field,
   .api-methods {
     margin-left: 1rem;

@@ -41,5 +41,5 @@ docs/assets/myst-apidoc/myst-apidoc-plugin/thumbnail.png
 
 ```bash
 cd .. # back into the root of the repo
-python docs/assets/myst-apidoc/fleece ilamb3 > docs/ilamb3-api.json
+python docs/assets/myst-apidoc/fleece ilamb3 > docs/_generated/ilamb3-api.json
 ```

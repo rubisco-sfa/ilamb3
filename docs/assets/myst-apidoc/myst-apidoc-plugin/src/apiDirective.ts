@@ -283,39 +283,65 @@ export function submoduleToMdast(
   const entries = Object.entries(submodule).filter(([, member]) => member.Kind !== 'module');
   const functions = entries.filter(([, func]) => func.Kind !== 'class');
   const classes = entries.filter(([, func]) => func.Kind === 'class');
-  if (classes.length > 0) {
-    const classMap = new Map(classes);
-    const classDepth = (className: string, seen = new Set<string>()): number => {
-      if (seen.has(className)) return 0;
-      const member = classMap.get(className);
-      const bases = member?.Bases?.filter((base) => classMap.has(base)) ?? [];
-      if (bases.length === 0) return 0;
-      const nextSeen = new Set(seen).add(className);
-      return 1 + Math.max(...bases.map((base) => classDepth(base, nextSeen)));
-    };
-    classes.sort(
-      ([left], [right]) => classDepth(left) - classDepth(right) || left.localeCompare(right),
-    );
+  const classMap = new Map(classes);
+  const classChildren = new Map<string, [string, Func][]>();
+  const classRoots: [string, Func][] = [];
+  classes.forEach(([className, member]) => {
+    const parent = member.Bases?.find((base) => classMap.has(base));
+    if (!parent) {
+      classRoots.push([className, member]);
+      return;
+    }
+    classChildren.set(parent, [...(classChildren.get(parent) ?? []), [className, member]]);
+  });
+  const sortClasses = (members: [string, Func][]) =>
+    members.sort(([left], [right]) => left.localeCompare(right));
+  sortClasses(classRoots);
+  classChildren.forEach(sortClasses);
+
+  function classTreeToMdast(
+    members: [string, Func][],
+    depth: number,
+    ancestors = new Set<string>(),
+  ): GenericNode[] {
+    const nodes: GenericNode[] = [];
+    members.forEach(([className, member]) => {
+      if (ancestors.has(className)) return;
+      nodes.push(...functionToMdast(className, member, parse, { ...newOpts, depth }));
+      const children = classChildren.get(className);
+      if (!children?.length) return;
+      const nextAncestors = new Set(ancestors).add(className);
+      nodes.push({
+        type: 'div',
+        class: 'api-class-children',
+        children: classTreeToMdast(children, Math.min(depth + 1, 6), nextAncestors),
+      });
+    });
+    return nodes;
   }
   if (functions.length > 0 && classes.length > 0) {
-    [
-      ['Classes', classes],
-      ['Functions', functions],
-    ].forEach(([title, members]) => {
-      section.push({
-        type: 'div',
-        class: 'api-group-title',
-        children: [sectionTitle(title as string)],
-      });
-      (members as [string, Func][]).forEach(([memberName, member]) => {
-        section.push(...functionToMdast(memberName, member, parse, newOpts));
-      });
+    section.push({
+      type: 'div',
+      class: 'api-group-title',
+      children: [sectionTitle('Classes')],
     });
-  } else {
-    const members = classes.length > 0 ? classes : entries;
-    members.forEach(([memberName, member]) => {
+    section.push(...classTreeToMdast(classRoots, newOpts.depth));
+    section.push({
+      type: 'div',
+      class: 'api-group-title',
+      children: [sectionTitle('Functions')],
+    });
+    functions.forEach(([memberName, member]) => {
       section.push(...functionToMdast(memberName, member, parse, newOpts));
     });
+  } else {
+    if (classes.length > 0) {
+      section.push(...classTreeToMdast(classRoots, newOpts.depth));
+    } else {
+      entries.forEach(([memberName, member]) => {
+        section.push(...functionToMdast(memberName, member, parse, newOpts));
+      });
+    }
   }
   return section;
 }
