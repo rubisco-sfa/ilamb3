@@ -1,4 +1,4 @@
-# Organizing a Benchmark Study
+# Organize a Benchmark Study
 
 ```{warning} Unfinished
 This feature is not in its final form. We will provide some details here, but expect this to change in the future.

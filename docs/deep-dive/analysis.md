@@ -4,23 +4,24 @@ kernelspec:
   display_name: 'Python 3'
 ---
 
+# Analysis
+
+## Background
+
 ```{code-cell} python
 :tags: [remove-input]
 # Leave this cell as we need the analysis function to be copied for the run to work later
 from pathlib import Path
 from importlib import resources
+from shutil import copy2
 with resources.path("ilamb3") as path:
+    docs_dir = path.parent / "docs"
     func = "my_analysis_function.py"
     dest_path = path / "analysis" / func
     dest_path.unlink(missing_ok=True)
-    src_path = Path("assets") / "examples" / func
-    try:
-        src_path.copy(dest_path)
-    except FileExistsError:
-        pass
+    src_path = docs_dir / "assets" / "examples" / func
+    copy2(src_path, dest_path)
 ```
-
-# Analyses
 
 An analysis module in `ilamb3` is a function that takes in a benchmarking and model dataset, performs mathematical operations between the two, and outputs a dataframe and datasets with results that can be used to build tables and produce plot visualizations.
 

@@ -39,6 +39,7 @@ project:
     - title: Contribute
       file: contribute/index.md
       children:
+        - file: contribute/develop.md
         - file: contribute/replicate-docs.md
 site:
   template: book-theme

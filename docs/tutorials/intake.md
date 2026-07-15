@@ -4,7 +4,7 @@ kernelspec:
   display_name: 'Python 3'
 ---
 
-# Creating Model CSV Files with intake-esgf
+# Create Model CSVs
 
 This tutorial will teach you how to download CMIP data and create CSV files which `ilamb3` requires for execution using [intake-esgf](https://intake-esgf.readthedocs.io/). In order to stay as general as possible, `ilamb3` does not depend directly on `intake-esgf` but it is a useful tool for easily accessing data hosted on the Earth System Grid Federation (ESGF). For a more thorough explanation of that package and all its options, please consult the intake-esgf documentation.
 

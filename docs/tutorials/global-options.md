@@ -4,7 +4,7 @@ kernelspec:
   display_name: 'Python 3'
 ---
 
-# Setting Global `ilamb3` Options
+# Setting Global ILAMB Options
 
 ```{warning} Unfinished
 This feature is not in its final form. We will provide some details here, but expect this to change in the future.
