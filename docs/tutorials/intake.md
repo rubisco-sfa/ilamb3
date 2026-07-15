@@ -14,6 +14,7 @@ This tutorial will teach you how to download CMIP data and create CSV files whic
 from intake_esgf import ESGFCatalog
 
 cat = ESGFCatalog().search(
+    quiet=True,
     experiment_id="historical",
     source_id="CanESM5",
     variable_id=["gpp", "areacella", "sftlf"],
@@ -34,7 +35,7 @@ cat
 Once the catalog represents the data that you wish to download and use in your benchmarking study, we ask the catalog for a dictionary of paths.
 
 ```{code-cell} python
-dpd = cat.to_path_dict(minimal_keys=False)
+dpd = cat.to_path_dict(minimal_keys=False, quiet=True)
 dpd
 ```
 
@@ -73,8 +74,6 @@ This produces a CSV file which looks like this:
 :tags: [remove-input]
 from pathlib import Path
 Path("CanESM5.csv").unlink()
-import pandas as pd
-df = pd.read_csv("_generated/CanESM5.csv").drop(columns=["Unnamed: 0"])
 df
 ```
 

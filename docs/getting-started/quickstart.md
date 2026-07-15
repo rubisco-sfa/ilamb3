@@ -78,8 +78,10 @@ Just like the reference data, you will need to tell `ilamb3` where your model da
 
 ```{code-cell} python
 :tags: [remove-input]
+from pathlib import Path
 import pandas as pd
-df = pd.read_csv("_generated/CanESM5.csv").drop(columns=["Unnamed: 0","mip_era","activity_id","institution_id","table_id"])
+docs_dir = Path(ilamb3.__file__).resolve().parent.parent / "docs"
+df = pd.read_csv(docs_dir / "_generated/CanESM5.csv").drop(columns=["Unnamed: 0","mip_era","activity_id","institution_id","table_id"])
 df
 ```
 

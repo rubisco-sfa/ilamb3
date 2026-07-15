@@ -241,6 +241,7 @@ To this end, analyses are not merely functions, but rather an [abstract base cla
 :linenos:
 :emphasize-lines: 9,12-14,16-21
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -349,6 +350,7 @@ At this point your analysis function is ready to be integrated into `ilamb3`. If
 :linenos:
 :emphasize-lines: 52,63-72
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -452,7 +454,7 @@ ilamb run my_analysis_test.yaml --model-db CanESM5.csv --output-dir my_analysis_
 ```{code-cell} python
 :tags: [remove-input]
 from ilamb3.cli import run
-run(Path("_generated/my_analysis_test.yaml"), [Path("_generated/CanESM5.csv")],output_path=Path("my_analysis_test"))
+run(docs_dir / "_generated/my_analysis_test.yaml", [docs_dir / "_generated/CanESM5.csv"],output_path=Path("my_analysis_test"))
 dest_path.unlink(missing_ok=True)
 ```
 

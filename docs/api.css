@@ -103,6 +103,29 @@ html.dark .api-signature-method > em:first-child {
   color: #d1d5db;
 }
 
+/* Distinguish executed notebook output from the code that produced it. */
+.myst-jp-nb-block > .myst-code + div:has(
+  .myst-jp-safe-output-text,
+  .jp-OutputArea-child,
+  img,
+  svg,
+  table
+) {
+  padding: 0.25rem 0 0.25rem 0.9rem;
+  overflow-x: auto;
+  border-left: 4px solid #6b7280;
+}
+
+html.dark .myst-jp-nb-block > .myst-code + div:has(
+  .myst-jp-safe-output-text,
+  .jp-OutputArea-child,
+  img,
+  svg,
+  table
+) {
+  border-left-color: #6b7280;
+}
+
 /* Keep function headings in the page outline while the signature bar is the
    visible heading in the article. */
 h2:has(+ .api-signature),
