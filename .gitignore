@@ -43,8 +43,10 @@ coverage.xml
 .ruff_cache/
 cover/
 
-# Sphinx documentation
-docs/_build/
+# Myst-apidoc-plugin
+docs/assets/myst-apidoc/myst-apidoc-plugin/node_modules/
+docs/assets/myst-apidoc/myst-apidoc-plugin/.github/
+docs/assets/myst-apidoc/myst-apidoc-plugin/thumbnail.png
 
 # Jupyter Notebook
 .ipynb_checkpoints

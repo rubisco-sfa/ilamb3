@@ -4,23 +4,24 @@ kernelspec:
   display_name: 'Python 3'
 ---
 
+# Analysis
+
+## Background
+
 ```{code-cell} python
 :tags: [remove-input]
 # Leave this cell as we need the analysis function to be copied for the run to work later
 from pathlib import Path
 from importlib import resources
+from shutil import copy2
 with resources.path("ilamb3") as path:
+    docs_dir = path.parent / "docs"
     func = "my_analysis_function.py"
     dest_path = path / "analysis" / func
     dest_path.unlink(missing_ok=True)
-    src_path = Path("assets") / func
-    try:
-        src_path.copy(dest_path)
-    except FileExistsError:
-        pass
+    src_path = docs_dir / "assets" / "examples" / func
+    copy2(src_path, dest_path)
 ```
-
-# Analyses
 
 An analysis module in `ilamb3` is a function that takes in a benchmarking and model dataset, performs mathematical operations between the two, and outputs a dataframe and datasets with results that can be used to build tables and produce plot visualizations.
 
@@ -241,6 +242,7 @@ To this end, analyses are not merely functions, but rather an [abstract base cla
 :linenos:
 :emphasize-lines: 9,12-14,16-21
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -349,6 +351,7 @@ At this point your analysis function is ready to be integrated into `ilamb3`. If
 :linenos:
 :emphasize-lines: 52,63-72
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -439,12 +442,12 @@ mv my_function_file.py ilamb3/analysis/
 
 This will cause `ilamb3` to automatically detect the new analysis function and use it when running. We can test this by creating a configure file that instead of running the default analyses, runs just the new function we added. You will need to create a configure file that looks like this:
 
-```{literalinclude} _generated/my_analysis_test.yaml
+```{literalinclude} ../_generated/my_analysis_test.yaml
 :title: my_analysis_test.yaml
 :language: yaml
 ```
 
-You will need some model data and a CSV file database as explained in the [quickstart guide](quickstart#model-data). Here we are reusing the `CanESM5.csv` database we describe there. Then we can run the analysis using the `ilamb run` command:
+You will need some model data and a CSV file database as explained in the [quickstart guide](../getting-started/quickstart.md#model-data). Here we are reusing the `CanESM5.csv` database we describe there. Then we can run the analysis using the `ilamb run` command:
 
 ```bash
 ilamb run my_analysis_test.yaml --model-db CanESM5.csv --output-dir my_analysis_test
@@ -452,7 +455,7 @@ ilamb run my_analysis_test.yaml --model-db CanESM5.csv --output-dir my_analysis_
 ```{code-cell} python
 :tags: [remove-input]
 from ilamb3.cli import run
-run(Path("_generated/my_analysis_test.yaml"), [Path("_generated/CanESM5.csv")],output_path=Path("my_analysis_test"))
+run(docs_dir / "_generated/my_analysis_test.yaml", [docs_dir / "_generated/CanESM5.csv"],output_path=Path("my_analysis_test"))
 dest_path.unlink(missing_ok=True)
 ```
 

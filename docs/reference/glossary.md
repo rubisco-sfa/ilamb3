@@ -1,3 +1,6 @@
+# Glossary
+A glossary of terms used in `ilamb3` is provided below. This is not an exhaustive list, but it should help clarify some of the terminology used in the documentation and code.
+
 :::{glossary}
 reference
 : Refers to a dataset which will be considered as the source of truth in the given comparison. Many times this is some kind of observational dataset, but can be any dataset of your choosing. Errors and scores will be calculated with respect to this dataset.

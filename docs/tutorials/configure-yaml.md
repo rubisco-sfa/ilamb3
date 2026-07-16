@@ -1,4 +1,4 @@
-# Benchmark Configuration Files
+# Benchmark Configuration in YAML
 
 ```{warning} Unfinished
 This feature is not in its final form. We will provide some details here, but expect this to change in the future.

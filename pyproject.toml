@@ -48,6 +48,8 @@ docs = [
   "jupyter>=1.1.1",
   "jupyterlab-myst>=2.6.0",
   "mystmd>=1.8.3",
+  "numpydoc>=1.10.0",
+  "rst-to-myst>=0.4.0",
 ]
 esgf = [
     "intake-esgf>=2026.6.4",

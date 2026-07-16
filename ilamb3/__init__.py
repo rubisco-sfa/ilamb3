@@ -141,7 +141,7 @@ __all__ = [
     "analysis",
     "regions",
     "run",
-    "ilamb_catalog,",
+    "transform",
     "conf",
     "ILAMB_DATA_VERSION",
 ]

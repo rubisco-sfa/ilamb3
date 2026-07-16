@@ -7,31 +7,44 @@ project:
   # keywords: []
   # authors: []
   github: https://github.com/rubisco-sfa/ilamb3
+  plugins:
+    - assets/myst-apidoc/myst-apidoc-plugin/dist/index.mjs
   toc:
     - file: index.md
     - title: Getting Started
-      file: getting_started.md
+      file: getting-started/index.md
       children:
-        - file: installation.md
-        - file: quickstart.md
-        - file: datasets.md
-    - title: How Do I...
-      file: how_do_i.md
+        - file: getting-started/installation.md
+        - file: getting-started/quickstart.md
+    - title: Tutorials
+      file: tutorials/index.md
       children:
-        - file: configure_yaml.md
-        - file: intake.md
-        - file: organize.md
-        - file: global_options.md
+        - file: tutorials/configure-yaml.md
+        - file: tutorials/intake.md
+        - file: tutorials/organize.md
+        - file: tutorials/global-options.md
     - title: Deep Dive
-      file: deep_dive.md
+      file: deep-dive/index.md
       children:
-        - file: transforms.md
-        - file: analysis.md
+        - file: deep-dive/transforms.md
+        - file: deep-dive/analysis.md
     - title: Reference
       children:
-        - file: glossary.md
+        - file: reference/glossary.md
+        - file: reference/datasets.md
+        - file: reference/api/index.md
+          children:
+            - pattern: reference/api/!(index).md
+              sort: ascending
+    - title: Contribute
+      file: contribute/index.md
+      children:
+        - file: contribute/develop.md
+        - file: contribute/replicate-docs.md
 site:
   template: book-theme
   options:
     #   favicon: favicon.ico
+    folders: true
     logo_text: ilamb3
+    style: api.css

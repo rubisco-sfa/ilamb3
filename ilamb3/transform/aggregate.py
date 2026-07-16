@@ -101,7 +101,7 @@ class agg_time_on_condition(ILAMBTransform):
     then resamples to ``freq`` and reduces with ``agg``. This transform makes no
     assumptions about input cadence and does not pre-reduce the input. For anomaly
     indices (wet days, summer days, etc.), use the dedicated subclasses in
-    :mod:`ilamb3.transform.threshold_indices`, which handle cadence mismatches.
+    :mod:`ilamb3.transform.daily_threshold_index`, which handle cadence mismatches.
 
     Parameters
     ----------
@@ -133,20 +133,19 @@ class agg_time_on_condition(ILAMBTransform):
     --------
 
     .. code-block:: yaml
-    H2O Anomalies:
 
-    Wet Days:
-
-        CLASS-1-1:
-        sources:
-            pr: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_pr_gn_v20260302.nc
-        variable_cmap: Blues
-        transforms:
-        - agg_time_on_condition:
-            condname: wet_months
-            cond: "pr >= 1 [mm/day]"
-            agg: sum
-            freq: year
+        H2O Anomalies:
+          Wet Days:
+            CLASS-1-1:
+              sources:
+                pr: CLASS-1-1/obs4MIPs_UNSW_CLASS-1-1_mon_pr_gn_v20260302.nc
+              variable_cmap: Blues
+              transforms:
+                - agg_time_on_condition:
+                    condname: wet_months
+                    cond: "pr >= 1 [mm/day]"
+                    agg: sum
+                    freq: year
 
     """
 

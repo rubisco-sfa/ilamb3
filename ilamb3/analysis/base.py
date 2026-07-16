@@ -114,7 +114,7 @@ class ILAMBAnalysis(ABC):
         com : dict[str,xr.Dataset]
             A dictionary of comparison intermediate maps and curves to plot,
             whose keys are the model names.
-        path: Path
+        path : Path
             The path to prepend to filenames of the saved images.
 
         Returns
@@ -150,7 +150,7 @@ def integrate_or_mean(
     weight: xr.DataArray | None = None,
 ) -> xr.DataArray:
     """
-    Integration/average the input dataarray/dataset to reduce in space/site.
+    Integrate/average the input dataarray/dataset to reduce in space/site.
     """
     da = var[varname] if isinstance(var, xr.Dataset) else var
     if dset.is_gridded(da):
@@ -172,7 +172,7 @@ def scalarify(
     unit: str | None = None,
 ) -> tuple[float, str]:
     """
-    Integration/average the input dataarray/dataset to generate a scalar.
+    Integrate/average the input dataarray/dataset to generate a scalar.
     """
     da = integrate_or_mean(var, varname, region, mean, weight)
     if unit is not None:

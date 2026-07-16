@@ -1,0 +1,195 @@
+#!/usr/bin/env python
+#
+# /// pyproject
+# [project]
+# dependencies = [
+#     "numpydoc",
+#     "rst-to-myst"
+# ]
+
+import argparse
+import inspect
+import importlib
+import re
+import sys
+import types
+import json
+
+from numpydoc.docscrape import NumpyDocString, Parameter
+import rst_to_myst
+
+
+def is_submodule(child: types.ModuleType, parent: types.ModuleType) -> bool:
+    return child.__name__.startswith(parent.__name__ + ".")
+
+
+def rst2myst(rst: str | list) -> str:
+    if isinstance(rst, list):
+        rst = "\n".join(rst)
+
+    return rst_to_myst.mdformat_render.rst_to_myst(rst).text.strip()
+
+
+def document_object(member, kind: str, drop_first: bool = False) -> dict:
+    """Extract one function, class, or method into the plugin's JSON shape."""
+    npdoc = dict(NumpyDocString(member.__doc__ or ""))
+    npdoc["Kind"] = kind
+    signature = inspect.signature(member)
+    parameters = list(signature.parameters.values())
+    if drop_first and parameters and parameters[0].name in {"self", "cls"}:
+        parameters = parameters[1:]
+    signature = signature.replace(
+        parameters=[
+            param.replace(annotation=inspect.Parameter.empty)
+            for param in parameters
+        ],
+        return_annotation=inspect.Signature.empty,
+    )
+    npdoc["Signature"] = str(signature)
+
+    rst_fields = ["Extended Summary", "Notes", "References", "Examples"]
+    for field in rst_fields:
+        if npdoc.get(field):
+            npdoc[field] = rst2myst(npdoc[field])
+
+    references = npdoc.get("References")
+    if references:
+        reference_list = [
+            " ".join(part.split())
+            for part in re.split(r'\[\^footnote-\d+\]:', references)
+            if part.strip()
+        ]
+        npdoc["References"] = [
+            re.sub(r'\{DOI\}`([^`]+)`', r'[](doi:\1)', entry)
+            for entry in reference_list
+        ]
+
+    for key, val in npdoc.items():
+        if isinstance(val, list) and val and isinstance(val[0], Parameter):
+            npdoc[key] = [
+                {
+                    "name": el.name,
+                    "type": rst2myst(el.type),
+                    "desc": rst2myst(el.desc),
+                }
+                for el in val
+            ]
+
+    if kind == "class":
+        npdoc["Direct Bases"] = [
+            base.__name__ for base in member.__bases__ if base is not object
+        ]
+        npdoc["Bases"] = [
+            base.__name__ for base in inspect.getmro(member)[1:] if base is not object
+        ]
+        methods = {}
+        for method_name, descriptor in member.__dict__.items():
+            if method_name.startswith("_") and method_name not in {"__init__", "__call__"}:
+                continue
+            drop_method_first = True
+            if isinstance(descriptor, staticmethod):
+                method = descriptor.__func__
+                drop_method_first = False
+            elif isinstance(descriptor, classmethod):
+                method = descriptor.__func__
+            elif inspect.isfunction(descriptor):
+                method = descriptor
+            else:
+                continue
+            methods[method_name] = document_object(
+                method, "method", drop_first=drop_method_first
+            )
+        npdoc["Methods"] = methods
+
+    return npdoc
+
+
+def walk_mod(mod: types.ModuleType, path: str = "") -> dict:
+    members_names = getattr(mod, "__all__", None)
+    if members_names is None:
+        # Fall back to public names actually defined in this module
+        members_names = [
+            name for name in dir(mod)
+            if not name.startswith("_")
+            and getattr(getattr(mod, name, None), "__module__", None) == mod.__name__
+        ]
+    out = {}
+    module_doc = inspect.getdoc(mod)
+    if module_doc:
+        out["__module__"] = {
+            "Kind": "module",
+            "Description": rst2myst(module_doc),
+        }
+    documented_classes = []
+
+    for member_name in members_names:
+        print("\033[0K", end="\r", file=sys.stderr)  # Clear line
+        print(f"{path}.{member_name}", end="\r", file=sys.stderr)
+
+        try:
+            member = getattr(mod, member_name)
+        except AttributeError:
+            # A submodule listed in __all__ may not have been imported into the
+            # package namespace yet.
+            module_name = f"{mod.__name__}.{member_name}"
+            try:
+                member = importlib.import_module(module_name)
+            except ModuleNotFoundError as exc:
+                if exc.name != module_name:
+                    raise
+                print(f"  skipping {path}.{member_name} (not resolvable)",
+                      file=sys.stderr)
+                continue
+
+        if inspect.isclass(member):
+            out[member_name] = document_object(member, "class")
+            documented_classes.append(member)
+        elif inspect.isfunction(member) and member.__doc__:
+            out[member_name] = document_object(member, "function")
+
+        if inspect.ismodule(member) and is_submodule(member, mod):
+            out[member_name] = walk_mod(member, path=path + "." + member_name)
+
+    # ILAMB keeps its concrete analyses in a registry rather than exporting
+    # them from ilamb3.analysis. Read that registry without changing the
+    # package's public import surface.
+    registry = getattr(mod, "ALL_ANALYSES", {})
+    if isinstance(registry, dict):
+        for member in sorted(registry.values(), key=lambda item: item.__name__):
+            if inspect.isclass(member):
+                out[member.__name__] = document_object(member, "class")
+                documented_classes.append(member)
+
+    # Include unexported in-package ancestors that are needed to represent the
+    # inheritance tree, without changing the package's public ``__all__``.
+    for member in documented_classes:
+        for base in inspect.getmro(member)[1:]:
+            if base is object:
+                continue
+            if not (
+                base.__module__ == mod.__name__
+                or base.__module__.startswith(mod.__name__ + ".")
+            ):
+                continue
+            if base.__name__ not in out:
+                out[base.__name__] = document_object(base, "class")
+
+    return out
+
+
+if __name__ == "__main__":
+    YELLOW = "\033[1;33m"
+    RESET = "\033[0m"
+
+    parser = argparse.ArgumentParser(
+        prog="fleece",
+        description=f"{YELLOW}🟨{RESET} Fleece extracts a Python package's numpydoc-formatted docstrings as JSON. "
+        "Currently, this is for use by the myst-apidoc-plugin only.",
+    )
+    parser.add_argument("package", help="The package to index (can also be submodule, e.g. skimage.morphology")
+    args = parser.parse_args()
+
+    pkgname = args.package
+    pkg = importlib.import_module(pkgname)
+
+    print(json.dumps(walk_mod(pkg, path=pkgname)))

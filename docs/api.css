@@ -1,0 +1,258 @@
+.api-signature {
+  margin: 1.75rem 0 1rem;
+  padding: 0.65rem 0.85rem;
+  overflow-x: auto;
+  border-top: 3px solid #059669;
+  border-radius: 2px;
+  background: #ecfdf5;
+  color: #1f2937;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.api-signature code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+}
+
+.api-signature strong code {
+  color: inherit !important;
+  font-weight: 800 !important;
+}
+
+.api-signature .api-kind,
+.api-signature .api-parameters {
+  font-style: italic;
+}
+
+.api-signature .api-name {
+  font-weight: 700;
+}
+
+.api-signature-function > em:first-child {
+  color: #047857;
+}
+
+.api-signature-base-class {
+  border-top-color: #7e22ce;
+  background: #f3e8ff;
+}
+
+.api-signature-base-class > em:first-child {
+  color: #6b21a8;
+}
+
+.api-signature-subclass {
+  border-top-color: #2563eb;
+  background: #dbeafe;
+}
+
+.api-signature-subclass > em:first-child {
+  color: #1d4ed8;
+}
+
+.api-signature-method {
+  border-top-color: #6b7280;
+  background: #f3f4f6;
+}
+
+.api-signature-method > em:first-child {
+  color: #4b5563;
+}
+
+html.dark .api-signature {
+  border-top-color: #34d399;
+  background: #022c22;
+  color: #ecfdf5;
+}
+
+html.dark .api-signature-function > em:first-child {
+  color: #6ee7b7;
+}
+
+html.dark .api-signature-base-class {
+  border-top-color: #c084fc;
+  background: #2e1065;
+  color: #f5f3ff;
+}
+
+html.dark .api-signature-base-class > em:first-child {
+  color: #d8b4fe;
+}
+
+html.dark .api-signature-subclass {
+  border-top-color: #60a5fa;
+  background: #172554;
+  color: #eff6ff;
+}
+
+html.dark .api-signature-subclass > em:first-child {
+  color: #93c5fd;
+}
+
+html.dark .api-signature-method {
+  border-top-color: #9ca3af;
+  background: #1f2937;
+  color: #f9fafb;
+}
+
+html.dark .api-signature-method > em:first-child {
+  color: #d1d5db;
+}
+
+/* Distinguish executed notebook output from the code that produced it. */
+.myst-jp-nb-block > .myst-code + div:has(
+  .myst-jp-safe-output-text,
+  .jp-OutputArea-child,
+  img,
+  svg,
+  table
+) {
+  padding: 0.25rem 0 0.25rem 0.9rem;
+  overflow-x: auto;
+  border-left: 4px solid #6b7280;
+}
+
+html.dark .myst-jp-nb-block > .myst-code + div:has(
+  .myst-jp-safe-output-text,
+  .jp-OutputArea-child,
+  img,
+  svg,
+  table
+) {
+  border-left-color: #6b7280;
+}
+
+/* Keep function headings in the page outline while the signature bar is the
+   visible heading in the article. */
+h2:has(+ .api-signature),
+h3:has(+ .api-signature),
+h4:has(+ .api-signature) {
+  width: 1px;
+  height: 3.5rem;
+  margin: 0 0 -3.5rem;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(1.75rem);
+  scroll-margin-top: 1.5rem;
+}
+
+/* Keep the current contents entry visually neutral after it is selected. */
+.myst-outline-item-active {
+  background-color: transparent !important;
+}
+
+body:has(.api-signature) .myst-outline-item a {
+  color: #64748b !important;
+  font-weight: 400 !important;
+}
+
+html.dark body:has(.api-signature) .myst-outline-item a {
+  color: #cbd5e1 !important;
+}
+
+body:has(.api-signature) .myst-outline-item-active {
+  border-left-color: #d1d5db !important;
+}
+
+html.dark body:has(.api-signature) .myst-outline-item-active {
+  border-left-color: #f8fafc !important;
+}
+
+body:has(.api-signature) .myst-outline-item-active:hover {
+  border-left-color: #3b82f6 !important;
+}
+
+.myst-outline-item .api-outline-indent-1 {
+  display: block;
+  margin-left: 1rem;
+}
+
+.myst-outline-item .api-outline-indent-2 {
+  display: block;
+  margin-left: 2rem;
+}
+
+.api-methods {
+  margin: 0 0 2rem 2rem;
+  padding: 0 0 0.75rem 1rem;
+  border-left: 2px solid #d1d5db;
+}
+
+.api-inheritance {
+  margin: -0.25rem 0 1rem 2rem;
+  font-size: 0.9rem;
+}
+
+.api-inheritance p {
+  margin: 0.2rem 0;
+}
+
+.api-inheritance code {
+  background: transparent;
+}
+
+.api-class-children {
+  margin-left: 2rem;
+}
+
+.api-description {
+  margin-left: 2rem;
+}
+
+.api-module-description {
+  margin: 0 0 1.75rem;
+}
+
+.api-group-title {
+  margin: 2rem 0 1rem;
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+.api-group-title p {
+  margin: 0;
+}
+
+.api-field {
+  display: grid;
+  grid-template-columns: minmax(7rem, max-content) minmax(0, 1fr);
+  gap: 0 1.5rem;
+  margin: 1.25rem 0 1.25rem 2rem;
+  align-items: start;
+}
+
+.api-field-name > p,
+.api-field-body > :first-child {
+  margin-top: 0;
+}
+
+.api-field-name > p {
+  font-weight: 700;
+}
+
+.api-field-body ul {
+  margin-bottom: 0;
+  padding-left: 1.25rem;
+}
+
+.api-field-body li {
+  margin: 0.2rem 0;
+}
+
+@media (max-width: 700px) {
+  .api-description,
+  .api-class-children,
+  .api-field,
+  .api-methods {
+    margin-left: 1rem;
+  }
+
+  .api-field {
+    grid-template-columns: 1fr;
+  }
+}
