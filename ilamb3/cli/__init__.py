@@ -259,15 +259,11 @@ def esgf(
             help="The source_id for which you would like to limit the search. Use the option multiple times to specify multiple source_id's."
         ),
     ] = None,
-    variables: Annotated[
+    info: Annotated[
         bool,
         typer.Option(
-            help="Enable to see only a list of variables used in the configure."
+            help="Enable to see information about what data is available for this search."
         ),
-    ] = False,
-    counts: Annotated[
-        bool,
-        typer.Option(help="Enable to see only counts of datasets found in the search."),
     ] = False,
 ) -> None:
     if not HAS_INTAKE:
@@ -278,16 +274,19 @@ def esgf(
 
     import ilamb3.esgf as ile
 
-    intake_esgf.conf.set(print_log_on_error=True)
+    intake_esgf.conf.set(print_log_on_error=True, additional_df_cols=["frequency"])
 
     df_info = ile.get_configure_variables(config)
-    if variables:
-        print(df_info["variable_id"].to_list())
-        return
     cat = ile.get_esgf_catalog(df_info, source_id)
-    if counts:
+    if info:
+        print(f"\nThese variables are required by {str(config)}...")
+        print(df_info)
+        print(
+            "\nThe following are a list of models that have the most of these variables on ESGF..."
+        )
         print(cat.model_groups().to_string())
         return
+
     path_dict = ile.download_esgf_catalog(df_info, cat)
 
     # output CSVs
