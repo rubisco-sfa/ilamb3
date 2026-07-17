@@ -41,7 +41,10 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest", "pytest-cov"]
+dev = [
+    "pytest",
+    "pytest-cov",
+]
 docs = [
   "intake-esgf>=2025.10.22",
   "ipykernel>=7.2.0",
