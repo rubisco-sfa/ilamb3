@@ -23,7 +23,10 @@ def test_get_configure_variables(conf_yaml: Path):
     assert set(["gpp", "GPP"]) == set(df["variable_id"])
 
 
-def test_get__and_download_esgf_catalog(conf_yaml: Path):
+def test_get_and_download_esgf_catalog(conf_yaml: Path):
+    import intake_esgf
+
+    intake_esgf.conf.set(additional_df_cols=["frequency"])
     df = esgf.get_configure_variables(conf_yaml)
     cat = esgf.get_esgf_catalog(df, ["MPI-ESM1-2-HR"])
     yml = esgf.download_esgf_catalog(df, cat)
