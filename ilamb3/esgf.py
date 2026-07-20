@@ -76,13 +76,6 @@ def get_configure_variables_cached(configure_yaml: str, timestamp: str) -> pd.Da
     """
     A cached version of `get_configure_variables` that will only recompute if the configure file has been modified.
     """
-
-    def _freq_min(series: pd.Series) -> str:
-        min_freq = min(
-            series, key=lambda f: ild.CMIP_TIME_FREQUENCY.get(f, float("inf"))
-        )
-        return min_freq
-
     cfg = ilr.parse_benchmark_setup(configure_yaml)
     cfg = ilr._flatten_dict(cfg)
     df = []
@@ -90,10 +83,9 @@ def get_configure_variables_cached(configure_yaml: str, timestamp: str) -> pd.Da
         df += [get_setup_variable_info(setup)]
     df = pd.concat(df, ignore_index=True)
     df = (
-        df.groupby(["variable_id"])
+        df.groupby(["variable_id", "frequency"])
         .agg(
             {
-                "frequency": _freq_min,
                 "tmin": "min",
                 "tmax": "max",
             }
@@ -104,29 +96,34 @@ def get_configure_variables_cached(configure_yaml: str, timestamp: str) -> pd.Da
     return df
 
 
-def esgf_remove_duplicate_tables(cat: ESGFCatalog) -> ESGFCatalog:
+def esgf_remove_duplicate_tables(cat: ESGFCatalog, df: pd.DataFrame) -> ESGFCatalog:
     """
     Remove duplicate tables from the catalog.
 
     Note
     ----
     Sometimes a variable is published twice in possibly multiple tables (like ImonAnt, ImonGre).
-    These will come up in our search but we do not want them if the regular table (Amon, Lmon)
-    entries are available.
+    These will come up in our search but we do not want them.
     """
-    PREFERRED_TABLES = ["Amon", "Lmon", "LImon"]
+    df = df.set_index(["variable_id", "frequency"])
     to_remove = []
-    for _, grp in cat.df.groupby(
-        cat.project.modelgroup_facets()
-        + [
-            cat.project.variable_facet(),
-        ]
+    for (_, _, _, variable_id, frequency), grp in cat.df.groupby(
+        cat.project.modelgroup_facets() + [cat.project.variable_facet(), "frequency"]
     ):
+        # Our search could find too many variables, if this variable/frequency pair
+        # isn't in the information dataframe, remove these from our catalog
+        try:
+            df.loc[variable_id, frequency]
+        except KeyError:
+            to_remove += grp.index.tolist()
+            continue
+
+        # If we make it here, our search may have found a variable that is in multiple
+        # table_id's but that are the same frequency. We just need 1 and duplicates
+        # will cause ILAMB trouble.
         if len(grp) > 1:
-            if grp["table_id"].isin(PREFERRED_TABLES).any():
-                to_remove += grp[~grp["table_id"].isin(PREFERRED_TABLES)].index.tolist()
-            else:
-                to_remove += grp.index[1:].tolist()
+            to_remove += grp.index[1:].tolist()
+
     cat.df = cat.df.drop(to_remove, axis=0)
     return cat
 
@@ -206,7 +203,7 @@ def get_esgf_catalog(
     if source_ids is not None:
         kwargs["source_id"] = source_ids
     cat = ESGFCatalog().search(**kwargs)
-    cat = esgf_remove_duplicate_tables(cat)
+    cat = esgf_remove_duplicate_tables(cat, df)
     cat = esgf_remove_nonmax(cat)
     cat = esgf_prefer_regridded(cat)
     cat.remove_ensembles()
