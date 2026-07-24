@@ -3,14 +3,15 @@
 import pandas as pd
 import xarray as xr
 
+import ilamb3.dataset as ild
+import ilamb3.regions as ilr
 from ilamb3.exceptions import MissingRegion, NoDatabaseEntry
-from ilamb3.regions import Regions
 
 
 def check_quantile_database(dbase: pd.DataFrame | None) -> None:
     if dbase is None:
         raise ValueError("Need a quantile database")
-    missing = set(dbase["region"].unique()) - set(Regions().regions)
+    missing = set(dbase["region"].unique()) - set(ilr.Regions().regions)
     if missing:
         raise MissingRegion(
             "Regional quantile database uses regions with no definition in ilamb3 regions"
@@ -32,8 +33,10 @@ def create_quantile_map(
         raise NoDatabaseEntry
 
     # build a map
-    scalar_map = Regions().region_scalars_to_map(
-        {row["region"]: row["value"] for _, row in q.iterrows()}
+    scalars = {region: value for region, value in zip(q["region"], q["value"])}
+    scalar_map = ilr.Regions().region_scalars_to_map(
+        ild.ones_grid(resolution=0.5), scalars
     )
     scalar_map.attrs["units"] = q.iloc[0]["unit"]
+    scalar_map.name = "quantile"
     return scalar_map

@@ -122,8 +122,8 @@ class spatial_distribution_analysis(ILAMBAnalysis):
         ilamb_regions = ilr.Regions()
         for region in self.regions:
             # Get regional versions
-            rref = ilamb_regions.restrict_to_region(ref[varname], region)
-            rcom = ilamb_regions.restrict_to_region(com[varname], region)
+            rref = ilamb_regions.mask(ref[varname], region)
+            rcom = ilamb_regions.mask(com[varname], region)
 
             # Spatial standard deviation
             ref_std = float(rref.std())

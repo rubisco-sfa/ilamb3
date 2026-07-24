@@ -9,7 +9,7 @@ from matplotlib.colors import LogNorm
 
 import ilamb3
 import ilamb3.dataset as dset
-from ilamb3.regions import Regions
+import ilamb3.regions as ilr
 
 
 def coerce_to_cf_compliance(da: xr.DataArray) -> xr.DataArray:
@@ -199,9 +199,9 @@ def plot_map(da: xr.DataArray, **kwargs):
     da = coerce_to_cf_compliance(da)
 
     # Process region if given
-    ilamb_regions = Regions()
+    ilamb_regions = ilr.Regions()
     region = kwargs.pop("region") if "region" in kwargs else None
-    da = ilamb_regions.restrict_to_region(da, region)
+    da = ilamb_regions.mask(da, region)
 
     # Setup figure and its projection
     extents = get_extents(da)

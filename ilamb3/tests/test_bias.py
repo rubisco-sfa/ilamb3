@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import ilamb3.regions as ilr
 from ilamb3.analysis.bias import bias_analysis
-from ilamb3.regions import Regions
 from ilamb3.tests.test_compare import generate_test_dset
 from ilamb3.tests.test_dataset import generate_test_site_dset
 
@@ -11,7 +11,7 @@ from ilamb3.tests.test_dataset import generate_test_site_dset
 def gen_quantile_dbase(seed=1):
     rs = np.random.RandomState(seed)
     df = []
-    for r in Regions().regions:
+    for r in ilr.Regions().regions:
         for th in [70, 80]:
             df.append(
                 {
@@ -72,9 +72,9 @@ def test_bias_site_collier2018():
 @pytest.mark.parametrize(
     "use_uncertainty,quantile_threshold,score",
     [
-        (True, 80, 0.038101086238025224),
-        (False, 80, 0.03181825609556247),
-        (False, 70, 0.01916371991867042),
+        (True, 80, 0.04895090701120591),
+        (False, 80, 0.03887553457098144),
+        (False, 70, 0.01866760698739086),
     ],
 )
 def test_bias_regionalquantiles(
