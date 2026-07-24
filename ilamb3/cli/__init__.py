@@ -1,3 +1,4 @@
+import sys
 from collections.abc import MutableMapping
 from pathlib import Path
 from typing import Annotated
@@ -126,6 +127,10 @@ def run(
             help="The file or key which provides more regions over which the analysis may be run. Use the option multiple times to specify multiple files."
         ),
     ] = None,
+    region_list: Annotated[
+        bool,
+        typer.Option(help="Enable list the available ilamb3 regions and quit."),
+    ] = False,
     output_path: Annotated[
         Path,
         typer.Option(
@@ -158,8 +163,17 @@ def run(
         list() if region_source is None else [str(r) for r in region_source]
     )
     ilamb3.conf["region_sources"] = region_sources
+    ilamb_regions = ilr.Regions()
     for source in region_sources:
-        ilr.Regions().add_netcdf(ill.load_key_or_filename(str(source)))
+        if source.endswith(".nc"):
+            ilamb_regions.add_region_netcdf(ill.load_key_or_filename(str(source)))
+        elif source.endswith(".yaml") or source.endswith(".yml"):
+            ilamb_regions.add_region_yaml(source)
+        else:
+            raise ValueError("Unrecognized region file format.")
+    if region_list:
+        print(ilamb_regions)
+        sys.exit(0)
 
     # set options
     ilamb3.conf.set(
