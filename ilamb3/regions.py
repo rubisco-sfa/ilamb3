@@ -143,14 +143,17 @@ class RegionLatLon(RegionType):
 
     @property
     def name(self) -> str:
+        """The name of the region."""
         return self._name
 
     @property
     def source(self) -> str:
+        """The source from where the region is derived."""
         return self._source
 
     @property
     def bbox(self) -> tuple[float, float, float, float]:
+        """The latitude/longitude bounding box of the region."""
         return self.lat_min, self.lat_max, self.lon_min, self.lon_max
 
     def mask(self, data: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray:
@@ -176,10 +179,11 @@ class RegionLatLon(RegionType):
     @staticmethod
     def parse_yaml_region(region_yaml_file: Path) -> list[str]:
         """
+        Parse lat/lon bounds regions from the given YAML file.
 
-        Examples
-        --------
-        Custom regions in YAML:
+        Note
+        ----
+        Regions should follow the following YAML example file:
 
         .. code-block:: yaml
 
@@ -209,6 +213,10 @@ class RegionLatLon(RegionType):
 
 
 class RegionNetCDF(RegionType):
+    """
+    A region defined by a DataArray of 1's and 0's.
+    """
+
     def __init__(self, name: str, source: str, da: xr.DataArray):
         self._name = name
         self._source = source
@@ -216,14 +224,17 @@ class RegionNetCDF(RegionType):
 
     @property
     def name(self) -> str:
+        """The name of the region."""
         return self._name
 
     @property
     def source(self) -> str:
+        """The source from where the region is derived."""
         return self._source
 
     @property
     def bbox(self) -> tuple[float, float, float, float]:
+        """The latitude/longitude bounding box of the region."""
         lat_name = ild.get_dim_name(self.da, "lat")
         lon_name = ild.get_dim_name(self.da, "lon")
         lats = xr.where(self.da.any(dim=lon_name), self.da[lat_name], np.nan)
@@ -237,6 +248,7 @@ class RegionNetCDF(RegionType):
 
     @staticmethod
     def mask_dataarray(da: xr.DataArray, da_region: xr.DataArray) -> xr.DataArray:
+        """Mask the input array by the region data array."""
         da, da_region = ilc.adjust_lon(da, da_region)  # type: ignore
         lat_name = ild.get_coord_name(da, "lat")
         lon_name = ild.get_coord_name(da, "lon")
@@ -265,6 +277,9 @@ class RegionNetCDF(RegionType):
         return out
 
     def mask(self, data: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray:
+        """
+        Mask the data that falls outside of this region.
+        """
         if isinstance(data, xr.DataArray):
             out = self.mask_dataarray(data, self.da)
         else:
@@ -279,6 +294,35 @@ class RegionNetCDF(RegionType):
 
     @staticmethod
     def parse_v2_region(ds: xr.Dataset, source: str) -> list[str]:
+        """
+        Parse a set of regions found in the dataset following the ilamb v2 format.
+
+        Note
+        ----
+        Use a integer array to create a 'paint by the numbers' style set of regions.
+        Each integer should be the index that maps to corresponding `labels` and `names`.
+        These arrays can be called anything and rely on the "labels" and "names" attributes
+        of the ids array.
+
+        .. code-block:: text
+
+            netcdf SampleRegions {
+            dimensions:
+                lon = 720 ;
+                lat = 360 ;
+                labels = 5 ;
+                names = 5 ;
+            variables:
+                double lon(lon) ;
+                double lat(lat) ;
+                int64 ids(lat, lon) ;
+                    ids:_FillValue = -1LL ;
+                    ids:labels = "labels" ;
+                    ids:names = "names" ;
+                string labels(labels) ;
+                string names(names) ;
+
+        """
         # Identify the variables that could be the IDs
         possible_id_vars = [v for v, da in ds.items() if ild.is_gridded(da)]
         if not possible_id_vars:
@@ -310,6 +354,36 @@ class RegionNetCDF(RegionType):
 
     @staticmethod
     def parse_cf_region(ds: xr.Dataset, source: str) -> list[str]:
+        """
+        Parse a set of regions found in the dataset following the ilamb cf format.
+
+        Note
+        ----
+        Use a byte array where the possible values are listed in the `flag_values`
+        attribute which is an array of bytes. The label for each region is in a space
+        delimited string in the `flag_meanings` attribute. The name of each region is
+        in a similar string in the `flag_descriptions` attribute.
+
+        .. code-block:: text
+
+            netcdf HUC2_flags {
+            dimensions:
+                lat = 720 ;
+                lon = 1440 ;
+                bnds = 2 ;
+            variables:
+                double lat(lat) ;
+                double lon(lon) ;
+                byte region(lat, lon) ;
+                    region:_FillValue = -127b ;
+                    region:units = "" ;
+                    region:standard_name = "huc2_regions" ;
+                    region:long_name = "USGS Watershed Boundary Dataset Hydrologic Unit Code (HUC) Level 2 Regions" ;
+                    region:flag_values = 0b, 1b, 2b;
+                    region:flag_meanings = "01 02 03" ;
+                    region:flag_descriptions = "New_England_Region Mid_Atlantic_Region South_Atlantic-Gulf_Region" ;
+
+        """
         # Identify the variables that could be the IDs
         possible_id_vars = [v for v, da in ds.items() if ild.is_gridded(da)]
         if not possible_id_vars:
@@ -342,6 +416,10 @@ class RegionNetCDF(RegionType):
 
 
 class Regions:
+    """
+    The main object that manages the ilamb3 regions system.
+    """
+
     _regions: dict[str, RegionType] = {}
 
     def __init__(self):
@@ -349,8 +427,9 @@ class Regions:
             self.register_regions_gfed()
 
     def __repr__(self) -> str:
-        # TODO: Add behavior `ilamb run --region-source Blah.nc --regions-list`
-        # which loads all regions and this prints this to the terminal
+        """
+        A dataframe representation of the regions available in the system.
+        """
         df = (
             pd.DataFrame(
                 [
@@ -370,9 +449,15 @@ class Regions:
 
     @property
     def regions(self) -> list[str]:
+        """
+        The region labels that are registered in the system.
+        """
         return list(Regions._regions.keys())
 
     def get_name(self, label: str) -> str:
+        """
+        Return the name of the region.
+        """
         if label not in Regions._regions:
             raise ValueError(
                 f"The region {label=} is not in the registered regions. Here is what is currently registered:\n\n{self}"
@@ -380,14 +465,22 @@ class Regions:
         return Regions._regions[label].name
 
     def get_source(self, label: str) -> str:
+        """
+        Return the source of the region.
+        """
         if label not in Regions._regions:
             raise ValueError(
                 f"The region {label=} is not in the registered regions. Here is what is currently registered:\n\n{self}"
             )
         return Regions._regions[label].source
 
-    def add_region_yaml(self, data: str | Path):
-        pass
+    def add_region_yaml(self, data: str | Path) -> list[str]:
+        """
+        Add lat/lon bounds regions defined in a YAML file.
+        """
+        labels_added = []
+        labels_added = RegionLatLon.parse_yaml_region(Path(data))
+        return labels_added
 
     def add_region_latlon(
         self,
@@ -399,12 +492,18 @@ class Regions:
         lon_min: float,
         lon_max: float,
     ):
+        """
+        Add a region by lat/lon bounds.
+        """
         self.validate_label(label)
         Regions._regions[label] = RegionLatLon(
             name, source, lat_min, lat_max, lon_min, lon_max
         )
 
     def add_region_netcdf(self, data: str | Path | xr.Dataset) -> list[str]:
+        """
+        Add a region by a netCDF file, ilamb3 data registry key, or dataset.
+        """
         if isinstance(data, xr.Dataset):
             source = data.attrs.get("title", "custom dataset")
         else:
@@ -421,6 +520,18 @@ class Regions:
         label: str | None,
         trim: bool = True,
     ) -> xr.Dataset | xr.DataArray:
+        """
+        Mask the data that falls outside of this region.
+
+        Parameters
+        ----------
+        data
+            The input data.
+        label
+            The region label or identifier in the ilamb3 region system.
+        trim, optional
+            If enabled, removes all but the non-masked data from the array.
+        """
         if label is None:
             return data
         if label not in Regions._regions:
@@ -474,6 +585,9 @@ class Regions:
 
     @staticmethod
     def validate_label(label: str):
+        """
+        Ensure that the label follows the rules and warn if already in the system.
+        """
         if label in Regions._regions:
             warnings.warn(
                 f"The region {label=} already exists, we are overwriting with this new definition."
@@ -488,6 +602,17 @@ class Regions:
     def region_scalars_to_map(
         grid: xr.DataArray, scalars: dict[str, float]
     ) -> xr.DataArray:
+        """
+        Create a map
+
+        Parameters
+        ----------
+        grid
+            The resolution of the output array.
+        scalars
+            A dictionary whose keys are region labels in the ilamb3 system.
+            The values are mapped onto the regions and composed to form a map.
+        """
         # check that regions are part of our system
         regions = Regions()
         diff = set(scalars) - set(regions.regions)
