@@ -42,6 +42,9 @@ def _daymet_hack(ds: xr.Dataset) -> xr.Dataset:
     """
     Our local Daymet data has wrong units on times and I am tired of asking for things to be fixed.
     """
+    for var, da in ds.items():
+        if da.attrs.get("units", "1") == "degrees C":
+            ds[var].attrs["units"] = "degC"
     if not dset.is_temporal(ds):
         return ds
     time_name = dset.get_dim_name(ds, "time")
