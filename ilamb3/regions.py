@@ -404,6 +404,7 @@ class RegionNetCDF(RegionType):
             # This means the dataset does not follow the standard
             return []
         values = da_region.attrs["flag_values"]
+        values = [values] if isinstance(values, np.integer) else values
         labels = [
             str(lbl).lower() for lbl in da_region.attrs["flag_meanings"].split(" ")
         ]
