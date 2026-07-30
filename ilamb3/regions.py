@@ -433,6 +433,7 @@ class Regions:
         """
         A dataframe representation of the regions available in the system.
         """
+        MAXCHAR = 30
         df = (
             pd.DataFrame(
                 [
@@ -440,7 +441,9 @@ class Regions:
                         "Label": label,
                         "Name": region.name,
                         "Type": type(region).__name__,
-                        "Source": region.source,
+                        "Source": region.source
+                        if len(region.source) <= MAXCHAR
+                        else f"{region.source[: (MAXCHAR - 1)]}...",
                     }
                     for label, region in Regions._regions.items()
                 ]
