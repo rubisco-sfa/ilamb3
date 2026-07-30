@@ -408,7 +408,9 @@ class RegionNetCDF(RegionType):
         labels = [
             str(lbl).lower() for lbl in da_region.attrs["flag_meanings"].split(" ")
         ]
-        names = da_region.attrs["flag_descriptions"].split(" ")
+        names = [
+            n.replace("_", " ") for n in da_region.attrs["flag_descriptions"].split(" ")
+        ]
         for value, label, name in zip(values, labels, names):
             da = xr.where(da_region == value, 1, 0)
             Regions.validate_label(label)
