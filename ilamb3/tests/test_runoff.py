@@ -1,14 +1,14 @@
 import numpy as np
 import xarray as xr
 
-from ilamb3.regions import Regions
+import ilamb3.regions as ilr
 from ilamb3.tests.test_compare import generate_test_dset
 from ilamb3.transform.runoff_sensitivity import compute_runoff_sensitivity
 
 
 def test_runoff_sensitivity():
-    ilamb_regions = Regions()
-    ilamb_regions.add_latlon_bounds("test", "test", [-80, 80], [-170, 170])
+    ilamb_regions = ilr.Regions()
+    ilamb_regions.add_region_latlon("test", "test", "test", -80, 80, -170, 170)
     ds = xr.Dataset(
         {
             "pr": 1e3 * generate_test_dset(seed=1, ntime=240, nlat=10, nlon=20)["da"],

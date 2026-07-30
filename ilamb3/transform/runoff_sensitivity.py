@@ -6,20 +6,16 @@ import statsmodels.formula.api as smf
 import xarray as xr
 from tqdm import tqdm
 
-import ilamb3
 import ilamb3.dataset as dset
+import ilamb3.regions as ilr
 from ilamb3.cache import dataframe_cache
 from ilamb3.exceptions import MissingRegion, MissingVariable
-from ilamb3.regions import Regions
 from ilamb3.transform.base import ILAMBTransform
 
 
 class runoff_sensitivity(ILAMBTransform):
     def __init__(self):
-        cat = ilamb3.ilamb_catalog()
-        self.basins = list(
-            set(Regions().add_netcdf(xr.open_dataset(cat.fetch("G-RUN/mrb_basins.nc"))))
-        )
+        self.basins = list(set(ilr.Regions().add_region_netcdf("G-RUN/mrb_basins.nc")))
 
     def required_variables(self) -> list[str]:
         """
@@ -94,7 +90,7 @@ def compute_runoff_sensitivity(
         raise MissingVariable(f"Input dataset is lacking variables: {missing}")
 
     # Check that the basins are in fact registed in the ilamb system
-    ilamb_regions = Regions()
+    ilamb_regions = ilr.Regions()
     missing = set(basins) - set(ilamb_regions.regions)
     if missing:
         raise MissingRegion(f"Input basins are not registered as regions: {missing}")
@@ -128,7 +124,7 @@ def compute_runoff_sensitivity(
 
     def _compute_one_basin(basin: str) -> dict[str, float | str]:
         # Compute the regional mean values per basin
-        dsb = ilamb_regions.restrict_to_region(ds, basin)
+        dsb = ilamb_regions.mask(ds, basin)
         msr = dsb["cell_measures"].fillna(0)
         dsb = dsb.drop_vars(
             [v for v in ds.data_vars if v not in required_vars], errors="ignore"
