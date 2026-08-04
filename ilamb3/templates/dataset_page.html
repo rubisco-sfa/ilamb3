@@ -60,6 +60,14 @@ body {
   font-size: .82rem;
   font-weight: 700;
 }
+.sidebar-control {
+  margin-top: 1rem;
+  padding: 0 1rem;
+}
+.sidebar-control .sidebar-heading {
+  display: block;
+  margin-bottom: .35rem;
+}
 .data-information {
   margin-top: 1.5rem;
 }
@@ -218,30 +226,26 @@ body {
         });
     });
   };
-  function clickMode(mode) {
-    /* make the mode active */
-    document.getElementById("singleModel").classList.remove('active');
-    document.getElementById("allModels").classList.remove('active');
-    document.getElementById(mode).classList.add('active');
-    if (mode == "singleModel") {
-      /* turn on/off appropriate divs */
+  function updateDisplayMode() {
+    var mode = document.getElementById("SelectDisplayMode").value;
+    var perModel = mode == "perModel";
+    document.getElementById("modelControl").hidden = !perModel;
+    document.getElementById("analysisControl").hidden = !perModel;
+    document.getElementById("SelectModel").disabled = !perModel;
+    document.getElementById("SelectAnalysis").disabled = !perModel;
+    if (perModel) {
       document.getElementById("divTable").style.display = "block";
-      atypes.forEach((x, i) => document.getElementById("div" + x).style.display = "block");
       document.getElementById("divAllModels").style.display = "none";
+      updateAnalysis();
     }else{
       document.getElementById("divTable").style.display = "none";
       atypes.forEach((x, i) => document.getElementById("div" + x).style.display = "none");
       document.getElementById("divAllModels").style.display = "block";
-      atypes.forEach((x, i) => document.getElementById(x).classList.remove('active'));
+      updateImages();
     }
   };
-  function clickAnalysis(analysis) {
-    /* turn single model mode on */
-    clickMode("singleModel");
-    /* highlight the active analysis */
-    document.getElementById("Overview").classList.remove('active');
-    atypes.forEach((x, i) => document.getElementById(x).classList.remove('active'));
-    document.getElementById(analysis).classList.add('active');
+  function updateAnalysis() {
+    var analysis = document.getElementById("SelectAnalysis").value;
     /* turn on analysis div */
     if (analysis == "Overview"){
       atypes.forEach((x, i) => document.getElementById("div" + x).style.display = "block");
@@ -255,18 +259,12 @@ body {
     setTable(RNAME, (analysis=="Overview") ? null : analysis);
   };
   function updateRegion() {
-    /* which analysis is active? */
-    var analysis = "Overview"
-    for (const a of atypes) {
-      if(document.getElementById(a).classList.contains("active")){
-        analysis = a;
-        break;
-      }
+    if (document.getElementById("SelectDisplayMode").value == "perModel") {
+      var analysis = document.getElementById("SelectAnalysis").value;
+      var rsel = document.getElementById("SelectRegion");
+      var RNAME = rsel.options[rsel.selectedIndex].value;
+      setTable(RNAME, (analysis=="Overview") ? null : analysis);
     }
-    /* update the table */
-    var rsel = document.getElementById("SelectRegion");
-    var RNAME = rsel.options[rsel.selectedIndex].value;
-    setTable(RNAME, (analysis=="Overview") ? null : analysis);
     updateImages();
   };
   function resizeImages(width) {
@@ -300,58 +298,45 @@ body {
 <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
 <div class="sidebar-sticky">
 
+<!-- Display mode select -->
+<div class="sidebar-control">
+<label class="sidebar-heading" for="SelectDisplayMode">Display Mode</label>
+<select id="SelectDisplayMode" class="form-select" onchange="updateDisplayMode()">
+<option value="perModel" selected>Per model</option>
+<option value="perPlot">Per plot</option>
+</select>
+</div>
+
 <!-- Model select -->
-<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
-<span>Model</span>
-</h6>
-<select id="SelectModel" class="form-select" aria-label="ModelSelect" onclick="updateImages()">
+<div id="modelControl" class="sidebar-control">
+<label class="sidebar-heading" for="SelectModel">Model</label>
+<select id="SelectModel" class="form-select" onchange="updateImages()">
 {% for name in model_names %}
 <option value="{{name}}">{{name}}</option>
 {% endfor %}
 </select>
+</div>
 
 <!-- Region select -->
-<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
-<span>Region</span>
-</h6>
-<select id="SelectRegion" class="form-select" aria-label="RegionSelect" onclick="updateRegion()">
+<div class="sidebar-control">
+<label class="sidebar-heading" for="SelectRegion">Region</label>
+<select id="SelectRegion" class="form-select" onchange="updateRegion()">
 {% for label, name in regions.items() %}
 <option value="{{label}}">{{name}}</option>
 {% endfor %}
 </select>
+</div>
 
-<!-- Mode select -->
-<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
-<span>Mode</span>
-</h6>
-<ul class="nav flex-column">
-<li class="nav-item">
-<a class="nav-link active" id="singleModel" aria-current="page" href="#" onclick="clickAnalysis('Overview')">
-Single Model (All Plots)
-</a>
-</li>
-<li class="nav-item">
-<a class="nav-link" id="allModels" aria-current="page" href="#" onclick="clickMode('allModels')">
-All Models (By Plot)
-</a>
-</li>
-
-<!-- Analyses -->
-<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
-<span>Analysis Types</span>
-</h6>
-<ul class="nav flex-column mb-2">
-<li class="nav-item">
-<a class="nav-link" id="Overview" aria-current="page" href="#" onclick="clickAnalysis('Overview')">
-All
-</a>
-</li>
+<!-- Analysis select -->
+<div id="analysisControl" class="sidebar-control">
+<label class="sidebar-heading" for="SelectAnalysis">Analysis Type</label>
+<select id="SelectAnalysis" class="form-select" onchange="updateAnalysis()">
+<option value="Overview" selected>All analyses</option>
 {% for name in analyses %}
-<li class="nav-item">
-<a class="nav-link" id="{{name}}" href="#" onclick="clickAnalysis('{{name}}')">{{name}}</a>
-</li>
+<option value="{{name}}">{{name}}</option>
 {% endfor %}
-</ul>
+</select>
+</div>
 
 <!--- Data Information -->
 <details id="dataInformation" class="data-information" open>
@@ -443,7 +428,7 @@ window.addEventListener("DOMContentLoaded", () => {
 </div>
 
 <script>
-  clickAnalysis("Overview");
+  updateDisplayMode();
   updateImages();
   resizeImages("32%");
 </script>
