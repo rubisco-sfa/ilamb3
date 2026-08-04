@@ -443,7 +443,7 @@ def run_single_block(
         # Load the comparison data
         try:
             # Match the reference time frequency if possible
-            cmip_time_lbl = ild.get_frequency_label(ref)
+            cmip_time_lbl = setup.get("target_time_freq", ild.get_frequency_label(ref))
             grp = ill.match_frequency(grp, cmip_time_lbl)
             com = ill.load_comparison_data(
                 grp,

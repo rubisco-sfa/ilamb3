@@ -751,7 +751,7 @@ def integrate_space(
     dset = dset.pint.dequantify()
     if region is not None:
         regions = ilreg.Regions()
-        dset = regions.restrict_to_region(dset, region)
+        dset = regions.mask(dset, region)
     if not isinstance(dset, xr.Dataset):
         dset = dset.to_dataset(name=varname)
     var = dset[varname]
@@ -1469,3 +1469,19 @@ def which_cell_measures(
         elif "where sea" in da.attrs["cell_methods"]:
             measures.append("sftof")
     return measures
+
+
+def ones_grid(resolution: float) -> xr.DataArray:
+    """
+    Return a regular lat/lon DataArray of ones at the given resolution.
+    """
+    nlat = int(round(180 / resolution))
+    nlon = int(round(360 / resolution))
+    return xr.DataArray(
+        np.ones((nlat, nlon)),
+        dims=("lat", "lon"),
+        coords={
+            "lat": np.linspace(-90 + 0.5 * resolution, 90 - 0.5 * resolution, nlat),
+            "lon": np.linspace(-180 + 0.5 * resolution, 180 - 0.5 * resolution, nlon),
+        },
+    )

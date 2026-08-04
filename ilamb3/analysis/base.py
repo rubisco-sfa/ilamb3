@@ -156,7 +156,7 @@ def integrate_or_mean(
     if dset.is_gridded(da):
         da = dset.integrate_space(var, varname, region=region, mean=mean, weight=weight)
     elif dset.is_site(da):
-        da = ilr.Regions().restrict_to_region(da, region)
+        da = ilr.Regions().mask(da, region)
         da = da.mean(dim=dset.get_dim_name(da, "site"))
     else:
         raise ValueError(f"Input is neither spatial nor site: {da}")

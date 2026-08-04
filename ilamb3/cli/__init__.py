@@ -1,3 +1,4 @@
+import sys
 from collections.abc import MutableMapping
 from pathlib import Path
 from typing import Annotated
@@ -126,6 +127,10 @@ def run(
             help="The file or key which provides more regions over which the analysis may be run. Use the option multiple times to specify multiple files."
         ),
     ] = None,
+    region_list: Annotated[
+        bool,
+        typer.Option(help="Enable list the available ilamb3 regions and quit."),
+    ] = False,
     output_path: Annotated[
         Path,
         typer.Option(
@@ -158,8 +163,17 @@ def run(
         list() if region_source is None else [str(r) for r in region_source]
     )
     ilamb3.conf["region_sources"] = region_sources
+    ilamb_regions = ilr.Regions()
     for source in region_sources:
-        ilr.Regions().add_netcdf(ill.load_key_or_filename(str(source)))
+        if source.endswith(".nc"):
+            ilamb_regions.add_region_netcdf(ill.load_key_or_filename(str(source)))
+        elif source.endswith(".yaml") or source.endswith(".yml"):
+            ilamb_regions.add_region_yaml(source)
+        else:
+            raise ValueError("Unrecognized region file format.")
+    if region_list:
+        print(ilamb_regions)
+        sys.exit(0)
 
     # set options
     ilamb3.conf.set(
@@ -259,15 +273,11 @@ def esgf(
             help="The source_id for which you would like to limit the search. Use the option multiple times to specify multiple source_id's."
         ),
     ] = None,
-    variables: Annotated[
+    info: Annotated[
         bool,
         typer.Option(
-            help="Enable to see only a list of variables used in the configure."
+            help="Enable to see information about what data is available for this search."
         ),
-    ] = False,
-    counts: Annotated[
-        bool,
-        typer.Option(help="Enable to see only counts of datasets found in the search."),
     ] = False,
 ) -> None:
     if not HAS_INTAKE:
@@ -278,16 +288,19 @@ def esgf(
 
     import ilamb3.esgf as ile
 
-    intake_esgf.conf.set(print_log_on_error=True)
+    intake_esgf.conf.set(print_log_on_error=True, additional_df_cols=["frequency"])
 
     df_info = ile.get_configure_variables(config)
-    if variables:
-        print(df_info["variable_id"].to_list())
-        return
     cat = ile.get_esgf_catalog(df_info, source_id)
-    if counts:
+    if info:
+        print(f"\nThese variables are required by {str(config)}...")
+        print(df_info)
+        print(
+            "\nThe following are a list of models that have the most of these variables on ESGF..."
+        )
         print(cat.model_groups().to_string())
         return
+
     path_dict = ile.download_esgf_catalog(df_info, cat)
 
     # output CSVs

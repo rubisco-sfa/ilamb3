@@ -15,10 +15,10 @@ import pandas as pd
 import xarray as xr
 
 import ilamb3.plot as ilp
+import ilamb3.regions as ilr
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
 from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name
-from ilamb3.regions import Regions
 
 
 @dataclass
@@ -320,9 +320,9 @@ class relationship_analysis(ILAMBAnalysis):
             ds = ds.rename({v: f"{v}_{region}" for v in list(ds.variables)})
             for key, da in ds.items():
                 if "ancillary_variables" in da.attrs:
-                    ds[key].attrs[
-                        "ancillary_variables"
-                    ] = f"{da.attrs['ancillary_variables']}_{region}"
+                    ds[key].attrs["ancillary_variables"] = (
+                        f"{da.attrs['ancillary_variables']}_{region}"
+                    )
             return ds
 
         # Initialize and make comparable
@@ -339,10 +339,10 @@ class relationship_analysis(ILAMBAnalysis):
         dfs = []
         ds_ref = []
         ds_com = []
-        ilamb_regions = Regions()
+        ilamb_regions = ilr.Regions()
         for region in self.regions:
-            refr = ilamb_regions.restrict_to_region(ref, region)
-            comr = ilamb_regions.restrict_to_region(com, region)
+            refr = ilamb_regions.mask(ref, region)
+            comr = ilamb_regions.mask(com, region)
             rel_ref = Relationship(
                 refr[var_dep],
                 refr[var_ind],

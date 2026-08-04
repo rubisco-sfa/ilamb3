@@ -17,9 +17,9 @@ import xarray as xr
 import ilamb3
 import ilamb3.load as ill
 import ilamb3.plot as ilp
+import ilamb3.regions as ilr
 from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.exceptions import MissingVariable
-from ilamb3.regions import Regions
 
 # Map the variable names to something more aesthetic
 NAME_CLEANUP = {
@@ -62,7 +62,11 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
     ):
         # Register basins in the ILAMB region system
         self.basins = list(
-            set(Regions().add_netcdf(ill.load_key_or_filename("G-RUN/mrb_basins.nc")))
+            set(
+                ilr.Regions().add_netcdf(
+                    ill.load_key_or_filename("G-RUN/mrb_basins.nc")
+                )
+            )
         )
         self.output_path = Path(output_path) if output_path is not None else None
 
@@ -210,7 +214,7 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
         rows = []
 
         # Create score maps
-        ilamb_regions = Regions()
+        ilamb_regions = ilr.Regions()
         for model, mod in com.items():
             for var in ["score_psens_obs", "score_tsens_obs"]:
                 title = f"{model} {NAME_CLEANUP['_'.join(var.split('_')[1:])]} Score"
