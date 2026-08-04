@@ -36,6 +36,7 @@ body {
   top: 0;
   height: calc(100vh - 48px);
   padding-top: .5rem;
+  padding-bottom: 1rem;
   overflow-x: hidden;
   overflow-y: auto; /* Scrollable contents if viewport is shorter than content. */
 }
@@ -55,8 +56,50 @@ body {
   color: inherit;
 }
 .sidebar-heading {
-  font-size: .75rem;
-  text-transform: uppercase;
+  color: #343a40;
+  font-size: .82rem;
+  font-weight: 700;
+}
+.data-information {
+  margin-top: 1.5rem;
+}
+.data-information > summary {
+  cursor: pointer;
+  list-style-position: inside;
+}
+.data-information-body {
+  color: #495057;
+  font-size: .82rem;
+  padding: .5rem 1rem 0;
+}
+.data-information-row {
+  margin-bottom: .35rem;
+}
+.data-information-label {
+  color: #6c757d;
+  font-weight: 600;
+}
+.data-source {
+  border-top: 1px solid #dee2e6;
+  margin-top: .5rem;
+  padding-top: .5rem;
+}
+.data-source > summary {
+  color: #495057;
+  cursor: pointer;
+  font-weight: 600;
+}
+.data-source-details {
+  padding: .4rem 0 .2rem 1rem;
+  overflow-wrap: anywhere;
+}
+.processing-steps {
+  margin: .35rem 0 0;
+  padding-left: 1.25rem;
+}
+.processing-parameters {
+  color: #6c757d;
+  font-size: .76rem;
 }
 .navbar-brand {
   padding-top: .75rem;
@@ -255,10 +298,10 @@ body {
 <div class="container-fluid">
 <div class="row">
 <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
-<div class="position-sticky pt-3">
+<div class="sidebar-sticky">
 
 <!-- Model select -->
-<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
 <span>Model</span>
 </h6>
 <select id="SelectModel" class="form-select" aria-label="ModelSelect" onclick="updateImages()">
@@ -268,7 +311,7 @@ body {
 </select>
 
 <!-- Region select -->
-<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
 <span>Region</span>
 </h6>
 <select id="SelectRegion" class="form-select" aria-label="RegionSelect" onclick="updateRegion()">
@@ -278,7 +321,7 @@ body {
 </select>
 
 <!-- Mode select -->
-<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
 <span>Mode</span>
 </h6>
 <ul class="nav flex-column">
@@ -294,7 +337,7 @@ All Models (By Plot)
 </li>
 
 <!-- Analyses -->
-<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1">
 <span>Analysis Types</span>
 </h6>
 <ul class="nav flex-column mb-2">
@@ -311,22 +354,57 @@ All
 </ul>
 
 <!--- Data Information -->
-<h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-<span>Data Information</span>
-</h6>
-<ul class="nav flex-column mb-2">
-{% for label, value in data_information.items() %}
-<li class="nav-item">
-<a class="nav-link">
-<div class="fw-bold">{{label}}</div>
-{{value}}
-</a>
+<details id="dataInformation" class="data-information" open>
+<summary class="sidebar-heading px-3">Data information</summary>
+<div class="data-information-body">
+<div class="data-information-row"><span class="data-information-label">Variable:</span> {{data_information.variable}}</div>
+{% if data_information.derived_from %}
+<div class="data-information-row"><span class="data-information-label">Derived from:</span> {{data_information.derived_from | join(", ")}}</div>
+{% endif %}
+
+<div class="data-information-label mt-3">Sources</div>
+{% for source in data_information.sources %}
+<details class="data-source">
+<summary>{{source.variable}}</summary>
+<div class="data-source-details">
+{% for item in source.metadata %}
+<div class="data-information-row"><span class="data-information-label">{{item.label}}:</span> {{item.value}}</div>
+{% endfor %}
+<div class="data-information-row"><span class="data-information-label">File:</span> {{source.path}}</div>
+</div>
+</details>
+{% endfor %}
+
+{% if data_information.processing_steps %}
+<div class="data-information-label mt-3">Processing</div>
+<ol class="processing-steps">
+{% for step in data_information.processing_steps %}
+<li>
+{{step.name}}
+{% if step.parameters %}
+<div class="processing-parameters">
+{% for parameter in step.parameters %}{{parameter.label}}: {{parameter.value}}{% if not loop.last %}; {% endif %}{% endfor %}
+</div>
+{% endif %}
 </li>
 {% endfor %}
-</ul>
+</ol>
+{% endif %}
+</div>
+</details>
 
 </div>
 </nav>
+
+<script>
+window.addEventListener("DOMContentLoaded", () => {
+  const sidebar = document.querySelector(".sidebar-sticky");
+  const dataInformation = document.getElementById("dataInformation");
+  if (sidebar && dataInformation && sidebar.scrollHeight > sidebar.clientHeight) {
+    dataInformation.open = false;
+  }
+});
+</script>
 
 <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
 
