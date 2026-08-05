@@ -355,7 +355,7 @@ def handle_timescale_mismatch(
         return ref, com
     if np.allclose(dt_ref, 365, atol=6) and dt_com < 350:
         logger.info(
-            f"Reference data is annual, computing a annual mean of the comparison  {dt_com=}"
+            f"Reference data is annual, computing an annual mean of the comparison  {dt_com=}"
         )
         com = dset.compute_annual_mean(com)
         return ref, com
