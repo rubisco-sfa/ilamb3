@@ -225,7 +225,12 @@ def _start_worker(cfg_path: Path):
     ilamb3.conf.load(cfg_path)
     ilamb_regions = ilr.Regions()
     for source in ilamb3.conf["region_sources"]:
-        ilamb_regions.add_netcdf(ill.load_key_or_filename(source))
+        if source.endswith(".nc"):
+            ilamb_regions.add_region_netcdf(ill.load_key_or_filename(str(source)))
+        elif source.endswith(".yaml") or source.endswith(".yml"):
+            ilamb_regions.add_region_yaml(source)
+        else:
+            raise ValueError("Unrecognized region file format.")
 
 
 def run_study_parallel(
