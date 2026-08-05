@@ -215,7 +215,7 @@ def augment_setup_with_options(
                     reference_data.loc[ilamb3.conf["quantile_database"], "path"]
                 )
                 setup["quantile_threshold"] = ilamb3.conf["quantile_threshold"]
-                ilr.Regions().add_netcdf(
+                ilr.Regions().add_region_netcdf(
                     xr.load_dataset(reference_data.loc["regions/Whittaker.nc", "path"])
                 )
             except Exception:
