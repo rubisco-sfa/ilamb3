@@ -200,8 +200,10 @@ def test_run(reference_key: str, registry_name: str, score: float):
     with open(str(output_path / "index.html")) as fin:
         html = fin.read()
         assert '<img id="divJunk-r1i1p1f1-gn"' in html
-        assert f"Variable:</span> {variable_id}" in html
-        assert f"<summary>{variable_id}</summary>" in html
+        assert (
+            f'<details class="data-source" open>\n<summary>{variable_id}</summary>'
+            in html
+        )
         assert '<option value="perModel" selected>Per model</option>' in html
         assert '<option value="perPlot">Per plot</option>' in html
         assert '<option value="Overview" selected>All analyses</option>' in html

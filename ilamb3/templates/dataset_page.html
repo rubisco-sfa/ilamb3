@@ -69,16 +69,20 @@ body {
   margin-bottom: .35rem;
 }
 .data-information {
+  border-top: 1px solid #dee2e6;
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
   margin-top: 1.5rem;
+  padding-top: 1rem;
 }
-.data-information > summary {
-  cursor: pointer;
-  list-style-position: inside;
+.data-information > .sidebar-heading {
+  margin: 0;
 }
 .data-information-body {
   color: #495057;
   font-size: .82rem;
-  padding: .5rem 1rem 0;
+  padding: 0 1rem;
 }
 .data-information-row {
   margin-bottom: .35rem;
@@ -88,9 +92,10 @@ body {
   font-weight: 600;
 }
 .data-source {
-  border-top: 1px solid #dee2e6;
   margin-top: .5rem;
-  padding-top: .5rem;
+}
+.data-source:first-of-type {
+  margin-top: 0;
 }
 .data-source > summary {
   color: #495057;
@@ -100,14 +105,6 @@ body {
 .data-source-details {
   padding: .4rem 0 .2rem 1rem;
   overflow-wrap: anywhere;
-}
-.processing-steps {
-  margin: .35rem 0 0;
-  padding-left: 1.25rem;
-}
-.processing-parameters {
-  color: #6c757d;
-  font-size: .76rem;
 }
 .navbar-brand {
   padding-top: .75rem;
@@ -339,17 +336,15 @@ body {
 </div>
 
 <!--- Data Information -->
-<details id="dataInformation" class="data-information" open>
-<summary class="sidebar-heading px-3">Data information</summary>
+<section class="data-information">
+<h6 class="sidebar-heading px-3">Data Information</h6>
 <div class="data-information-body">
-<div class="data-information-row"><span class="data-information-label">Variable:</span> {{data_information.variable}}</div>
 {% if data_information.derived_from %}
 <div class="data-information-row"><span class="data-information-label">Derived from:</span> {{data_information.derived_from | join(", ")}}</div>
 {% endif %}
 
-<div class="data-information-label mt-3">Sources</div>
 {% for source in data_information.sources %}
-<details class="data-source">
+<details class="data-source" open>
 <summary>{{source.variable}}</summary>
 <div class="data-source-details">
 {% for item in source.metadata %}
@@ -359,37 +354,11 @@ body {
 </div>
 </details>
 {% endfor %}
-
-{% if data_information.processing_steps %}
-<div class="data-information-label mt-3">Processing</div>
-<ol class="processing-steps">
-{% for step in data_information.processing_steps %}
-<li>
-{{step.name}}
-{% if step.parameters %}
-<div class="processing-parameters">
-{% for parameter in step.parameters %}{{parameter.label}}: {{parameter.value}}{% if not loop.last %}; {% endif %}{% endfor %}
 </div>
-{% endif %}
-</li>
-{% endfor %}
-</ol>
-{% endif %}
-</div>
-</details>
+</section>
 
 </div>
 </nav>
-
-<script>
-window.addEventListener("DOMContentLoaded", () => {
-  const sidebar = document.querySelector(".sidebar-sticky");
-  const dataInformation = document.getElementById("dataInformation");
-  if (sidebar && dataInformation && sidebar.scrollHeight > sidebar.clientHeight) {
-    dataInformation.open = false;
-  }
-});
-</script>
 
 <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
 
