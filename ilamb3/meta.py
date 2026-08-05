@@ -140,27 +140,32 @@ def generate_dashboard_page(
     bundle = dataframe_to_cmec(df)
     with open(output_path / "scalar_database.json", "w") as out:
         out.write(json.dumps(bundle))
+
+    # don't display standardized scalars if there is only one model
+    config = {
+        "udcJsonLoc": "scalar_database.json",
+        "udcDimSets": {
+            "x_dim": "model",
+            "y_dim": "metric",
+            "fxdim": {
+                "region": df["region"].value_counts().idxmax(),
+                "statistic": "Overall Score",
+            },
+        },
+        "udcScreenHeight": 0,
+        "udcCellValue": 1,
+        "logofile": "None",
+    }
+
+    # display standardized scalars if there is more than one model
+    model_count = df.loc[df["source"] != "Reference", "source"].nunique()
+    if model_count > 1:
+        config["udcNormType"] = "standarized"
+        config["udcNormAxis"] = "row"
+
     with open(output_path / "_lmtUDConfig.json", "w") as out:
-        out.write(
-            json.dumps(
-                {
-                    "udcJsonLoc": "scalar_database.json",
-                    "udcDimSets": {
-                        "x_dim": "model",
-                        "y_dim": "metric",
-                        "fxdim": {
-                            "region": df["region"].value_counts().idxmax(),
-                            "statistic": "Overall Score",
-                        },
-                    },
-                    "udcScreenHeight": 0,
-                    "udcCellValue": 1,
-                    "udcNormType": "standarized",
-                    "udcNormAxis": "row",
-                    "logofile": "None",
-                }
-            )
-        )
+        out.write(json.dumps(config))
+
     template = importlib.resources.open_text(
         "ilamb3.templates", "unified_dashboard.html"
     ).read()

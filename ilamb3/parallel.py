@@ -158,7 +158,9 @@ def _perform_work_phase2(setup, output_path):
     log_file = local_path / "post.log"
     log_file.unlink(missing_ok=True)
     setup = run.augment_setup_with_options(setup, pd.DataFrame())
+    variable = run.select_analysis_variable(setup)
     analyses = run.setup_analyses(setup, local_path)
+    data_information = run._build_data_information(variable, setup)
 
     # get parallel worker information for logging
     comm = get_comm_workers()
@@ -210,7 +212,9 @@ def _perform_work_phase2(setup, output_path):
     # generate an output page
     try:
         ds_ref.attrs["header"] = block_name
-        html = run.generate_html_page(df, ds_ref, ds_com, df_plots)
+        html = run.generate_html_page(
+            df, ds_ref, ds_com, df_plots, data_information
+        )
         with open(local_path / "index.html", mode="w") as out:
             out.write(html)
     except Exception:

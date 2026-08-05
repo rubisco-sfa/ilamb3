@@ -59,6 +59,94 @@ def select_analysis_variable(setup: dict[str, Any]) -> str:
     return variable
 
 
+def _build_data_information(variable: str, setup: dict[str, Any]) -> dict[str, Any]:
+    """
+    Collect reference dataset(s) info and processing steps for the dataset page.
+
+    This function gathers metadata about the reference datasets and the transformations
+    before actually applying them, so if a transform silently passes through, its
+    intended effect is still documented (for better or worse).
+
+    Parameters
+    ----------
+    variable: str
+        The main variable of the analysis.
+    setup: dict
+        A dictionary of keywords parsed from the configure files.
+
+    Returns
+    -------
+    dict
+        A dictionary containing information about the sources and processing steps.
+    """
+    # Collect information about the sources and processing steps for the dataset page.
+    sources = []
+    labels = {
+        "title": "Title",
+        "variable_id": "Variable ID",
+        "institution": "Institution",
+        "version": "Version",
+        "doi": "DOI",
+    }
+    # Iterate over each source and collect its metadata
+    for source_variable, source_path in setup["sources"].items():
+        # Load the dataset for this source and extract the metadata
+        ds = ill.load_key_or_filename(source_path)
+        try:
+            metadata = [
+                {"label": label, "value": ds.attrs[key]}
+                for key, label in labels.items()
+                if key in ds.attrs
+            ]
+        # If there is an error accessing the metadata, still close the dataset
+        finally:
+            ds.close()
+        # Append the collected metadata for this source to the sources list
+        sources.append(
+            {
+                "variable": source_variable,
+                "path": source_path,
+                "metadata": metadata,
+            }
+        )
+
+    # Determine which sources the main variable is derived from
+    source_variables = list(setup["sources"])
+    derived_from = (
+        source_variables
+        if variable not in source_variables or len(source_variables) > 1
+        else []
+    )
+    # Collect information about the processing steps for the dataset page
+    processing_steps = []
+    for transform in setup.get("transforms", []):
+        # Extract the name and parameters of the transformation
+        if isinstance(transform, dict):
+            name, parameters = next(iter(transform.items()))
+        else:
+            name, parameters = transform, {}
+        # Append the transformation details to the processing steps list
+        processing_steps.append(
+            {
+                "name": name.replace("_", " ").capitalize(),
+                "parameters": [
+                    {
+                        "label": key.replace("_", " ").capitalize(),
+                        "value": value,
+                    }
+                    for key, value in parameters.items()
+                ],
+            }
+        )
+    # Return the collected information for the dataset page
+    return {
+        "variable": variable,
+        "derived_from": derived_from,
+        "sources": sources,
+        "processing_steps": processing_steps,
+    }
+
+
 def setup_analyses(
     setup: dict[str, Any], output_path: Path | None
 ) -> dict[ILAMBAnalysis]:
@@ -299,6 +387,7 @@ def run_single_block(
     variable = select_analysis_variable(setup)
     analyses = setup_analyses(setup, output_path)
     transforms = setup_transforms(setup)
+    data_information = _build_data_information(variable, setup)
 
     # Thin out the dataframe to only contain variables we need for this block.
     related_vars = find_related_variables(
@@ -434,7 +523,7 @@ def run_single_block(
             logger.remove(log_id)
             return
         ds_ref.attrs["header"] = block_name
-        html = generate_html_page(df, ds_ref, ds_com, df_plots)
+        html = generate_html_page(df, ds_ref, ds_com, df_plots, data_information)
         with open(output_path / "index.html", mode="w") as out:
             out.write(html)
     except Exception:
@@ -547,6 +636,7 @@ def generate_html_page(
     ref: xr.Dataset,
     com: dict[str, xr.Dataset],
     df_plots: pd.DataFrame,
+    data_information: dict[str, Any],
 ) -> str:
     """
     Generate an html page encoding all analysis data.
@@ -561,6 +651,8 @@ def generate_html_page(
         A dictionary of the comparison datasets whose keys are the model names.
     df_plots : pd.DataFrame
         A dataframe containing plot information and matplotlib axes.
+    data_information : dict
+        Source provenance and processing steps for the data information section.
 
     Returns
     -------
@@ -603,11 +695,7 @@ def generate_html_page(
             for key in df["region"].unique()
         },
         "analyses": analyses,
-        "data_information": {
-            key.capitalize(): ref.attrs[key]
-            for key in ["title", "variable_id", "institution", "version", "doi"]
-            if key in ref.attrs
-        },
+        "data_information": data_information,
         "table_data": str(
             [row.to_dict() for _, row in df.drop(columns="units").iterrows()]
         ).replace("nan", "NaN"),

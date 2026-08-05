@@ -11,6 +11,31 @@ import ilamb3
 import ilamb3.run as run
 
 
+def test_build_data_information(monkeypatch):
+    # Patch the load_key_or_filename func in the run module with this _load_source
+    def _load_source(source):
+        return xr.Dataset(attrs={"title": f"Title for {source}", "version": "1"})
+
+    # Instead of loading the actual dataset from disk, return a synthetic dataset
+    monkeypatch.setattr(run.ill, "load_key_or_filename", _load_source)
+    setup = {
+        "sources": {"hfls": "hfls.nc", "hfss": "hfss.nc"},
+        "transforms": [
+            {"expression": {"expr": "evapfrac = hfls / (hfls + hfss)"}},
+            "depth_gradient",
+        ],
+    }
+
+    info = run._build_data_information("evapfrac", setup)
+
+    assert info["derived_from"] == ["hfls", "hfss"]
+    assert [source["variable"] for source in info["sources"]] == ["hfls", "hfss"]
+    assert [step["name"] for step in info["processing_steps"]] == [
+        "Expression",
+        "Depth gradient",
+    ]
+
+
 def generate_test_dset(
     name: str,
     unit: str,
@@ -175,3 +200,10 @@ def test_run(reference_key: str, registry_name: str, score: float):
     with open(str(output_path / "index.html")) as fin:
         html = fin.read()
         assert '<img id="divJunk-r1i1p1f1-gn"' in html
+        assert (
+            f'<details class="data-source" open>\n<summary>{variable_id}</summary>'
+            in html
+        )
+        assert '<option value="perModel" selected>Per model</option>' in html
+        assert '<option value="perPlot">Per plot</option>' in html
+        assert '<option value="Overview" selected>All analyses</option>' in html

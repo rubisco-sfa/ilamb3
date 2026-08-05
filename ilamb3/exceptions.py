@@ -2,7 +2,7 @@
 
 
 class ILAMBException(Exception):
-    """Exceptions from the intake-esgf package."""
+    """Exceptions from the ilamb package."""
 
 
 class MissingVariable(ILAMBException):
