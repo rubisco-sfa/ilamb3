@@ -35,6 +35,12 @@ defaults = {
         "window_shape": "circle",
         "scale_width_by_grid_resolution": 2.0,  # Can also be None to disable
     },
+    "default_open_kwargs": dict(
+        data_vars="minimal",
+        coords="minimal",
+        compat="override",
+        chunks="auto",
+    ),
 }
 
 
