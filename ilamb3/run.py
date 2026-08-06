@@ -444,7 +444,11 @@ def run_single_block(
         try:
             # Match the reference time frequency if possible
             cmip_time_lbl = setup.get("target_time_freq", ild.get_frequency_label(ref))
-            grp = ill.match_frequency(grp, cmip_time_lbl)
+            if cmip_time_lbl is not None:
+                grp = ill.match_frequency(grp, cmip_time_lbl)
+                logger.info(
+                    f"Matching reference or given {cmip_time_lbl=}, will load the following:\n{grp.to_string}"
+                )
             com = ill.load_comparison_data(
                 grp,
                 variable,
