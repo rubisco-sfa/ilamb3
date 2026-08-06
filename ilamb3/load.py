@@ -95,8 +95,8 @@ def load_key_or_filename(asset_name: str) -> xr.Dataset:
         ds = xr.open_mfdataset(
             sorted(asset_paths),
             preprocess=_daymet_hack,
-            data_vars=None,
             decode_times=xr.coders.CFDatetimeCoder(use_cftime=True),
+            **ilamb3.conf["default_open_kwargs"],
         )
         return ds
     # Finally treat it like relative to ILAMB_ROOT
@@ -106,8 +106,8 @@ def load_key_or_filename(asset_name: str) -> xr.Dataset:
             ds = xr.open_mfdataset(
                 sorted(asset_paths),
                 preprocess=_daymet_hack,
-                data_vars=None,
                 decode_times=xr.coders.CFDatetimeCoder(use_cftime=True),
+                **ilamb3.conf["default_open_kwargs"],
             )
             return ds
     raise FileNotFoundError(f"Could not find {asset_name=}")
@@ -338,8 +338,7 @@ def load_comparison_data(
         var: xr.open_mfdataset(
             sorted((df[df["variable_id"] == var]["path"]).to_list()),
             preprocess=pre_merge,
-            data_vars="minimal",
-            compat="override",
+            **ilamb3.conf["default_open_kwargs"],
         )
         for var in df["variable_id"].unique()
     }

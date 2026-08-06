@@ -92,9 +92,12 @@ def _perform_work_phase1(work, reference_data, output_path):
     # load comparison data
     try:
         # Match the reference time frequency if possible
-        cmip_time_lbl = ild.get_frequency_label(ref)
-        grp = ill.match_frequency(grp, cmip_time_lbl)
-
+        cmip_time_lbl = setup.get("target_time_freq", ild.get_frequency_label(ref))
+        if cmip_time_lbl is not None:
+            grp = ill.match_frequency(grp, cmip_time_lbl)
+            logger.info(
+                f"Matching reference or given {cmip_time_lbl=}, will load the following:\n{grp.to_string()}"
+            )
         com = ill.load_comparison_data(
             grp,
             variable,
@@ -212,9 +215,7 @@ def _perform_work_phase2(setup, output_path):
     # generate an output page
     try:
         ds_ref.attrs["header"] = block_name
-        html = run.generate_html_page(
-            df, ds_ref, ds_com, df_plots, data_information
-        )
+        html = run.generate_html_page(df, ds_ref, ds_com, df_plots, data_information)
         with open(local_path / "index.html", mode="w") as out:
             out.write(html)
     except Exception:
