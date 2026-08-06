@@ -96,7 +96,7 @@ def _perform_work_phase1(work, reference_data, output_path):
         if cmip_time_lbl is not None:
             grp = ill.match_frequency(grp, cmip_time_lbl)
             logger.info(
-                f"Matching reference or given {cmip_time_lbl=}, will load the following:\n{grp.to_string}"
+                f"Matching reference or given {cmip_time_lbl=}, will load the following:\n{grp.to_string()}"
             )
         com = ill.load_comparison_data(
             grp,
