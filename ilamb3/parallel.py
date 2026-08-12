@@ -49,7 +49,6 @@ def _perform_work_phase1(work, reference_data, output_path):
     ref_file = local_path / f"Reference{rank}.nc"
     com_file = local_path / f"{source_name}.nc"
     log_file = local_path / f"{source_name}.log"
-    log_file.unlink(missing_ok=True)
     log_id = logger.add(log_file, backtrace=True, diagnose=True)
     logger.info(f"Start of {block_name} | {source_name}")
     if ilamb3.conf["use_cached_results"] and csv_file.is_file() and com_file.is_file():

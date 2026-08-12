@@ -1052,7 +1052,7 @@ def get_scalar_uncertainty(ds: xr.Dataset, varname: str) -> xr.DataArray:
         # We found an ancillary variable, but does it have the same dims
         out = (
             ds_anc[next(iter(ds_anc))]
-            if set(ds[varname].dims) != set(ds_anc.dims)
+            if set(ds[varname].dims) == set(ds_anc.dims)
             else None
         )
 

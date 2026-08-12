@@ -408,7 +408,6 @@ def run_single_block(
         ref_file = output_path / "Reference.nc"
         com_file = output_path / f"{source_name}.nc"
         log_file = output_path / f"{source_name}.log"
-        log_file.unlink(missing_ok=True)  # start each log empty
         log_id = logger.add(log_file, backtrace=True, diagnose=True)
         logger.info(f"Start of {block_name} | {source_name}")
 
