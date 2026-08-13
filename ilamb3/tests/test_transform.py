@@ -10,6 +10,7 @@ import ilamb3.transform.aggregate as agg
 from ilamb3.tests.test_run import generate_test_dset
 from ilamb3.transform import ALL_TRANSFORMS
 from ilamb3.transform.daily_threshold_index import _ensure_daily
+from ilamb3.transform.expression import expression
 
 PYTHON_VARIABLE = r"\b[a-zA-Z_][a-zA-Z0-9_]*\b"
 
@@ -184,7 +185,8 @@ DATA = {
             "gpp_quantile",
             1.900311397084699,
         ),
-        ("agg_time_on_condition",
+        (
+            "agg_time_on_condition",
             {
                 "condname": "wet_months",
                 "cond": "pr > 4 [mm d-1]",
@@ -317,3 +319,20 @@ def test_ensure_daily(calendar, freq):
         }
     )
     _ensure_daily(ds["da"], "max")
+
+
+def test_expression_drop_rhs():
+    ds = xr.merge(
+        [
+            generate_test_dset(
+                "rsus", "W m-2", nyear=1, nlat=2, nlon=4, scale=150.0, shift=0.0
+            ),
+            generate_test_dset(
+                "rsds", "W m-2", nyear=1, nlat=2, nlon=4, scale=300.0, shift=0.0
+            ),
+        ]
+    )
+    out = expression(expr="net_rs = rsds - rsus", drop_rhs=True)(ds)
+    assert "rsds" not in out
+    out = expression(expr="net_rs = rsds - rsus", drop_rhs=False)(ds)
+    assert "rsds" in out
