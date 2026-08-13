@@ -32,6 +32,8 @@ class expression(ILAMBTransform):
         a single valid Python identifier that names the output variable. The right-hand
         side must be a valid Python expression that references one or more existing
         dataset variables by name.
+    drop_rhs : bool, optional
+        Disable to keep the ``rhs_vars`` in the returned dataset. Set to true by default.
     **kwargs : Any
         Additional keyword arguments passed to the base :class:`ILAMBTransform` class.
 
@@ -98,7 +100,8 @@ class expression(ILAMBTransform):
         Evaluate the expression and assign the result to ``ds``.
 
         Returns ``ds`` unchanged if the output variable already exists or if any
-        required variable is missing. The input dataset is modified in place.
+        required variable is missing. The input dataset is modified in place, but
+        will drop the right hand side variables if the expression is applied.
         """
 
         # Check if lhs variable already exists or if rhs variables are missing
