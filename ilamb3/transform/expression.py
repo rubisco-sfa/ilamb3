@@ -74,7 +74,7 @@ class expression(ILAMBTransform):
 
     """
 
-    def __init__(self, expr: str, **kwargs: Any):
+    def __init__(self, expr: str, drop_rhs: bool = True, **kwargs: Any):
 
         assert "=" in expr
         self.expression = expr.split("=")[1]
@@ -83,6 +83,7 @@ class expression(ILAMBTransform):
         lhs, rhs = expr.split("=")
         self.lhs_vars = re.findall(PYTHON_VARIABLE, lhs)
         self.rhs_vars = re.findall(PYTHON_VARIABLE, rhs)
+        self.drop_rhs = drop_rhs
         assert len(self.lhs_vars) == 1
         assert len(self.rhs_vars) > 0
 
@@ -114,6 +115,10 @@ class expression(ILAMBTransform):
             {"__builtins__": {}},
             {key: ds[key].pint.quantify() for key in self.rhs_vars},
         ).pint.dequantify()
+
+        # Optionally drop RHS variables
+        if self.drop_rhs:
+            ds = ds.drop_vars(self.rhs_vars)
 
         # Prepare attributes for the new variable
         ds[lhs].attrs["standard_name"] = lhs
