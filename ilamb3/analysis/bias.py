@@ -317,7 +317,15 @@ class bias_analysis(ILAMBAnalysis):
 
         # Integrate uncertainty over time like we did with mean
         if dset.is_temporal(uncert):
-            uncert = dset.integrate_time(uncert, mean=True)
+            # We may need the time bounds
+            ds_uncert = uncert.to_dataset()
+            time_name = dset.get_dim_name(ref, "time")
+            try:
+                tb = dset.get_bounds_variable(ref, time_name)
+                ds_uncert[tb.name] = tb
+            except ValueError:
+                pass
+            uncert = dset.integrate_time(ds_uncert, varname="uncert", mean=True)
 
         # Carry it into out_ref so plots() can pick it up via com["Reference"]
         if self.use_uncertainty:
