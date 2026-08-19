@@ -26,6 +26,69 @@ from ilamb3.analysis.base import (
 from ilamb3.exceptions import AnalysisNotAppropriate, NoUncertainty
 
 
+def evaluate_rmse(
+    ref: xr.Dataset,
+    com: xr.Dataset,
+    varname: str,
+    ref_uncertainty: xr.DataArray,
+    method: Literal["Collier2018", "RegionalQuantiles"],
+) -> xr.Dataset:
+    """
+    Compute the rmse and score between the reference and comparison datasets.
+
+    Parameters
+    ----------
+    ref : xr.Dataset
+        The reference dataset containing the variable to compare and its uncertainty.
+    com : xr.Dataset
+        The comparison dataset containing the variable to compare.
+    varname : str
+        The name of the variable to compare in both datasets.
+    ref_uncertainty : xr.DataArray
+        The uncertainty associated with the reference dataset variable, used to discount
+        the error.
+    method : str
+        The name of the scoring methodology to use, either `Collier2018` or
+        `RegionalQuantiles`.
+
+    Returns
+    -------
+    xr.Dataset
+        A dataset containing "rmse_{varname}" and "score_{varname}"
+    """
+
+    # Regrid ref and com in place
+    if dset.is_gridded(ref[varname]) and dset.is_gridded(com[varname]):
+        ref, com, ref_uncertainty = cmp.nest_spatial_grids(ref, com, ref_uncertainty)
+        # Datasets are returned, select the da
+        ref_uncertainty = ref_uncertainty[next(iter(ref_uncertainty))]
+
+    # Compute the centralized difference, and then take the difference
+    ref_c = ref[varname] - dset.integrate_time(ref, varname, mean=True)
+    com_c = com[varname] - dset.integrate_time(com, varname, mean=True)
+    diff = com_c - ref_c
+
+    # Calculate per-pixel rmse and score using specified method
+    discounted_diff = (np.abs(diff) - ref_uncertainty).clip(0)
+    rmse = np.sqrt(dset.integrate_time((com_c - ref_c) ** 2, mean=True))
+    centralized_rms = np.sqrt(dset.integrate_time(ref_c**2, mean=True))
+    centralized_rmse = np.sqrt(dset.integrate_time(discounted_diff**2, mean=True))
+    relative_error = centralized_rmse / centralized_rms
+    match method:
+        case "Collier2018":
+            score = np.exp(-relative_error)
+        case "RegionalQuantiles":
+            raise NotImplementedError()
+        case _:
+            raise ValueError(f"Unknown method: {method}")
+
+    # Create the output dataset with diff scalar, score scalar
+    out = xr.Dataset({f"rmse_{varname}": rmse, f"score_{varname}": score})
+    out[f"rmse_{varname}"].attrs["units"] = ref[varname].attrs["units"]
+    out[f"score_{varname}"].attrs["units"] = 1
+    return out
+
+
 class rmse_analysis(ILAMBAnalysis):
     """
     The ILAMB RMSE methodology.
@@ -137,64 +200,39 @@ class rmse_analysis(ILAMBAnalysis):
             raise AnalysisNotAppropriate()
 
         # Before operating on these, compute spatial means
-        ds_ref = {}
-        ds_com = {}
+        out_ref = xr.Dataset()
+        out_com = xr.Dataset()
         for region in self.regions:
-            ds_ref[f"trace_{region}"] = integrate_or_mean(
+            out_ref[f"trace_{region}"] = integrate_or_mean(
                 ref, varname, region, mean=True
             )
-            ds_com[f"trace_{region}"] = integrate_or_mean(
+            out_com[f"trace_{region}"] = integrate_or_mean(
                 com, varname, region, mean=True
             )
 
-        # Move calendars
+        # Unify the calendars
         ref = cmp.convert_calendar_monthly_noleap(ref)
         com = cmp.convert_calendar_monthly_noleap(com)
 
         # Get the reference data uncertainty, only use if present and desired
-        args = [ref, com]
+        uncert = xr.zeros_like(ref[varname])  # Default uncertainty is 0
         if self.use_uncertainty:
             try:
                 uncert = dset.get_scalar_uncertainty(ref, varname)
-                args.append(uncert)
             except (NoUncertainty, ValueError):
                 self.use_uncertainty = False
-                uncert = None
 
-        # Conversions
-        if self.use_uncertainty:
-            ref, com, uncert = cmp.nest_spatial_grids(
-                ref[varname], com[varname], uncert.fillna(0)
-            )
-        else:
-            ref, com = cmp.nest_spatial_grids(ref[varname], com[varname])
-
-        # Compute the RMSE and score
-        rmse = np.sqrt(dset.integrate_time((com - ref) ** 2, varname, mean=True))
-        rmse.attrs["units"] = ref[varname].attrs["units"]
-        ref_mean = dset.integrate_time(ref, varname, mean=True)
-        com_mean = dset.integrate_time(com, varname, mean=True)
-        crmse = np.sqrt(
-            dset.integrate_time(
-                (
-                    np.abs((com - com_mean) - (ref - ref_mean))
-                    - (uncert if self.use_uncertainty else 0.0)
-                ).clip(min=0)
-                ** 2,
-                varname,
-                mean=True,
-            )
+        out_nested = evaluate_rmse(ref, com, varname, uncert, "Collier2018")
+        out_nested = out_nested.rename(
+            {k: k.split("_")[0].replace("score", "rmsescore", 1) for k in out_nested}
         )
-        crms = np.sqrt(dset.integrate_time((ref - ref_mean) ** 2, varname, mean=True))
-        score = np.exp(-crmse / crms)
-        score.attrs["units"] = "1"
+        out_com = xr.merge([out_com, out_nested], compat="override")
 
-        # Load outputs and scalars
-        ds_com["rmse"] = rmse
-        ds_com["rmsescore"] = score
         df = []
         for region in self.regions:
-            val, unit = scalarify(rmse, "rmse", region, mean=True, unit=self.plot_unit)
+            val, unit = scalarify(
+                out_com["rmse"], "rmse", region, mean=True, unit=self.plot_unit
+            )
             df += [
                 {
                     "source": "Comparison",
@@ -206,7 +244,7 @@ class rmse_analysis(ILAMBAnalysis):
                     "value": val,
                 },
             ]
-            val, _ = scalarify(score, "rmsescore", region, mean=True)
+            val, _ = scalarify(out_com["rmsescore"], "rmsescore", region, mean=True)
             df += [
                 {
                     "source": "Comparison",
@@ -220,9 +258,7 @@ class rmse_analysis(ILAMBAnalysis):
             ]
 
         df = pd.DataFrame(df)
-        ds_ref = xr.merge([ds_ref], compat="override")
-        ds_com = xr.merge([ds_com], compat="override")
-        return df, ds_ref, ds_com
+        return df, out_ref, out_com
 
     def plots(
         self, df: pd.DataFrame, ref: xr.Dataset, com: dict[str, xr.Dataset], path: Path
