@@ -1044,8 +1044,47 @@ def separate_bounds(ds: xr.Dataset, varname: str) -> xr.Dataset:
 def get_scalar_uncertainty(ds: xr.Dataset, varname: str) -> xr.Dataset:
     """
     Get a scalar uncertainty from the variable if present.
-    """
 
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The dataset from which we want to extract uncertainty.
+    varname : str
+        The name of the xr.DataArray for which we want the uncertainty.
+
+    Returns
+    -------
+    xr.Dataset
+        The scalar uncertainty (see note) along with the time bounds if temporal
+        and present in the parent dataset.
+
+    Note
+    ----
+    This function will return a measure of the *scalar* uncertainty. That is, if
+    two-sided confidence intervals or bounds are given, we will reduce them to
+    an single average value by harmonic mean. Uncertainty may be specified by
+    attributes in the parent variable, `ds[varname].attrs`. We support a few
+    options.
+
+    1. The `ancillary_variables` attribute. See the
+       [CF-conventions](https://cfconventions.org/Data/cf-conventions/cf-conventions-1.13/cf-conventions.html#ancillary-data)
+       for more details. The value of this attribute should be a space delimited
+       string that identifies `xr.DataArray`(s) in the parent `ds` that
+       represents the uncertainty in 3 possible forms:
+        a. A single variable representing a standard deviation or standard
+           error.
+        b. A single variable representing the coefficient of variation. We will
+           look for this designation in the attributes and then scale by the
+           `ds[varname]` to return a standard deviation.
+        c. Two variables representing a range or a confidence interval. We will
+           subtract the `ds[varname]` and then return the harmonic mean.
+    2. The `bounds` attribute [legacy]. The value of this attribute should be a
+       string that identifies another `xr.DataArray` in the parent `ds` that
+       represents the uncertainty. As the name suggests, this uncertainty as if
+       it were bounds surrounding the values of `ds[varname]` meaning that its
+       shape should be `ds[varname].shape + (2,)`. The first of these slots is
+       the lower bound and the last is the upper bound.
+    """
     # Initialize to nothing
     anc = None
 
