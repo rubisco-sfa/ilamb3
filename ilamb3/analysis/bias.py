@@ -311,21 +311,13 @@ class bias_analysis(ILAMBAnalysis):
         uncert = xr.zeros_like(out_ref["mean"])  # Default uncertainty is 0
         if self.use_uncertainty:
             try:
-                uncert = dset.get_scalar_uncertainty(ref, varname)
+                ds_unc = dset.get_scalar_uncertainty(ref, varname)
+                if dset.is_temporal(ds_unc):
+                    uncert = dset.integrate_time(ds_unc, varname="uncert", mean=True)
+                else:
+                    uncert = ds_unc["uncert"]
             except (NoUncertainty, ValueError):
                 self.use_uncertainty = False
-
-        # Integrate uncertainty over time like we did with mean
-        if dset.is_temporal(uncert):
-            # We may need the time bounds
-            ds_uncert = uncert.to_dataset()
-            time_name = dset.get_dim_name(ref, "time")
-            try:
-                tb = dset.get_bounds_variable(ref, time_name)
-                ds_uncert[tb.name] = tb
-            except ValueError:
-                pass
-            uncert = dset.integrate_time(ds_uncert, varname="uncert", mean=True)
 
         # Carry it into out_ref so plots() can pick it up via com["Reference"]
         if self.use_uncertainty:

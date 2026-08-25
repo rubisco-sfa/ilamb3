@@ -1041,7 +1041,7 @@ def separate_bounds(ds: xr.Dataset, varname: str) -> xr.Dataset:
     return xr.Dataset({"low": bnd.isel({bnd_dim: 0}), "high": bnd.isel({bnd_dim: 1})})
 
 
-def get_scalar_uncertainty(ds: xr.Dataset, varname: str) -> xr.DataArray:
+def get_scalar_uncertainty(ds: xr.Dataset, varname: str) -> xr.Dataset:
     """
     Get a scalar uncertainty from the variable if present.
     """
@@ -1089,10 +1089,16 @@ def get_scalar_uncertainty(ds: xr.Dataset, varname: str) -> xr.DataArray:
             raise ValueError(f"Unexpected (>2) number of ancillary variables:\n{anc=}")
 
     # Finalize the uncertainty
-    out = xr.DataArray(out)
-    out.name = "uncert"
+    out = xr.DataArray(out).to_dataset(name="uncert")
     if "units" not in out.attrs:
-        out.attrs["units"] = ds[varname].attrs["units"]
+        out["uncert"].attrs["units"] = ds[varname].attrs["units"]
+
+    # If the uncertainty is temporal associate the time bounds from the parent dataset
+    try:
+        tb = get_bounds_variable(ds, get_dim_name(ds, "time"))
+        out[tb.name] = tb
+    except (ValueError, KeyError):
+        pass
     return out
 
 
