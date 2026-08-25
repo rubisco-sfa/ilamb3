@@ -70,7 +70,7 @@ def evaluate_rmse(
 
     # Calculate per-pixel rmse and score using specified method
     discounted_diff = (np.abs(diff) - ref_uncertainty).clip(0)
-    rmse = np.sqrt(dset.integrate_time((com_c - ref_c) ** 2, mean=True))
+    rmse = np.sqrt(dset.integrate_time((com[varname] - ref[varname]) ** 2, mean=True))
     centralized_rms = np.sqrt(dset.integrate_time(ref_c**2, mean=True))
     centralized_rmse = np.sqrt(dset.integrate_time(discounted_diff**2, mean=True))
     relative_error = centralized_rmse / centralized_rms
