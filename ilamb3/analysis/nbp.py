@@ -158,7 +158,7 @@ class nbp_analysis(ILAMBAnalysis):
         com = _carbon_accumulation(com)
 
         # Trajectory score
-        uncert = dset.get_scalar_uncertainty(ref, "nbp")
+        uncert = dset.get_scalar_uncertainty(ref, "nbp")["uncert"]
         bounds = dset.get_interval_uncertainty(ref, "nbp")
         bnd_dim = bounds.dims[-1]
         # Only count errors outside of the envelope for scoring
@@ -172,7 +172,7 @@ class nbp_analysis(ILAMBAnalysis):
         ref_val = float(ref["nbp"].sel(year=self.evaluation_year))
         com_val = float(com["nbp"].sel(year=self.evaluation_year))
         try:
-            uncert = dset.get_scalar_uncertainty(ref, "anbp")
+            uncert = dset.get_scalar_uncertainty(ref, "anbp")["uncert"]
         except NoUncertainty:
             uncert = xr.zeros_like(ref["anbp"])
         uncert_val = float(uncert.sel(year=self.evaluation_year))
