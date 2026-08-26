@@ -63,14 +63,22 @@ def evaluate_rmse(
         # Datasets are returned, select the da
         ref_uncertainty = ref_uncertainty[next(iter(ref_uncertainty))]
 
-    # Compute the centralized difference, and then take the difference
-    ref_c = ref[varname] - dset.integrate_time(ref, varname, mean=True)
+    # Compute the RMSE in the normal way
+    rmse = np.sqrt(dset.integrate_time((com[varname] - ref[varname]) ** 2, mean=True))
+
+    # For scoring, remove the bias from each source
+    ref_mean = dset.integrate_time(ref, varname, mean=True)
+    ref_c = ref[varname] - ref_mean
+    ref_uncertainty = ref_uncertainty - ref_mean
     com_c = com[varname] - dset.integrate_time(com, varname, mean=True)
-    diff = com_c - ref_c
 
     # Calculate per-pixel rmse and score using specified method
-    discounted_diff = (np.abs(diff) - ref_uncertainty).clip(0)
-    rmse = np.sqrt(dset.integrate_time((com[varname] - ref[varname]) ** 2, mean=True))
+    bnds_dim = dset.get_dim_name(ref_uncertainty, "bounds")
+    discounted_diff = xr.where(
+        com_c > ref_c,
+        (com_c - ref_uncertainty.isel({bnds_dim: 1})).clip(0),
+        (ref_uncertainty.isel({bnds_dim: 0}) - com_c).clip(0),
+    )
     centralized_rms = np.sqrt(dset.integrate_time(ref_c**2, mean=True))
     centralized_rmse = np.sqrt(dset.integrate_time(discounted_diff**2, mean=True))
     relative_error = centralized_rmse / centralized_rms
@@ -215,10 +223,12 @@ class rmse_analysis(ILAMBAnalysis):
         com = cmp.convert_calendar_monthly_noleap(com)
 
         # Get the reference data uncertainty, only use if present and desired
-        uncert = xr.zeros_like(ref[varname])  # Default uncertainty is 0
+        uncert = xr.concat(
+            [ref[varname], ref[varname]], dim="uncert_bnds"
+        )  # Default uncertainty is 0
         if self.use_uncertainty:
             try:
-                uncert = dset.get_scalar_uncertainty(ref, varname)
+                uncert = dset.get_interval_uncertainty(ref, varname)
             except (NoUncertainty, ValueError):
                 self.use_uncertainty = False
 

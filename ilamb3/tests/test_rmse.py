@@ -26,7 +26,9 @@ def test_rmse_collier2018(use_uncertainty: bool, rmse: float, score: float):
     )
     df, _, _ = analysis(ref, com)
     assert len(df) == 2
-    assert np.allclose(df[df["name"] == "RMSE"].iloc[0]["value"], rmse)
+    assert np.allclose(
+        df[df["name"] == "RMSE"].iloc[0]["value"], rmse, rtol=1e-14, atol=1e-14
+    )
     assert np.allclose(df[df["name"] == "RMSE Score"].iloc[0]["value"], score)
 
 
