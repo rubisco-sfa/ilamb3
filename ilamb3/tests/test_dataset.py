@@ -51,7 +51,7 @@ def generate_test_site_dset(seed: int = 1, ntime: int = 5):
         data_vars={
             "da": xr.DataArray(
                 rs.rand(len(time), lat.size) * 1e-8,
-                coords={"time": time},
+                coords={"time": time, "site": ["A", "B", "C", "D"]},
                 dims=["time", "site"],
             ),
         }

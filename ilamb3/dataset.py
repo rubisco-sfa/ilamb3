@@ -34,7 +34,7 @@ def _get_bnds_dims(dset: xr.Dataset | xr.DataArray) -> list[str]:
 
 def get_dim_name(
     dset: xr.Dataset | xr.DataArray,
-    dim: Literal["time", "lat", "lon", "depth", "site"],
+    dim: Literal["time", "lat", "lon", "depth", "site", "bounds"],
 ) -> str:
     """
     Return the name of the `dim` dimension from the dataset.
@@ -43,7 +43,7 @@ def get_dim_name(
     ----------
     dset : xr.Dataset or xr.DataArray
         The input dataset/dataarray.
-    dim : str, one of {`time`, `lat`, `lon`, `depth`, `site`}
+    dim : str, one of {`time`, `lat`, `lon`, `depth`, `site`, `bounds`}
         The dimension to find in the dataset/dataarray.
 
     Returns
@@ -89,6 +89,13 @@ def get_dim_name(
             return possible_names[0]
         msg = f"Ambiguity in locating a site dimension, found: {possible_names}"
         raise NoSiteDimension(msg)
+    if dim == "bounds":
+        possible = set(dset.dims).difference(dset.coords)
+        if len(possible) == 1:
+            return possible.pop()
+        raise KeyError(
+            f"Ambiguity in determinging the `bounds` dimension, found: {possible} in\n\n{dset}"
+        )
     possible_names = dim_names[dim]
     dim_name = set(dset.dims).intersection(possible_names)
     if len(dim_name) != 1:
@@ -1150,54 +1157,64 @@ def get_interval_uncertainty(ds: xr.Dataset, varname: str) -> xr.DataArray:
     Uncertainty is indicated either by the presence of the `ancillary_variables`
     attribute or the `bounds` attribute.
     """
+    # Initialize to nothing
+    bnds = None
 
-    def _get_bound_dim(da: xr.DataArray) -> str | None:
-        possible = set(da.dims).difference(da.coords)
-        if len(possible) > 1:
-            raise ValueError(
-                f"Ambiguity in determinging the `bounds` dimension, found: {possible} in\n\n{da}"
-            )
-        if len(possible) == 0:
-            return None
-        return possible.pop()
-
-    # What ancillary/bounds variables are found?
+    # Legacy formats allow for uncertainty to be encoded in a DataArray pointed
+    # to by a variable's `bounds` attribute.
     try:
-        ds_anc = get_ancillary_variable(ds, varname)
+        bnds = get_bounds_variable(ds, varname).to_dataset()
     except ValueError:
-        ds_anc = None
-    try:
-        da_bnd = get_bounds_variable(ds, varname)
-    except ValueError:
-        da_bnd = None
+        pass
 
-    # Handle if we find ancillary variables
-    if ds_anc is not None:
-        if len(ds_anc) == 1:
-            # Only 1 ancillary variable present, but does it represent a bounds?
-            da_bnd = ds[next(iter(ds_anc))]
-            bnd_dim = _get_bound_dim(da_bnd)
-            if bnd_dim is None:
-                raise NoUncertainty("Only scalar uncertainty present.")
-        elif len(ds_anc) == 2:
-            # Assume that the 2 variables found form a bounds and create it
-            da_bnd = xr.concat(
-                [da for _, da in ds_anc.items()], dim="uncert_bnds"
-            ).transpose()
-        else:
-            raise ValueError(
-                f"Uncertainty can only be encoded with 1 or 2 ancillary variables, I found {ds_anc=}."
+    # The current best practice is to encode uncertainty as ancillary
+    # variable(s).
+    if bnds is None:
+        try:
+            bnds = get_ancillary_variable(ds, varname)
+        except ValueError:
+            pass
+
+    # If we are at this point, there is no uncertainty encoded.
+    if bnds is None or not bnds:
+        raise NoUncertainty
+
+    # Now that we have ancillary data retrieved, handle the difference cases.
+    # This assumes that no non-uncertainty related ancillary data is present.
+    out = None
+    match len(bnds):
+        case 1:
+            da = bnds[next(iter(bnds))]
+            try:
+                # The bounds were already encoded as intervals
+                _ = get_dim_name(da, "bounds")
+                out = da
+            except KeyError:
+                pass
+            # The bounds encoded something more like a std, create an interval
+            if out is None:
+                out = xr.concat([ds[varname] - da, ds[varname] + da], dim="uncert_bnds")
+        case 2:
+            # Assuming that these are confidence intervals, merge then into 1
+            # creating a new dimension and ensuring that the lower value is in
+            # the 0 slot.
+            out = xr.concat(
+                [
+                    bnds[k]
+                    for k in sorted(
+                        [key for key in bnds], key=lambda key: bnds[key].mean()
+                    )
+                ],
+                dim="uncert_bnds",
             )
+        case _:
+            raise ValueError(f"Unexpected (>2) number of ancillary variables:\n{bnds=}")
 
-    # If we get here and this is still none, we have no uncertainty
-    if da_bnd is None:
-        raise NoUncertainty()
-
-    # Cleanup name and units
-    if "units" not in da_bnd.attrs:
-        da_bnd.attrs["units"] = ds[varname].attrs["units"]
-    da_bnd.name = "uncert"
-    return da_bnd
+    # Finalize the uncertainty
+    out = xr.DataArray(out, name="uncert")
+    if "units" not in out.attrs:
+        out.attrs["units"] = ds[varname].attrs["units"]
+    return out
 
 
 def fix_missing_bounds_attrs(ds: xr.Dataset) -> xr.Dataset:
