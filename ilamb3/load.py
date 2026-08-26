@@ -95,8 +95,8 @@ def load_key_or_filename(asset_name: str) -> xr.Dataset:
         ds = xr.open_mfdataset(
             sorted(asset_paths),
             preprocess=_daymet_hack,
-            data_vars=None,
             decode_times=xr.coders.CFDatetimeCoder(use_cftime=True),
+            **ilamb3.conf["default_open_kwargs"],
         )
         return ds
     # Finally treat it like relative to ILAMB_ROOT
@@ -106,8 +106,8 @@ def load_key_or_filename(asset_name: str) -> xr.Dataset:
             ds = xr.open_mfdataset(
                 sorted(asset_paths),
                 preprocess=_daymet_hack,
-                data_vars=None,
                 decode_times=xr.coders.CFDatetimeCoder(use_cftime=True),
+                **ilamb3.conf["default_open_kwargs"],
             )
             return ds
     raise FileNotFoundError(f"Could not find {asset_name=}")
@@ -338,21 +338,20 @@ def load_comparison_data(
         var: xr.open_mfdataset(
             sorted((df[df["variable_id"] == var]["path"]).to_list()),
             preprocess=pre_merge,
-            data_vars="minimal",
-            compat="override",
+            **ilamb3.conf["default_open_kwargs"],
         )
         for var in df["variable_id"].unique()
     }
     # Remove measure variables that aren't needed, we don't know until the
     # datasets are loaded
-    measures_used = functools.reduce(
-        operator.or_,
-        [
-            set(dset.which_cell_measures(ds, var))
-            for var, ds in com.items()
-            if var not in ["areacella", "sftlf", "areacello", "sftof"]
-        ],
-    )
+    measures_per_ds = [
+        set(dset.which_cell_measures(ds, var))
+        for var, ds in com.items()
+        if var not in ["areacella", "sftlf", "areacello", "sftof"]
+    ]
+    measures_used = set()
+    if measures_per_ds:
+        measures_used = functools.reduce(operator.or_, measures_per_ds)
     for unused in set(["areacella", "sftlf", "areacello", "sftof"]) - measures_used:
         com.pop(unused, None)
     logger.info(f"Found these variables={list(com.keys())}")
@@ -372,6 +371,10 @@ def load_comparison_data(
     # Fix bounds attributes (there is a bounds variable but it isn't in the
     # attributes)
     com = {var: dset.fix_missing_bounds_attrs(ds) for var, ds in com.items()}
+    if not com:
+        raise VarNotInModel(
+            f"Could not find or create '{variable_id}' from model variables {list(df['variable_id'].unique())}"
+        )
     # Merge all the data together
     if len(com) > 1:
         # The grids should be the same, but sometimes models generate output

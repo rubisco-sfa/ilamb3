@@ -12,6 +12,7 @@ cSoil/Koven/fracpeat_0.5x0.5.nc sha1:fa7cab1379c66baf7c1977d3c4c676ee9678de49
 cSoil/Koven/npp_0.5x0.5.nc sha1:9df054f37fb451214ce4aa158d34c4cbdda0a264
 cSoil/Koven/pet_0.5x0.5.nc sha1:634353ebb15811db69aeeb752aaa348eea54a4bd
 cSoil/NCSCDV22/soilc_0.5x0.5.nc sha1:605efa69f547277309eca87cb581374dd3a76000
+cSoil/SoilGrids2/soilgrids2_cSoil.nc sha1:ce2e2e5cd323c57fbc81bcefd3c72d77544ddddd
 cSoil/Wang2024/wang2024_cSoil.nc sha1:aa0121a465cb631ca15b47a39f5fc581522e708c
 dtr/CRU4.02/dtr.nc sha1:6df77d8b941742df4c0f24c3c226ac3eebe01b09
 evspsbl/DOLCE/DOLCE.nc sha1:1eea9627efde39e31a00774b5e164be20a2f4457

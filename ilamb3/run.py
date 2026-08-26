@@ -303,7 +303,7 @@ def augment_setup_with_options(
                     reference_data.loc[ilamb3.conf["quantile_database"], "path"]
                 )
                 setup["quantile_threshold"] = ilamb3.conf["quantile_threshold"]
-                ilr.Regions().add_netcdf(
+                ilr.Regions().add_region_netcdf(
                     xr.load_dataset(reference_data.loc["regions/Whittaker.nc", "path"])
                 )
             except Exception:
@@ -408,7 +408,6 @@ def run_single_block(
         ref_file = output_path / "Reference.nc"
         com_file = output_path / f"{source_name}.nc"
         log_file = output_path / f"{source_name}.log"
-        log_file.unlink(missing_ok=True)  # start each log empty
         log_id = logger.add(log_file, backtrace=True, diagnose=True)
         logger.info(f"Start of {block_name} | {source_name}")
 
@@ -444,7 +443,11 @@ def run_single_block(
         try:
             # Match the reference time frequency if possible
             cmip_time_lbl = setup.get("target_time_freq", ild.get_frequency_label(ref))
-            grp = ill.match_frequency(grp, cmip_time_lbl)
+            if cmip_time_lbl is not None:
+                grp = ill.match_frequency(grp, cmip_time_lbl)
+                logger.info(
+                    f"Matching reference or given {cmip_time_lbl=}, will load the following:\n{grp.to_string()}"
+                )
             com = ill.load_comparison_data(
                 grp,
                 variable,

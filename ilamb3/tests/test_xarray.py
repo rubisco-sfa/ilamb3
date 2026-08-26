@@ -37,7 +37,7 @@ def test_open_mfdataset(files):
     ds = xr.open_mfdataset(
         [cat.fetch(f"test/{f}") for f in files],
         preprocess=fix_lndgrid_coords,
-        data_vars="minimal",
+        **ilamb3.conf["default_open_kwargs"],
     )
     for c in ["lat", "lon"]:
         check_coord_bounds(ds, c)

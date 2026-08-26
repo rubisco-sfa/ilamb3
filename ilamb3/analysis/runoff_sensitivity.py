@@ -63,7 +63,7 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
         # Register basins in the ILAMB region system
         self.basins = list(
             set(
-                ilr.Regions().add_netcdf(
+                ilr.Regions().add_region_netcdf(
                     ill.load_key_or_filename("G-RUN/mrb_basins.nc")
                 )
             )

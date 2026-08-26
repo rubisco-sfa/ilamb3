@@ -32,6 +32,8 @@ class expression(ILAMBTransform):
         a single valid Python identifier that names the output variable. The right-hand
         side must be a valid Python expression that references one or more existing
         dataset variables by name.
+    drop_rhs : bool, optional
+        Disable to keep the ``rhs_vars`` in the returned dataset. Set to true by default.
     **kwargs : Any
         Additional keyword arguments passed to the base :class:`ILAMBTransform` class.
 
@@ -74,7 +76,7 @@ class expression(ILAMBTransform):
 
     """
 
-    def __init__(self, expr: str, **kwargs: Any):
+    def __init__(self, expr: str, drop_rhs: bool = True, **kwargs: Any):
 
         assert "=" in expr
         self.expression = expr.split("=")[1]
@@ -83,6 +85,7 @@ class expression(ILAMBTransform):
         lhs, rhs = expr.split("=")
         self.lhs_vars = re.findall(PYTHON_VARIABLE, lhs)
         self.rhs_vars = re.findall(PYTHON_VARIABLE, rhs)
+        self.drop_rhs = drop_rhs
         assert len(self.lhs_vars) == 1
         assert len(self.rhs_vars) > 0
 
@@ -97,7 +100,8 @@ class expression(ILAMBTransform):
         Evaluate the expression and assign the result to ``ds``.
 
         Returns ``ds`` unchanged if the output variable already exists or if any
-        required variable is missing. The input dataset is modified in place.
+        required variable is missing. The input dataset is modified in place, but
+        will drop the right hand side variables if the expression is applied.
         """
 
         # Check if lhs variable already exists or if rhs variables are missing
@@ -114,6 +118,10 @@ class expression(ILAMBTransform):
             {"__builtins__": {}},
             {key: ds[key].pint.quantify() for key in self.rhs_vars},
         ).pint.dequantify()
+
+        # Optionally drop RHS variables
+        if self.drop_rhs:
+            ds = ds.drop_vars(self.rhs_vars)
 
         # Prepare attributes for the new variable
         ds[lhs].attrs["standard_name"] = lhs

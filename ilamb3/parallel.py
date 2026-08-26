@@ -49,7 +49,6 @@ def _perform_work_phase1(work, reference_data, output_path):
     ref_file = local_path / f"Reference{rank}.nc"
     com_file = local_path / f"{source_name}.nc"
     log_file = local_path / f"{source_name}.log"
-    log_file.unlink(missing_ok=True)
     log_id = logger.add(log_file, backtrace=True, diagnose=True)
     logger.info(f"Start of {block_name} | {source_name}")
     if ilamb3.conf["use_cached_results"] and csv_file.is_file() and com_file.is_file():
@@ -92,9 +91,12 @@ def _perform_work_phase1(work, reference_data, output_path):
     # load comparison data
     try:
         # Match the reference time frequency if possible
-        cmip_time_lbl = ild.get_frequency_label(ref)
-        grp = ill.match_frequency(grp, cmip_time_lbl)
-
+        cmip_time_lbl = setup.get("target_time_freq", ild.get_frequency_label(ref))
+        if cmip_time_lbl is not None:
+            grp = ill.match_frequency(grp, cmip_time_lbl)
+            logger.info(
+                f"Matching reference or given {cmip_time_lbl=}, will load the following:\n{grp.to_string()}"
+            )
         com = ill.load_comparison_data(
             grp,
             variable,
@@ -212,9 +214,7 @@ def _perform_work_phase2(setup, output_path):
     # generate an output page
     try:
         ds_ref.attrs["header"] = block_name
-        html = run.generate_html_page(
-            df, ds_ref, ds_com, df_plots, data_information
-        )
+        html = run.generate_html_page(df, ds_ref, ds_com, df_plots, data_information)
         with open(local_path / "index.html", mode="w") as out:
             out.write(html)
     except Exception:
@@ -229,7 +229,12 @@ def _start_worker(cfg_path: Path):
     ilamb3.conf.load(cfg_path)
     ilamb_regions = ilr.Regions()
     for source in ilamb3.conf["region_sources"]:
-        ilamb_regions.add_netcdf(ill.load_key_or_filename(source))
+        if source.endswith(".nc"):
+            ilamb_regions.add_region_netcdf(ill.load_key_or_filename(str(source)))
+        elif source.endswith(".yaml") or source.endswith(".yml"):
+            ilamb_regions.add_region_yaml(source)
+        else:
+            raise ValueError("Unrecognized region file format.")
 
 
 def run_study_parallel(
