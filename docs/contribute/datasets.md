@@ -323,38 +323,38 @@ Some coding agents can inspect a repository and execute code directly, while an 
 
 #### 5.a. Prepare the context
 
-Before requesting a conversion script, provide the following information or ask the LLM to inspect it:
+Before requesting a conversion script, you can provide useful information to the LLM, such as:
 
-- The current `ilamb3_data` modules and public functions.
-- `pyproject.toml`, including the existing dependencies.
-- One or two existing conversion scripts for similar datasets.
-- The input dataset structure, preferably the output of printing an `xarray.Dataset` or running `ncdump -h`.
-- The source URL, DOI, citation, license, and retrieval method.
-- The variables to export and any known requirements for their units, dimensions, uncertainties, and missing values.
-- The intended global attributes and output files, if known.
+- The current `ilamb3_data` modules and public functions
+- `pyproject.toml`, including the existing dependencies
+- An existing conversion script for a similar dataset
+- The input dataset structure, preferably the output of printing an `xarray.Dataset` or running `ncdump -h`
+- The source URL, DOI, citation, license, and retrieval method
+- The variables to export and any known requirements for their units, dimensions, uncertainties, and missing values
+- The intended global attributes and output files, if known
 
 If the LLM cannot access the repository, paste the relevant material into the conversation. Avoid pasting complete datasets or large portions of the ILAMB repository. A dataset summary, some API definitions, and closely related examples should provide enough context.
 
 #### 5.b. General guidelines
 
-Ask the LLM to follow these principles:
+Ask the LLM to follow these principles when writing a conversion script:
 
-1. Prefer existing `ilamb3_data` functions for standardizing dimensions, variables, attributes, filenames, and output.
-2. Confirm functions and arguments against the current repository. Do not invent APIs based on documentation, examples, or memory.
-3. Keep `convert.py` short, flat, and specific to the data source. Avoid defining functions or classes where possible, and do not add an `if __name__ == "__main__":` block.
-4. A conversion script does not need to be generalizable. If genuinely reusable behavior is needed, add it to `ilamb3_data` rather than embedding a general-purpose utility in one conversion script.
-5. Make only the smallest necessary changes to `ilamb3_data`, and avoid unrelated refactoring.
-6. Check `pyproject.toml` and use existing dependencies whenever possible. Do not introduce a dependency unless the person prompting the LLM explicitly approves it.
-7. Do not guess scientific metadata. Identify unclear units, coordinate meanings, uncertainty definitions, licenses, citations, and controlled-vocabulary values for human review.
-8. Preserve provenance and reproducibility, including source URLs, retrieval dates, citations, processing history, and deterministic output.
-9. Preserve important characteristics of the source data, including calendars, time and spatial bounds, fill values, uncertainties, coordinate orientation, and data types where appropriate.
-10. Validate the script as far as the available tools permit. Never claim that a command or check passed unless it was actually run. If execution is unavailable, provide the exact commands for the user to run locally and request the results for a second review.
+1. Prefer existing `ilamb3_data` functions for standardizing dimensions, variables, attributes, filenames, and output
+2. Confirm functions and arguments against the current repository; do not invent APIs based on documentation, examples, or memory
+3. Keep `convert.py` short, flat, and specific to the data source; avoid defining functions or classes where possible, and do not add an `if __name__ == "__main__":` block
+4. A conversion script does not need to be generalizable; if genuinely reusable behavior is needed or useful to others, add it to `ilamb3_data` rather than embedding a general-purpose utility into the conversion script
+5. Make only the smallest necessary changes to `ilamb3_data`; avoid unrelated refactoring
+6. Check `pyproject.toml` and use existing dependencies whenever possible; always prompt before introducing a new dependency
+7. Do not guess scientific metadata; identify unclear units, coordinate meanings, uncertainty definitions, licenses, citations, and controlled-vocabulary values for human review
+8. Preserve provenance and reproducibility, including source URLs, retrieval dates, citations, processing history, and deterministic output
+9. Preserve important characteristics of the source data, e.g., calendars, time and spatial bounds, fill values, uncertainties, coordinate orientation, and data types where appropriate
+10. Validate the script as far as the available tools permit; never claim that a command or check passed unless it was actually run; if execution is unavailable, provide the exact commands for the user to run locally and request the results for a second review
 
-You can tell the LLM that [CF Conventions](https://cfconventions.org/) and [Obs4MIPs Data Specifications](https://doi.org/10.5281/zenodo.11500473) are useful references when interpreting metadata and formatting the output.
+You can tell the LLM that [CF Conventions](https://cfconventions.org/) and [Obs4MIPs Data Specifications](https://doi.org/10.5281/zenodo.11500473) are useful references when interpreting metadata and formatting the output if they are able to access them. If the LLM cannot access these references, you can paste relevant excerpts into the conversation.
 
 #### 5.c. Example prompt
 
-The following prompt is designed for a two-pass interaction: the LLM first proposes a plan, then writes the script after you review the plan. To complete the work in one pass, replace the instruction to stop after the plan with an instruction to continue directly to implementation.
+The following prompt is designed for a two-pass interaction: the LLM first proposes a plan, then writes the script after you review the plan.
 
 ```text
 Help me write a short, flat convert.py script for this dataset.
@@ -380,5 +380,7 @@ Input dataset structure (paste xr.Dataset output or ncdump -h):
 Required output variables and any known metadata requirements:
 [PASTE HERE]
 ```
+
+Fill the bracketed sections with the relevant information. The LLM will then propose a plan for the conversion script, which you can review and approve before it generates the code.
 
 Always review the code and output NetCDFs thoroughly before submitting a PR. LLMs never produce a perfectly written code or perfectly formatted dataset on the first try. You especially want to ensure that the global attributes in the NetCDF are accurate and aligned with CF and ODS standards. If you are unsure about any of the metadata, please ask for help from the ILAMB team or consult the CF Conventions and Obs4MIPs Data Specifications.
