@@ -365,25 +365,11 @@ https://github.com/rubisco-sfa/ilamb3-data
 Documentation:
 https://ilamb3.readthedocs.io/en/latest/
 
-Inspect the current repository before coding. Treat its code as authoritative
-because the documentation may be out of date. Check pyproject.toml and do not
-add a dependency without my approval. Confirm every ilamb3_data function and
-argument you use, review one or two similar conversion scripts, and prefer
-existing ilamb3_data utilities for dimensions, metadata, units, filenames,
-and output. If you cannot access a linked resource, say so and ask me to paste
-the relevant files; do not guess the available APIs.
+Inspect the current repository before coding. Treat its code as authoritative because the documentation may be out of date. Check pyproject.toml and do not add a dependency without my approval. Confirm every ilamb3_data function and argument you use, review one or two similar conversion scripts, and prefer existing ilamb3_data utilities for dimensions, metadata, units, filenames, and output. If you cannot access a linked resource, say so and ask me to paste the relevant files; do not guess the available APIs.
 
-Keep the script specific to this data source. Avoid functions, classes, and an
-if __name__ == "__main__": block. If reusable functionality is missing,
-propose the smallest possible library change separately and avoid unrelated
-refactoring. Do not guess scientific metadata; identify anything that needs
-human review.
+Keep the script specific to this data source. Avoid functions, classes, and an `if __name__ == "__main__":` block. If reusable functionality is missing, propose the smallest possible library change separately and avoid unrelated refactoring. Do not guess scientific metadata; identify anything that needs human review.
 
-First give me a brief conversion plan and stop so I can review it. After I
-approve the plan, write the script and validate it as far as your tools permit.
-Never claim a command or check passed unless you actually ran it. If you cannot
-run the conversion, give me the exact local commands to run and tell me which
-outputs to paste back for a second review.
+First give me a brief conversion plan and stop so I can review it. After I approve the plan, write the script and validate it as far as your tools permit. Never claim a command or check passed unless you actually ran it. If you cannot run the conversion, give me the exact local commands to run and tell me which outputs to paste back for a second review.
 
 Dataset source, citation, license, and documentation:
 [PASTE OR LINK HERE]
