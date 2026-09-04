@@ -40,6 +40,7 @@ project:
       file: contribute/index.md
       children:
         - file: contribute/develop.md
+        - file: contribute/datasets.md
         - file: contribute/replicate-docs.md
 site:
   template: book-theme
