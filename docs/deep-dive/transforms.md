@@ -1,14 +1,14 @@
 ---
 kernelspec:
   name: python3
-  display_name: 'Python 3'
+  display_name: "Python 3"
 ---
 
 # Transforms
 
 ## Background
 
-The `ilamb3` methodology focuses on making model-data intercomparisons and follows the rough flow labeled *Simple Workflow* in the following flowchart.
+The `ilamb3` methodology focuses on making model-data intercomparisons and follows the rough flow labeled _Simple Workflow_ in the following flowchart.
 
 ```mermaid
 ---
@@ -27,9 +27,9 @@ graph TD;
 
 We use the reference data to extract a quantity from the model which matches in terms of the variable name as well as a space-time window over which the reference data is defined. For example, in the [quickstart](../getting-started/quickstart.md) tutorial we specified a dataset `WECANN-1-0/obs4MIPs_ColumbiaU_WECANN-1-0_mon_gpp_gn_v20260302.nc` and pointed `ilamb run` at some `CanESM5` model data. When the study was executed, `ilamb3` opened the reference datafile and found the `gpp` variable was defined from 2007-2015. We use this information and the model database to find the equivalent variable from `CanESM5` over the same time range and then pass these two sources into a series of analyses. This procedure works well as many quantities our community measures have direct analogs to model output. However this is not always the case.
 
-Sometimes to find a comparable model output, we need to take *related* model variables and transform them into the desired quantity. This is represented as the flow labeled *Model Transform Workflow*. Consider the `permafrost/Brown2002/Brown2002.nc` dataset which estimates permafrost extent over high latitudes of the northern hemisphere. While it may be that certain models have an internal representation of permafrost extent, it is not a CMIP standard variable that is output. However, the literature has techniques for taking the layered soil temperatures (known in CMIP as `tsl`) and creating an estimate of permafrost extent. So in order to make a comparison to the Brown2002 data, we need to first *transform* the soil temperature data to permafrost extent and then the analysis can be performed.
+Sometimes to find a comparable model output, we need to take _related_ model variables and transform them into the desired quantity. This is represented as the flow labeled _Model Transform Workflow_. Consider the `permafrost/Brown2002/Brown2002.nc` dataset which estimates permafrost extent over high latitudes of the northern hemisphere. While it may be that certain models have an internal representation of permafrost extent, it is not a CMIP standard variable that is output. However, the literature has techniques for taking the layered soil temperatures (known in CMIP as `tsl`) and creating an estimate of permafrost extent. So in order to make a comparison to the Brown2002 data, we need to first _transform_ the soil temperature data to permafrost extent and then the analysis can be performed.
 
-More generically, there may be examples of where both the reference and comparison data need to be transformed before they may be considered comparable (*Both Transform Workflow* from the above flowchart). In `ilamb3` we have assumed that this is always the case and implement transforms in such as way that if no transformation is needed, it is harmlessly skipped.
+More generically, there may be examples of where both the reference and comparison data need to be transformed before they may be considered comparable (_Both Transform Workflow_ from the above flowchart). In `ilamb3` we have assumed that this is always the case and implement transforms in such as way that if no transformation is needed, it is harmlessly skipped.
 
 ## Getting Started
 
@@ -90,14 +90,16 @@ class extent(ILAMBTransform):  # define a class that inherits from the ABC
         return ds
 ```
 
-In words, the above code snippet imports the abstract base class from `ilamb3` and then creates a new class `extent` that *inherits* from it. Then we create a member function named `__call__` and put the content from our function inside. Python has a number of *double under* or *dunder* methods that have special behavior. The `__call__` method will allow us to call an instance of the `extent` class as if it were a function.
+In words, the above code snippet imports the abstract base class from `ilamb3` and then creates a new class `extent` that _inherits_ from it. Then we create a member function named `__call__` and put the content from our function inside. Python has a number of _double under_ or _dunder_ methods that have special behavior. The `__call__` method will allow us to call an instance of the `extent` class as if it were a function.
 
 At the moment, it does not yet seem like we have accomplished much by this change. However, if you try to create an instance of this class we have built,
 
 ```python
 my_transform = extent()
 ```
+
 you should see that python throws an error:
+
 ```
 TypeError: Can't instantiate abstract class extent without an implementation for abstract methods '__init__','required_variables'
 ```
@@ -168,6 +170,7 @@ from intake_esgf import ESGFCatalog
 cat = (
     ESGFCatalog()
     .search(
+        project="CMIP6",
         experiment_id="historical",
         source_id="NorESM2-LM",
         variable_id=["tsl"],

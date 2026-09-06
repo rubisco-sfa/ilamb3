@@ -1,7 +1,7 @@
 ---
 kernelspec:
   name: python3
-  display_name: 'Python 3'
+  display_name: "Python 3"
 ---
 
 # Create Model CSVs
@@ -14,6 +14,7 @@ This tutorial will teach you how to download CMIP data and create CSV files whic
 from intake_esgf import ESGFCatalog
 
 cat = ESGFCatalog().search(
+    project="CMIP6",
     quiet=True,
     experiment_id="historical",
     source_id="CanESM5",

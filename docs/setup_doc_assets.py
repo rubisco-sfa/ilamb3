@@ -117,6 +117,7 @@ def basic_canesm5():
     cat = (
         ESGFCatalog()
         .search(
+            project="CMIP6",
             experiment_id="historical",
             source_id="CanESM5",
             variable_id=["gpp", "areacella", "sftlf"],
