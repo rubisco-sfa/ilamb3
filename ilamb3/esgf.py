@@ -202,7 +202,7 @@ def get_esgf_catalog(
     )
     if source_ids is not None:
         kwargs["source_id"] = source_ids
-    cat = ESGFCatalog().search(**kwargs)
+    cat = ESGFCatalog().search(project="CMIP6", **kwargs)
     cat = esgf_remove_duplicate_tables(cat, df)
     cat = esgf_remove_nonmax(cat)
     cat = esgf_prefer_regridded(cat)
@@ -245,6 +245,7 @@ def download_esgf_catalog(
         for var in ["areacella", "sftlf"]:
             tmp = cat.clone()
             tmp.search(
+                project="CMIP6",
                 source_id=source_id,
                 grid_label=grid_label,
                 variable=var,
