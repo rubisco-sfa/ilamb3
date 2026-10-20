@@ -19,7 +19,7 @@ def gen_quantile_dbase(seed=1):
                     "region": r,
                     "quantile": th,
                     "type": "bias",
-                    "value": rs.rand(1)[0] * 1e-9,
+                    "value": rs.rand(1)[0] * 1e-8,
                     "unit": "kg m-2 s-1",
                 }
             )
@@ -29,12 +29,12 @@ def gen_quantile_dbase(seed=1):
 @pytest.mark.parametrize(
     "use_uncertainty,mass_weighting,score,table_unit",
     [
-        (True, False, 0.5037343625713414, "kg m-2 s-1"),
-        (False, False, 0.49809129117395395, "kg m-2 s-1"),
-        (True, True, 0.6211524133325482, "kg m-2 s-1"),
-        (False, True, 0.6162697692652096, "kg m-2 s-1"),
-        (True, False, 0.5037343625713414, "mm d-1"),
-        (False, False, 0.49809129117395395, "mm d-1"),
+        (True, False, 0.4983184748844616, "kg m-2 s-1"),
+        (False, False, 0.4951778339502028, "kg m-2 s-1"),
+        (True, True, 0.567780372135865, "kg m-2 s-1"),
+        (False, True, 0.5648973387777889, "kg m-2 s-1"),
+        (True, False, 0.4983184748844616, "mm d-1"),
+        (False, False, 0.4951778339502028, "mm d-1"),
     ],
 )
 def test_bias_collier2018(
@@ -66,15 +66,15 @@ def test_bias_site_collier2018():
     df, _, _ = analysis(ref, com)
     df = df[df["type"] == "score"]
     assert len(df) == 1
-    assert np.allclose(df.iloc[0].value, 0.665078089592162)
+    assert np.allclose(df.iloc[0].value, 0.5708031200575108)
 
 
 @pytest.mark.parametrize(
     "use_uncertainty,quantile_threshold,score",
     [
-        (True, 80, 0.04895090701120591),
-        (False, 80, 0.03887553457098144),
-        (False, 70, 0.01866760698739086),
+        (True, 80, 0.3618864515783624),
+        (False, 80, 0.3551124429197763),
+        (False, 70, 0.03802519550249561),
     ],
 )
 def test_bias_regionalquantiles(
@@ -94,7 +94,6 @@ def test_bias_regionalquantiles(
     )
     df, _, _ = analysis(ref, com)
     df = df[df["type"] == "score"]
-    print(df.iloc[0].value)
     assert len(df) == 1
     assert np.allclose(df.iloc[0].value, score)
 

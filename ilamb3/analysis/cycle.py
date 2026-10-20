@@ -70,6 +70,11 @@ def _compute_cycle_maps(ds: xr.Dataset, varname: str) -> xr.Dataset:
     return ds
 
 
+def _score_shift(abs_shift: xr.DataArray | float) -> xr.DataArray | float:
+    """Score an absolute phase shift in months, where 6 months scores 0."""
+    return 1 - abs_shift / 6
+
+
 def _score_tmax_shift(ref: xr.Dataset, com: xr.Dataset):
     ref, com = cmp.nest_spatial_grids(
         ref.drop_vars(["ampmean", "ampstd", "cycle"]),
@@ -79,10 +84,8 @@ def _score_tmax_shift(ref: xr.Dataset, com: xr.Dataset):
     shift = xr.where(shift > 6, shift - 12, shift)
     shift = xr.where(shift < -6, shift + 12, shift)
     shift.attrs["units"] = "month"
-    score = 1 - np.abs(shift) / 6
-    score.attrs["units"] = "1"
     com["shift"] = shift
-    com["cyclescore"] = score
+    com["cyclescore"] = dset.mark_local_score(_score_shift(np.abs(shift)))
     com = com.drop_vars("tmax")
     return com
 
@@ -188,7 +191,8 @@ class cycle_analysis(ILAMBAnalysis):
         com_nested = _score_tmax_shift(ref, com)
         com = xr.merge([com, com_nested], compat="override")
 
-        # Compute scalars over all regions
+        # Compute scalars over all regions, keeping the nested grid bounds
+        abs_shift = com.assign(shift=np.abs(com["shift"]))
         dfs = []
         for region in self.regions:
             # Regional annual cycles
@@ -209,8 +213,8 @@ class cycle_analysis(ILAMBAnalysis):
                 }
             )
 
-            # Regional cycle scores
-            val, unit = scalarify(com, "cyclescore", region, mean=True)
+            # Regional cycle score, scoring the regional mean absolute shift
+            val, _ = scalarify(abs_shift, "shift", region, mean=True)
             dfs.append(
                 {
                     "source": "Comparison",
@@ -218,8 +222,8 @@ class cycle_analysis(ILAMBAnalysis):
                     "analysis": self.name(),
                     "name": "Seasonal Cycle Score",
                     "type": "score",
-                    "units": unit,
-                    "value": val,
+                    "units": "1",
+                    "value": _score_shift(val),
                 },
             )
 

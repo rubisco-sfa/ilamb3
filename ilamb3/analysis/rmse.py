@@ -17,12 +17,8 @@ import xarray as xr
 import ilamb3.plot as ilp
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
-from ilamb3.analysis.base import (
-    ILAMBAnalysis,
-    get_plot_name,
-    integrate_or_mean,
-    scalarify,
-)
+from ilamb3.analysis import scoring
+from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name, integrate_or_mean
 from ilamb3.exceptions import AnalysisNotAppropriate, NoUncertainty
 
 
@@ -31,10 +27,9 @@ def evaluate_rmse(
     com: xr.Dataset,
     varname: str,
     ref_uncertainty: xr.DataArray,
-    method: Literal["Collier2018", "RegionalQuantiles"],
-) -> xr.Dataset:
+) -> tuple[xr.Dataset, xr.Dataset]:
     """
-    Compute the rmse and score between the reference and comparison datasets.
+    Compute the rmse between the datasets and the statistics of its centralized error.
 
     Parameters
     ----------
@@ -47,14 +42,14 @@ def evaluate_rmse(
     ref_uncertainty : xr.DataArray
         The uncertainty associated with the reference dataset variable, used to discount
         the error.
-    method : str
-        The name of the scoring methodology to use, either `Collier2018` or
-        `RegionalQuantiles`.
 
     Returns
     -------
     xr.Dataset
-        A dataset containing "rmse_{varname}" and "score_{varname}"
+        A dataset containing "rmse_{varname}".
+    xr.Dataset
+        The statistics of the centralized error, see
+        `ilamb3.analysis.scoring.statistics`.
     """
 
     # Regrid ref and com in place
@@ -72,29 +67,22 @@ def evaluate_rmse(
     ref_uncertainty = ref_uncertainty - ref_mean
     com_c = com[varname] - dset.integrate_time(com, varname, mean=True)
 
-    # Calculate per-pixel rmse and score using specified method
+    # The centralized error outside the uncertainty, relative to the reference
     bnds_dim = dset.get_dim_name(ref_uncertainty, "bounds")
     discounted_diff = xr.where(
         com_c > ref_c,
         (com_c - ref_uncertainty.isel({bnds_dim: 1})).clip(0),
         (ref_uncertainty.isel({bnds_dim: 0}) - com_c).clip(0),
     )
-    centralized_rms = np.sqrt(dset.integrate_time(ref_c**2, mean=True))
-    centralized_rmse = np.sqrt(dset.integrate_time(discounted_diff**2, mean=True))
-    relative_error = centralized_rmse / centralized_rms
-    match method:
-        case "Collier2018":
-            score = np.exp(-relative_error)
-        case "RegionalQuantiles":
-            raise NotImplementedError()
-        case _:
-            raise ValueError(f"Unknown method: {method}")
+    stats = scoring.statistics(
+        np.sqrt(dset.integrate_time(discounted_diff**2, mean=True)),
+        np.sqrt(dset.integrate_time(ref_c**2, mean=True)),
+        grid=com,
+    )
 
-    # Create the output dataset with diff scalar, score scalar
-    out = xr.Dataset({f"rmse_{varname}": rmse, f"score_{varname}": score})
+    out = xr.Dataset({f"rmse_{varname}": rmse})
     out[f"rmse_{varname}"].attrs["units"] = ref[varname].attrs["units"]
-    out[f"score_{varname}"].attrs["units"] = 1
-    return out
+    return out, stats
 
 
 class rmse_analysis(ILAMBAnalysis):
@@ -232,17 +220,20 @@ class rmse_analysis(ILAMBAnalysis):
             except (NoUncertainty, ValueError):
                 self.use_uncertainty = False
 
-        out_nested = evaluate_rmse(ref, com, varname, uncert, "Collier2018")
-        out_nested = out_nested.rename(
-            {k: k.split("_")[0].replace("score", "rmsescore", 1) for k in out_nested}
+        out_nested, stats = evaluate_rmse(ref, com, varname, uncert)
+        out_nested = scoring.add_score(
+            out_nested.rename({f"rmse_{varname}": "rmse"}), "rmsescore", stats
         )
         out_com = xr.merge([out_com, out_nested], compat="override")
 
+        rmse = out_com["rmse"]
+        if self.plot_unit is not None:
+            rmse = dset.convert(rmse, self.plot_unit)
+        unit = ilp.coerce_to_cf_compliance(rmse.copy()).attrs["units"]
+
         df = []
         for region in self.regions:
-            val, unit = scalarify(
-                out_com["rmse"], "rmse", region, mean=True, unit=self.plot_unit
-            )
+            # The regional RMSE is the root of the regional mean squared error
             df += [
                 {
                     "source": "Comparison",
@@ -251,10 +242,16 @@ class rmse_analysis(ILAMBAnalysis):
                     "name": "RMSE",
                     "type": "scalar",
                     "units": unit,
-                    "value": val,
+                    "value": float(
+                        np.sqrt(
+                            scoring.aggregate(
+                                scoring.statistics(rmse, grid=stats), region
+                            )["mse"]
+                        )
+                    ),
                 },
             ]
-            val, _ = scalarify(out_com["rmsescore"], "rmsescore", region, mean=True)
+            # RMSE Score, aggregating the statistics over the region before scoring
             df += [
                 {
                     "source": "Comparison",
@@ -263,7 +260,7 @@ class rmse_analysis(ILAMBAnalysis):
                     "name": "RMSE Score",
                     "type": "score",
                     "units": "1",
-                    "value": val,
+                    "value": float(scoring.score(scoring.aggregate(stats, region))),
                 },
             ]
 

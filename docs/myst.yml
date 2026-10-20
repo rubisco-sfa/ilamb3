@@ -28,6 +28,7 @@ project:
       children:
         - file: deep-dive/transforms.md
         - file: deep-dive/analysis.md
+        - file: deep-dive/scoring.md
     - title: Reference
       children:
         - file: reference/glossary.md

@@ -55,3 +55,7 @@ class AnalysisFailure(ILAMBException):
 
     def __str__(self):  # numpydoc ignore=GL08
         return f"The '{self.analysis}' analysis failed for '{self.model}'"
+
+
+class ScoreAggregationError(ILAMBException):
+    """A per-cell score was passed to a function that would aggregate it."""

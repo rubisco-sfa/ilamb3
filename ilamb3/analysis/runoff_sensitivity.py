@@ -18,6 +18,7 @@ import ilamb3
 import ilamb3.load as ill
 import ilamb3.plot as ilp
 import ilamb3.regions as ilr
+from ilamb3.analysis import scoring
 from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.exceptions import MissingVariable
 
@@ -111,10 +112,17 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
             + (ref.isel(sens_type=2) - ref.isel(sens_type=0)) ** 2
         )
 
-        # A score which discounts error in the uncertainty window, not
+        # The statistics of the error outside the uncertainty window, which is not
         # normalized in this case because sensitivities tend to be of consistent
         # order of magnitude?
-        score = np.exp(-((np.abs(bias.isel(sens_type=0)) - uncert).clip(0)))
+        error = (np.abs(bias.isel(sens_type=0)) - uncert).clip(0)
+        stats = {
+            var: scoring.statistics(da, xr.ones_like(da)) for var, da in error.items()
+        }
+        score = {
+            var: float(scoring.score(scoring.aggregate(s, dim=...)))
+            for var, s in stats.items()
+        }
 
         # Drop scores and scalars into the dataframe
         df = pd.DataFrame(
@@ -179,8 +187,8 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
                     "analysis": self.name(),
                     "name": "Score Temperature Sensitivity",
                     "type": "score",
-                    "units": ref["tsens_obs"].attrs["units"],
-                    "value": float(score["tsens_obs"].mean()),
+                    "units": "1",
+                    "value": score["tsens_obs"],
                 },
                 {
                     "source": "Comparison",
@@ -188,8 +196,8 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
                     "analysis": self.name(),
                     "name": "Score Precipitation Sensitivity",
                     "type": "score",
-                    "units": ref["psens_obs"].attrs["units"],
-                    "value": float(score["psens_obs"].mean()),
+                    "units": "1",
+                    "value": score["psens_obs"],
                 },
             ]
         )
@@ -199,8 +207,18 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
             ref[f"uncert_{var}"] = da
         for var, da in bias.items():
             com[f"bias_{var}"] = da
-        for var, da in score.items():
-            com[f"score_{var}"] = da
+        # Per-basin scores, aggregated over forcings and ensemble members, and one
+        # aggregating both sensitivities for the basin plots
+        for var, s in stats.items():
+            com[f"score_{var}"] = scoring.score(
+                scoring.aggregate(s, dim=["foc", "ens"])
+            )
+        com["score_combined"] = scoring.score(
+            scoring.aggregate(
+                xr.concat(list(stats.values()), dim="sensitivity"),
+                dim=["foc", "ens", "sensitivity"],
+            )
+        )
 
         return df, ref, com
 
@@ -216,21 +234,21 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
         # Create score maps
         ilamb_regions = ilr.Regions()
         for model, mod in com.items():
-            for var in ["score_psens_obs", "score_tsens_obs"]:
-                title = f"{model} {NAME_CLEANUP['_'.join(var.split('_')[1:])]} Score"
+            for var in ["psens_obs", "tsens_obs"]:
+                title = f"{model} {NAME_CLEANUP[var]} Score"
                 da = ilamb_regions.region_scalars_to_map(
-                    mod[var].mean(dim=["foc", "ens"]).to_pandas().to_dict()
+                    mod[f"score_{var}"].to_pandas().to_dict()
                 )
                 da.attrs["units"] = 1
                 ax = ilp.plot_map(da, vmin=0, vmax=1, cmap="plasma")
                 rows.append(
                     {
-                        "name": var.replace("_", ""),
+                        "name": f"score{var.replace('_', '')}",
                         "title": title,
                         "region": ilamb3.conf["global_region"],
                         "source": model,
                         "path": path
-                        / f"{model}_{str(ilamb3.conf['global_region'])}_{var.replace('_', '')}.png",
+                        / f"{model}_{str(ilamb3.conf['global_region'])}_score{var.replace('_', '')}.png",
                     }
                 )
                 ax.set_title(title)
@@ -310,10 +328,7 @@ def _basin_plots(
         list(df["group"].dropna().unique()) if ("group" in df and len(com) > 1) else []
     )
 
-    # Scores
-    score = xr.concat(
-        [da for var, da in com[model].items() if "score" in var], dim="score"
-    ).mean(dim=["foc", "ens", "score"])
+    score = com[model]["score_combined"]
 
     # Create the plot
     fig, axs = plt.subplots(

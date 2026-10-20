@@ -93,7 +93,7 @@ We added a keyword argument, `varname`, to specify the variable on which to perf
 - `name`: The name of the scalar generated for this analysis. The name should be descriptive, such as `Mean Absolute Relative Error`, because it will appear in the scalars table displayed in the `ilamb3` dataset pages.
 - `type`: The type of scalar being reported, either `scalar` or `score`.
     - A {term}`scalar` is any statistic you compute; they could represent errors, deviations, means, etc. It can be any value that you think is important to report, and it can be in any units. They will be displayed in the scalars table on the dataset pages.
-    - A {term}`score` is a synthesis of scalars to make it easier to compare performance across models and datasets. They are dimensionaless and values range from 0 to 1 where 1 is considered perfect. If you provide scores, ILAMB will use them to produce an additional "Overall Score."
+    - A {term}`score` is a monotonic function of an error that takes values from 0 to 1, where 1 is perfect, and makes it easier to compare performance across models and datasets. If you provide scores, ILAMB will use them to produce an additional "Overall Score." Compute a regional score by aggregating the error over the region and then applying the score function once; never average a map of scores. See [Scoring](scoring.md) for why, and for the functions that do this.
 - `units`: The units of the scalar, which in this case is dimensionless.
 - `value`: The value of the scalar.
 

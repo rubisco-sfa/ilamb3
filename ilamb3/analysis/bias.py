@@ -17,6 +17,7 @@ import xarray as xr
 import ilamb3.plot as ilp
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
+from ilamb3.analysis import scoring
 from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name, scalarify
 from ilamb3.analysis.quantiles import check_quantile_database, create_quantile_map
 from ilamb3.exceptions import NoDatabaseEntry, NoUncertainty
@@ -28,10 +29,9 @@ def evaluate_difference(
     varname: str,
     error_normalization: xr.DataArray,
     ref_uncertainty: xr.DataArray,
-    method: Literal["Collier2018", "RegionalQuantiles"],
-) -> xr.Dataset:
+) -> tuple[xr.Dataset, xr.Dataset]:
     """
-    Compute the difference and score between the reference and comparison datasets.
+    Compute the difference between the datasets and the statistics of its error.
 
     Parameters
     ----------
@@ -47,14 +47,13 @@ def evaluate_difference(
     ref_uncertainty : xr.DataArray
         The uncertainty associated with the reference dataset variable, used to discount
         the error.
-    method : str
-        The name of the scoring methodology to use, either `Collier2018` or
-        `RegionalQuantiles`.
 
     Returns
     -------
     xr.Dataset
-        A dataset containing diff_{varname} and "score_{varname}"
+        A dataset containing "diff_{varname}".
+    xr.Dataset
+        The statistics of the error, see `ilamb3.analysis.scoring.statistics`.
     """
 
     # Regrid ref and com in place
@@ -70,21 +69,11 @@ def evaluate_difference(
     diff = com[varname] - ref[varname]
     diff.attrs["units"] = ref[varname].attrs["units"]
 
-    # Calculate per-pixel bias score using specified method
-    discounted_diff = (np.abs(diff) - ref_uncertainty).clip(0)
-    relative_error = discounted_diff / np.abs(error_normalization)
-    match method:
-        case "Collier2018":
-            score = np.exp(-relative_error)
-        case "RegionalQuantiles":
-            score = (1.0 - relative_error).clip(0, 1)
-        case _:
-            raise ValueError(f"Unknown method: {method}")
-
-    # Create the output dataset with diff scalar, score scalar
-    out = xr.Dataset({f"diff_{varname}": diff, f"score_{varname}": score})
-    out[f"score_{varname}"].attrs["units"] = 1
-    return out
+    # The error outside the uncertainty, relative to the normalizer
+    stats = scoring.statistics(
+        (np.abs(diff) - ref_uncertainty).clip(0), np.abs(error_normalization), grid=com
+    )
+    return xr.Dataset({f"diff_{varname}": diff}), stats
 
 
 def get_weights(
@@ -328,22 +317,18 @@ class bias_analysis(ILAMBAnalysis):
         # ------------------------------------------------------------------------------
 
         # Now score the difference and merge with the comparison output
-        out_nested = evaluate_difference(
+        out_nested, stats = evaluate_difference(
             out_ref,
             out_com,
             "mean",
             error_norm,  # type: ignore
             uncert,
-            self.method,  # type: ignore
         )
-        # Rename diff_{varname} and score_{varname} to bias and biasscore
-        out_nested = out_nested.rename(
-            {
-                k: k.split("_")[0]
-                .replace("diff", "bias", 1)
-                .replace("score", "biasscore", 1)
-                for k in out_nested
-            }
+        out_nested = scoring.add_score(
+            out_nested.rename({"diff_mean": "bias"}),
+            "biasscore",
+            stats,
+            self.method,  # type: ignore
         )
         out_com = xr.merge([out_com, out_nested], compat="override")
 
@@ -404,8 +389,8 @@ class bias_analysis(ILAMBAnalysis):
                 out_ref_season[f"mean{season}"] = da_ref
                 out_com_season[f"mean{season}"] = da_com
 
-            # Set dummy normalizer and uncertainty because they are used for score
-            # And we won't bother with scores for seasonal means
+            # Set dummy normalizer and uncertainty, which evaluate_difference requires
+            # even though seasonal means are not scored
             error_norm_season = xr.ones_like(out_ref_season[f"mean{self.seasons[0]}"])
             uncert_season = xr.zeros_like(out_ref_season[f"mean{self.seasons[0]}"])
 
@@ -415,22 +400,15 @@ class bias_analysis(ILAMBAnalysis):
 
             per_season_dfs = []
             for season in self.seasons:
-                out_season_nested = evaluate_difference(
+                out_season_nested, _ = evaluate_difference(
                     out_ref_season,
                     out_com_season,
                     f"mean{season}",
                     error_norm_season,
                     uncert_season,
-                    self.method,  # type: ignore
                 )
-
-                # Rename diff_{varname} and score_{varname} to bias{varname} and biasscore{varname}
                 out_season_nested = out_season_nested.rename(
-                    {
-                        k: ("bias" if k.startswith("diff") else "biasscore")
-                        + "".join(k.split("_")[1:]).replace("mean", "")
-                        for k in out_season_nested
-                    }
+                    {f"diff_mean{season}": f"bias{season}"}
                 )
 
                 per_season_dfs.append(out_season_nested)
@@ -534,15 +512,8 @@ class bias_analysis(ILAMBAnalysis):
                         ]
                     )
 
-            # Bias Score
-            val, unit = scalarify(
-                out_com,
-                "biasscore",
-                region,
-                True,
-                weight=weight if self.mass_weighting else None,
-                unit=None,  # bias score is unitless
-            )
+            # Bias Score, aggregating the statistics over the region before scoring
+            regional = scoring.aggregate(stats, region, weight=weight)
             dfs.append(
                 [
                     "Comparison",
@@ -550,8 +521,8 @@ class bias_analysis(ILAMBAnalysis):
                     self.name(),
                     "Bias Score",
                     "score",
-                    unit,
-                    val,
+                    "1",
+                    float(scoring.score(regional, self.method)),  # type: ignore
                 ]
             )
 
