@@ -43,6 +43,11 @@ project:
         - file: contribute/develop.md
         - file: contribute/datasets.md
         - file: contribute/replicate-docs.md
+        - title: Design decisions
+          file: adr/README.md
+          children:
+            - pattern: adr/0*.md
+              sort: ascending
 site:
   template: book-theme
   options:

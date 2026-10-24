@@ -27,15 +27,6 @@ def test_local_score_cannot_be_aggregated(ds):
         integrate_or_mean(ds["da"], "da", None, mean=True)
 
 
-def test_local_score_cannot_be_integrated():
-    ds = generate_test_dset(ntime=12, nlat=10, nlon=20)
-    ds["da"] = dset.mark_local_score(ds["da"])
-    with pytest.raises(ScoreAggregationError):
-        dset.integrate_space(ds, "da", mean=True)
-    with pytest.raises(ScoreAggregationError):
-        dset.integrate_time(ds, "da", mean=True)
-
-
 def test_local_score_flag_survives_arithmetic():
     ds = generate_test_dset(nlat=10, nlon=20)
     ds["da"] = dset.mark_local_score(ds["da"])
@@ -141,8 +132,7 @@ def test_refusal_says_how_to_score_a_region():
     with pytest.raises(ScoreAggregationError) as err:
         dset.integrate_space(ds, "biasscore", mean=True)
     message = str(err.value)
-    assert "scoring.get_statistics(ds, 'biasscore')" in message
-    assert "scoring.score(scoring.aggregate(" in message
+    assert "scoring.regional_score(ds, 'biasscore', region)" in message
     assert "aggregate the error map" in message
 
 
@@ -157,6 +147,8 @@ def test_refusal_says_how_to_score_a_region():
         ("compute_seasonal_climatology", dict(varname="da")),
         ("compute_seasonal_mean", dict(varname="da")),
         ("integrate_depth", dict(varname="da")),
+        ("integrate_space", dict(varname="da", mean=True)),
+        ("integrate_time", dict(varname="da", mean=True)),
         ("std_time", dict(varname="da")),
     ],
 )

@@ -17,6 +17,7 @@ import xarray as xr
 import ilamb3.dataset as dset
 import ilamb3.plot as ilp
 from ilamb3 import compare as cmp
+from ilamb3.analysis import scoring
 from ilamb3.analysis.base import (
     ILAMBAnalysis,
     get_plot_name,
@@ -70,11 +71,6 @@ def _compute_cycle_maps(ds: xr.Dataset, varname: str) -> xr.Dataset:
     return ds
 
 
-def _score_shift(abs_shift: xr.DataArray | float) -> xr.DataArray | float:
-    """Score an absolute phase shift in months, where 6 months scores 0."""
-    return 1 - abs_shift / 6
-
-
 def _score_tmax_shift(ref: xr.Dataset, com: xr.Dataset):
     ref, com = cmp.nest_spatial_grids(
         ref.drop_vars(["ampmean", "ampstd", "cycle"]),
@@ -85,8 +81,9 @@ def _score_tmax_shift(ref: xr.Dataset, com: xr.Dataset):
     shift = xr.where(shift < -6, shift + 12, shift)
     shift.attrs["units"] = "month"
     com["shift"] = shift
-    com["cyclescore"] = dset.mark_local_score(_score_shift(np.abs(shift)))
-    com = com.drop_vars("tmax")
+    # The score is linear in the absolute shift, where 6 months scores 0
+    stats = scoring.statistics(shift, 6.0, grid=com, power=1)
+    com = scoring.add_score(com.drop_vars("tmax"), "cyclescore", stats, "Linear")
     return com
 
 
@@ -191,8 +188,8 @@ class cycle_analysis(ILAMBAnalysis):
         com_nested = _score_tmax_shift(ref, com)
         com = xr.merge([com, com_nested], compat="override")
 
-        # Compute scalars over all regions, keeping the nested grid bounds
-        abs_shift = com.assign(shift=np.abs(com["shift"]))
+        # Compute scalars over all regions
+        stats = scoring.get_statistics(com, "cyclescore")
         dfs = []
         for region in self.regions:
             # Regional annual cycles
@@ -213,17 +210,15 @@ class cycle_analysis(ILAMBAnalysis):
                 }
             )
 
-            # Regional cycle score, scoring the regional mean absolute shift
-            val, _ = scalarify(abs_shift, "shift", region, mean=True)
+            # Regional cycle score, scoring the regional mean absolute shift. It is
+            # not a component of the error, so it carries no normalizer.
             dfs.append(
                 {
                     "source": "Comparison",
                     "region": str(region),
                     "analysis": self.name(),
                     "name": "Seasonal Cycle Score",
-                    "type": "score",
-                    "units": "1",
-                    "value": _score_shift(val),
+                    **scoring.score_row(scoring.aggregate(stats, region), "Linear"),
                 },
             )
 

@@ -1,11 +1,28 @@
 # Scoring
 
-A {term}`score` is a monotonic function $s$
-that maps an error $\varepsilon$ to a value from 0 to 1, where 1 is perfect.
+In `ilamb3`, a {term}`score` is a value from 0 to 1, where 1 is perfect,
+given by applying a score function $s$ to an error $\varepsilon$
+that has been normalized and aggregated
+over a region, a period, or a set of datasets.
 The error measures the difference between the comparison and the reference
 and is 0 when they match.
-The score is a nonincreasing function of the error:
+The score function is decreasing:
 a larger error never receives a higher score.
+Scoring is the procedure that produces a score:
+compute the error, normalize it, aggregate it, and apply $s$ once.
+
+A score in this sense summarizes errors for display and ranking.
+It is not a *scoring function* in the sense of
+[Gneiting (2011)](https://doi.org/10.1198/jasa.2011.r10138),
+a loss of a point forecast and an observation, such as the squared error,
+and not a *scoring rule* in the sense of
+[Gneiting and Raftery (2007)](https://doi.org/10.1198/016214506000001437),
+which evaluates a probabilistic forecast.
+In those terms, `ilamb3` uses the squared error as its scoring function,
+and a score is a decreasing function of its normalized average.
+The reasoning is in
+[ADR 0007](../adr/0007-definition-of-score.md).
+
 Most `ilamb3` scores
 use an exponential score function
 
@@ -13,7 +30,7 @@ $$s(\varepsilon) = e^{-\alpha\varepsilon},$$
 
 where $\alpha > 0$ sets how quickly the score decreases as the error increases.
 
-Because $s$ is nonincreasing,
+Because $s$ is decreasing,
 scoring never reverses the ranking of models that each have a single error.
 In practice, however, a score often summarizes many errors:
 a regional score summarizes the errors in every cell of a region,
@@ -29,6 +46,9 @@ whose errors had not changed.
 `ilamb3` instead aggregates the errors and scores the result once,
 which makes the ranking of models invariant
 to the choice of score function and its parameters.
+The same rule applies to the Overall Score and to the roll-up across datasets
+(see [below](#the-overall-score-and-the-roll-up)),
+for every score computed from a normalized mean squared error.
 
 :::{important} Change from earlier versions
 Scores that earlier versions formed by averaging scores
@@ -44,6 +64,10 @@ The Spatial Distribution, Time Series, Relationship, and Area scores
 are also unaffected,
 because they are computed from statistics of the whole region
 and average no scores.
+The Overall Score has different values,
+because it no longer averages scores
+and leaves out the scores
+that are not computed from a normalized mean squared error.
 :::
 
 ## Order of operations
@@ -103,13 +127,24 @@ $$E = \sqrt{\frac{\sum_i w_i e_i^2}{\sum_i w_i n_i^2}}, \qquad \text{score} = s(
 
 Cells where either square is missing are left out of both sums.
 With mass weighting,
-$w_i$ is also multiplied by the temporal mean of the reference.
+$w_i$ is also multiplied by the temporal mean of the reference,
+which `scoring.weighted` folds into both statistics.
 
 | Analysis | Error $e_i$ | Normalizer $n_i$ |
 |---|---|---|
 | Bias | $\lvert \text{bias} \rvert$, less the reference uncertainty | reference standard deviation in time (the reference mean if it has no time dimension), or a regional quantile |
 | RMSE | centralized RMSE, less the reference uncertainty | centralized RMS of the reference |
 | Hydro | $\lvert \text{difference} \rvert$ of an annual or seasonal mean | reference standard deviation in time, of annual means or of the values within the season |
+| nbp Trajectory | accumulated nbp outside the uncertainty envelope, in each year | reference uncertainty |
+| Time Series Bias | difference of the period means | reference period mean |
+
+The Seasonal Cycle and Dispersion scores are linear in their errors,
+the absolute phase shift (normalized by 6 months)
+and the Hellinger distance (normalized by 1),
+so they aggregate the absolute error instead of its square
+(`scoring.statistics(error, norm, power=1)`)
+and score $\max(0, 1 - E)$,
+with $E = \sum_i w_i \lvert e_i \rvert / \sum_i w_i \lvert n_i \rvert$.
 
 $E$ is therefore the ratio of the root-mean-square error
 to the root-mean-square normalizer.
@@ -153,8 +188,8 @@ an array derived from a score map, such as `1 - score`, is also refused.
 Reductions called directly on xarray objects,
 such as `score.mean()`, are not checked.
 
-The Bias, RMSE, and Hydro analyses save each score map
-with the statistics it was computed from,
+Every analysis that writes a score map
+saves it with the statistics it was computed from and the score method,
 in a variable with the suffix `_statistics`, such as `biasscore_statistics`.
 A regional score can then be recomputed exactly from an analysis output file:
 
@@ -163,11 +198,11 @@ import xarray as xr
 from ilamb3.analysis import scoring
 
 ds = xr.load_dataset("MODEL.nc")  # the comparison output of an analysis
-stats = scoring.get_statistics(ds, "biasscore")
-value = float(scoring.score(scoring.aggregate(stats, region=None)))
+value = scoring.regional_score(ds, "biasscore", region=None)
 ```
 
-With mass weighting, pass the same weight to `aggregate`.
+Mass weights are folded into the saved statistics,
+so the recomputed score is also mass weighted.
 
 An analysis that adds a score should follow the same pattern:
 
@@ -182,7 +217,61 @@ stats = scoring.statistics(error, ref_std, grid=com)
 # A local score map, saved with its statistics
 out_com = scoring.add_score(out_com, "myscore", stats)
 
-# A regional score: aggregate the statistics, then score them once
+# A row of the results table for each region: aggregate the statistics, then score
+# them once. Give the normalizer label only if the score is a component of the
+# dataset's error; otherwise the score is a diagnostic.
 for region in regions:
-    value = float(scoring.score(scoring.aggregate(stats, region)))
+    row = {
+        "source": "Comparison",
+        "region": str(region),
+        "analysis": "My Analysis",
+        "name": "My Score",
+        **scoring.score_row(scoring.aggregate(stats, region), normalizer="my normalizer"),
+    }
 ```
+
+## The Overall Score and the roll-up
+
+The Overall Score of a model against one dataset,
+and the dashboard's scores for a variable or a section,
+also aggregate the errors and score them once.
+Each score row in the results table
+carries the normalized mean squared error it scores,
+$\mathrm{NMSE} = E^2$, in the column `nmse`,
+and a label for its normalizer, in the column `normalizer`.
+
+- **Components of one error add.**
+  Scores whose errors are divided by the same normalizer
+  are components of one error,
+  so their NMSEs add.
+  The squared bias and the squared centralized RMSE
+  sum to the mean squared error
+  ([Murphy, 1988](https://doi.org/10.1175/1520-0493(1988)116<2417:SSBOTM>2.0.CO;2)),
+  and both are divided by the variance of the reference in time,
+  so the Bias and RMSE scores give
+  $\mathrm{NMSE} = \mathrm{NMSE}_{\mathrm{Bias}} + \mathrm{NMSE}_{\mathrm{RMSE}}$,
+  and $1 - \mathrm{NMSE}$ has the form of the Nash–Sutcliffe efficiency.
+- **Separately normalized errors are averaged.**
+  NMSEs with different normalizers,
+  and the Overall Scores of different datasets,
+  are combined by their mean with equal weights,
+  $\mathrm{NMSE} = \frac{1}{m} \sum_j \mathrm{NMSE}_j$.
+  This equals one minus the mean of $R^2_j = 1 - \mathrm{NMSE}_j$,
+  the coefficient of determination of each dataset:
+  each error is normalized by its own variance before the errors are combined,
+  so the result does not depend on the units of each variable.
+- **Diagnostics are left out.**
+  A score that is not computed from a normalized mean squared error,
+  such as the Seasonal Cycle, Spatial Distribution, or Relationship score,
+  is a diagnostic:
+  it is shown, but it enters neither the Overall Score nor any roll-up.
+  A dataset whose analyses report only diagnostics has no Overall Score.
+
+The Overall Score and the roll-up apply the default score function, $e^{-E}$,
+to the aggregated NMSE.
+For fixed weights,
+the ranking of models at every level
+is therefore invariant to the score function.
+The reasoning is in
+[ADR 0004](../adr/0004-aggregate-then-score-across-analyses-and-datasets.md)
+and [ADR 0005](../adr/0005-components-and-diagnostics.md).

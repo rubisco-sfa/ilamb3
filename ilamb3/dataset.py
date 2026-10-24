@@ -2,7 +2,6 @@
 
 import re
 import warnings
-from collections.abc import Hashable
 from typing import Any, Literal
 
 import cftime as cf
@@ -610,6 +609,11 @@ def mark_local_score(score: xr.DataArray) -> xr.DataArray:
     return score
 
 
+def is_local_score(da: xr.DataArray) -> bool:
+    """Return whether the input is flagged as a local score by `mark_local_score`."""
+    return bool(da.attrs.get(LOCAL_SCORE))
+
+
 def check_aggregable(
     data: xr.Dataset | xr.DataArray, varname: str | None = None
 ) -> None:
@@ -631,21 +635,8 @@ def check_aggregable(
     else:
         arrays = list(data.data_vars.values())
     for da in arrays:
-        if da.attrs.get(LOCAL_SCORE):
-            raise ScoreAggregationError(_local_score_message(da.name))
-
-
-def _local_score_message(name: Hashable | None) -> str:
-    """Explain how to compute a regional score instead of aggregating a score map."""
-    name = "NAME" if name is None else str(name)
-    return (
-        f"'{name}' is a local score and cannot be aggregated, because ilamb3 scores a "
-        "region by aggregating the error, then scoring the result once. If the score "
-        "map was saved with its statistics, compute the regional score with "
-        f"scoring.score(scoring.aggregate(scoring.get_statistics(ds, '{name}'), "
-        "region)), where scoring is ilamb3.analysis.scoring. Otherwise, aggregate the "
-        "error map that the score was computed from, then score the result."
-    )
+        if is_local_score(da):
+            raise ScoreAggregationError(da.name)
 
 
 def integrate_time(

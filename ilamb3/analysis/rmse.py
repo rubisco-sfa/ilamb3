@@ -74,10 +74,14 @@ def evaluate_rmse(
         (com_c - ref_uncertainty.isel({bnds_dim: 1})).clip(0),
         (ref_uncertainty.isel({bnds_dim: 0}) - com_c).clip(0),
     )
-    stats = scoring.statistics(
-        np.sqrt(dset.integrate_time(discounted_diff**2, mean=True)),
-        np.sqrt(dset.integrate_time(ref_c**2, mean=True)),
-        grid=com,
+    # Pool the statistics of each time step over time, so each cell's statistics are
+    # its mean squared centralized error and the variance of the reference in time
+    units = {"units": ref[varname].attrs["units"]}
+    stats = scoring.aggregate(
+        scoring.statistics(
+            discounted_diff.assign_attrs(units), ref_c.assign_attrs(units), grid=com
+        ),
+        dim=dset.get_dim_name(com[varname], "time"),
     )
 
     out = xr.Dataset({f"rmse_{varname}": rmse})
@@ -230,6 +234,7 @@ class rmse_analysis(ILAMBAnalysis):
         if self.plot_unit is not None:
             rmse = dset.convert(rmse, self.plot_unit)
         unit = ilp.coerce_to_cf_compliance(rmse.copy()).attrs["units"]
+        rmse_stats = scoring.statistics(rmse, grid=stats)
 
         df = []
         for region in self.regions:
@@ -243,11 +248,7 @@ class rmse_analysis(ILAMBAnalysis):
                     "type": "scalar",
                     "units": unit,
                     "value": float(
-                        np.sqrt(
-                            scoring.aggregate(
-                                scoring.statistics(rmse, grid=stats), region
-                            )["mse"]
-                        )
+                        np.sqrt(scoring.aggregate(rmse_stats, region)["mse"])
                     ),
                 },
             ]
@@ -258,9 +259,10 @@ class rmse_analysis(ILAMBAnalysis):
                     "region": str(region),
                     "analysis": self.name(),
                     "name": "RMSE Score",
-                    "type": "score",
-                    "units": "1",
-                    "value": float(scoring.score(scoring.aggregate(stats, region))),
+                    **scoring.score_row(
+                        scoring.aggregate(stats, region),
+                        normalizer=scoring.TIME_VARIANCE,
+                    ),
                 },
             ]
 

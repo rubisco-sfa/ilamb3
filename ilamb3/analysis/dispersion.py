@@ -17,7 +17,8 @@ import xarray as xr
 import ilamb3.plot as ilp
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
-from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name, scalarify
+from ilamb3.analysis import scoring
+from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name
 from ilamb3.exceptions import AnalysisNotAppropriate
 
 
@@ -34,9 +35,9 @@ def _compute_binned_distribution(ds: xr.Dataset, varname: str, bins) -> xr.DataA
     return out
 
 
-def _hellinger_score(ds1: xr.Dataset, ds2: xr.Dataset) -> xr.Dataset:
+def _hellinger_distance(ds1: xr.Dataset, ds2: xr.Dataset) -> xr.Dataset:
     """
-    Compute the Hellinger score (1-distance) between two distributions.
+    Compute the Hellinger distance between two distributions, and its score.
 
     Note
     ----
@@ -46,8 +47,9 @@ def _hellinger_score(ds1: xr.Dataset, ds2: xr.Dataset) -> xr.Dataset:
     https://en.wikipedia.org/wiki/Hellinger_distance
 
     In ILAMB we seek to synthesize performance in the reciprocal sense, where 1 is
-    perfect and 0 is poor so we return 1-distance and call it a score. The distance is
-    also returned, as regional scores are formed from its regional mean.
+    perfect and 0 is poor so we score 1-distance. The score is linear in the distance,
+    so it is saved with the statistics of the distance, from which regional scores are
+    formed.
     """
     if "dist" not in ds1 or "dist" not in ds2:
         raise ValueError(
@@ -60,9 +62,9 @@ def _hellinger_score(ds1: xr.Dataset, ds2: xr.Dataset) -> xr.Dataset:
         ((np.sqrt(da1_norm) - np.sqrt(da2_norm)) ** 2).sum(dim="bin")
     ) / np.sqrt(2)
     ds2["hellinger"] = distance.assign_attrs(units="1")
-    ds2["hellingerscore"] = dset.mark_local_score(1 - distance)
     ds2 = ds2.drop_vars(["dist", "cell_measures"], errors="ignore")
-    return ds2
+    stats = scoring.statistics(ds2["hellinger"], 1.0, grid=ds2, power=1)
+    return scoring.add_score(ds2, "hellingerscore", stats, "Linear")
 
 
 def _time_extent_years(ds) -> float:
@@ -166,10 +168,12 @@ class dispersion_analysis(ILAMBAnalysis):
         com["dist"] = _compute_binned_distribution(com, varname, bins)
         ref = ref.drop_vars(varname)
         com = com.drop_vars(varname)
-        com_nested = _hellinger_score(ref, com)
+        com_nested = _hellinger_distance(ref, com)
         com = xr.merge([com, com_nested])
 
-        # The score is one minus the distance, so score the regional mean distance
+        # Score the regional mean distance. The score is not a component of the
+        # error, so it carries no normalizer.
+        stats = scoring.get_statistics(com_nested, "hellingerscore")
         df = pd.DataFrame(
             [
                 {
@@ -177,9 +181,7 @@ class dispersion_analysis(ILAMBAnalysis):
                     "region": str(region),
                     "analysis": self.name(),
                     "name": "Dispersion Score",
-                    "type": "score",
-                    "units": "1",
-                    "value": 1 - scalarify(com, "hellinger", region, mean=True)[0],
+                    **scoring.score_row(scoring.aggregate(stats, region), "Linear"),
                 }
                 for region in self.regions
             ]

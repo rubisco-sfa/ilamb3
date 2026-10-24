@@ -114,13 +114,12 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
 
         # The statistics of the error outside the uncertainty window, which is not
         # normalized in this case because sensitivities tend to be of consistent
-        # order of magnitude?
+        # order of magnitude? With a normalizer of 1 the errors keep their units, so
+        # the scores are diagnostics, not components of an error.
         error = (np.abs(bias.isel(sens_type=0)) - uncert).clip(0)
-        stats = {
-            var: scoring.statistics(da, xr.ones_like(da)) for var, da in error.items()
-        }
+        stats = {var: scoring.statistics(da, 1.0) for var, da in error.items()}
         score = {
-            var: float(scoring.score(scoring.aggregate(s, dim=...)))
+            var: scoring.score_row(scoring.aggregate(s, dim=...))
             for var, s in stats.items()
         }
 
@@ -186,18 +185,14 @@ class runoff_sensitivity_analysis(ILAMBAnalysis):
                     "region": str(ilamb3.conf["global_region"]),
                     "analysis": self.name(),
                     "name": "Score Temperature Sensitivity",
-                    "type": "score",
-                    "units": "1",
-                    "value": score["tsens_obs"],
+                    **score["tsens_obs"],
                 },
                 {
                     "source": "Comparison",
                     "region": str(ilamb3.conf["global_region"]),
                     "analysis": self.name(),
                     "name": "Score Precipitation Sensitivity",
-                    "type": "score",
-                    "units": "1",
-                    "value": score["psens_obs"],
+                    **score["psens_obs"],
                 },
             ]
         )

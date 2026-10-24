@@ -125,23 +125,6 @@ class ILAMBAnalysis(ABC):
         raise NotImplementedError()  # pragma: no cover
 
 
-def add_overall_score(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Synthesize an average 'Overall' score from all scores in the dataframe.
-    """
-    add = (
-        df[df["type"] == "score"]
-        .groupby(["source", "region"])
-        .mean(numeric_only=True)
-        .reset_index()
-    )
-    add["name"] = "Overall Score [1]"
-    add["type"] = "score"
-    add["units"] = "1"
-    df = pd.concat([df, add]).reset_index(drop=True)
-    return df
-
-
 def integrate_or_mean(
     var: xr.DataArray | xr.Dataset,
     varname: str,
@@ -153,10 +136,11 @@ def integrate_or_mean(
     Integrate/average the input dataarray/dataset to reduce in space/site.
     """
     da = var[varname] if isinstance(var, xr.Dataset) else var
-    dset.check_aggregable(da)
     if dset.is_gridded(da):
         da = dset.integrate_space(var, varname, region=region, mean=mean, weight=weight)
     elif dset.is_site(da):
+        # integrate_space refuses a local score itself; the site mean must check here
+        dset.check_aggregable(da)
         da = ilr.Regions().mask(da, region)
         da = da.mean(dim=dset.get_dim_name(da, "site"))
     else:

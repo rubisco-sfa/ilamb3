@@ -257,26 +257,30 @@ class hydro_analysis(ILAMBAnalysis):
                     scoring.STATISTICS_SUFFIX
                 ):
                     continue
-                is_score = dset.LOCAL_SCORE in da.attrs
+                is_score = dset.is_local_score(da)
+                if is_score:
+                    stats = scoring.get_statistics(ds, vname)
                 for region in self.regions:
+                    row = {
+                        "source": source,
+                        "region": str(region),
+                        "analysis": self._get_analysis_section(vname),
+                        "name": generate_titles(vname),
+                    }
                     if is_score:
-                        # Aggregate the statistics over the region before scoring
-                        stats = scoring.get_statistics(ds, vname)
-                        regional = scoring.aggregate(stats, region)
-                        scalar, unit = float(scoring.score(regional)), "1"
+                        # Aggregate the statistics over the region before scoring. Only
+                        # the annual score is a component of the error; the seasonal
+                        # scores overlap it, so they are diagnostics.
+                        row |= scoring.score_row(
+                            scoring.aggregate(stats, region),
+                            normalizer=(
+                                scoring.ANNUAL_VARIANCE if vname == "annual_mean_score" else None
+                            ),
+                        )
                     else:
                         scalar, unit = scalarify(da, vname, region=region, mean=True)
-                    df.append(
-                        [
-                            source,
-                            str(region),
-                            self._get_analysis_section(vname),
-                            generate_titles(vname),
-                            "score" if is_score else "scalar",
-                            unit,
-                            scalar,
-                        ]
-                    )
+                        row |= {"type": "scalar", "units": unit, "value": scalar}
+                    df.append(row)
 
         # Compute the regional means
         for region in self.regions:
@@ -299,18 +303,7 @@ class hydro_analysis(ILAMBAnalysis):
             )
 
         # Convert to dataframe
-        df = pd.DataFrame(
-            df,
-            columns=[
-                "source",
-                "region",
-                "analysis",
-                "name",
-                "type",
-                "units",
-                "value",
-            ],
-        )
+        df = pd.DataFrame(df)
         df.attrs = self.__dict__.copy()
         return df, ref, com
 

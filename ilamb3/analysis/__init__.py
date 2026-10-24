@@ -17,7 +17,8 @@ import importlib
 import inspect
 from importlib import resources
 
-from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
+from ilamb3.analysis.base import ILAMBAnalysis
+from ilamb3.analysis.scoring import add_overall_score
 
 
 # resources.files("numpy").joinpath("linalg")

@@ -3,12 +3,13 @@ Checks that every analysis in `ilamb3.analysis.ALL_ANALYSES` must pass.
 
 Each analysis needs a case in `CASES` that builds it with a valid reference and
 comparison. The checks enforce the scoring rules in docs/deep-dive/scoring.md: scores lie
-in [0, 1], score maps are flagged as local scores so that ilamb3 refuses to aggregate
-them, and the statistics saved with a score map reproduce the regional score reported for
-it.
+in [0, 1], a score that is a component of the error carries the NMSE it scores, score
+maps are flagged as local scores so that ilamb3 refuses to aggregate them, and the
+statistics saved with a score map reproduce the regional score reported for it.
 """
 
 from pathlib import Path
+from typing import get_args
 
 import numpy as np
 import pandas as pd
@@ -23,6 +24,7 @@ from ilamb3.analysis.base import ILAMBAnalysis
 from ilamb3.tests.test_compare import generate_test_dset
 
 COLUMNS = ["source", "region", "analysis", "name", "type", "units", "value"]
+METHODS = get_args(scoring.Method)
 GLOBAL_REGION = str(None)
 
 
@@ -185,6 +187,25 @@ def _check_table(key: str, df: pd.DataFrame) -> pd.DataFrame:
         "A score maps an error onto [0, 1], where 1 is perfect. See "
         "docs/deep-dive/scoring.md."
     )
+    table = scores.reindex(columns=[*COLUMNS, "nmse", "normalizer"])
+    components = table[table["nmse"].notna()]
+    unlabeled = components[components["normalizer"].isna()]
+    assert unlabeled.empty, (
+        f"{key}: these scores have an NMSE but no normalizer label:\n"
+        f"{unlabeled[['region', 'name']].to_string(index=False)}\n"
+        "Give scoring.score_row the label of the normalizer, so that the Overall Score "
+        "adds only the errors that share it."
+    )
+    rescored = [
+        any(np.isclose(scoring.score_nmse(row.nmse, m), row.value) for m in METHODS)
+        for row in components.itertuples()
+    ]
+    wrong = components[~np.array(rescored, dtype=bool)]
+    assert wrong.empty, (
+        f"{key}: these scores are not the score of the NMSE reported with them:\n"
+        f"{wrong[['region', 'name', 'value', 'nmse']].to_string(index=False)}\n"
+        "Build each score row with scoring.score_row from the aggregated statistics."
+    )
     return scores
 
 
@@ -201,7 +222,7 @@ def _score_maps(ds: xr.Dataset) -> list[str]:
 
 def _check_score_map(key: str, ds: xr.Dataset, name: str, scores: pd.DataFrame):
     """Check that a score map cannot be averaged and matches its regional score."""
-    assert ds[name].attrs.get(dset.LOCAL_SCORE), (
+    assert dset.is_local_score(ds[name]), (
         f"{key}: '{name}' is a score map, but it is not flagged as a local score, so "
         "ilamb3 would let it be averaged into a regional score. Build it with "
         "ilamb3.analysis.scoring.add_score, or flag it with "
@@ -211,15 +232,19 @@ def _check_score_map(key: str, ds: xr.Dataset, name: str, scores: pd.DataFrame):
         f"{key}: '{name}' has values outside [0, 1]. A score maps an error onto "
         "[0, 1], where 1 is perfect."
     )
-    if name + scoring.STATISTICS_SUFFIX not in ds:
-        return
-    value = float(scoring.score(scoring.aggregate(scoring.get_statistics(ds, name))))
+    assert name + scoring.STATISTICS_SUFFIX in ds, (
+        f"{key}: '{name}' is saved without the statistics it was computed from, so its "
+        "regional scores cannot be recomputed. Build it with "
+        "ilamb3.analysis.scoring.add_score."
+    )
+    value = scoring.regional_score(ds, name)
     reported = scores[scores["region"].astype(str) == GLOBAL_REGION]["value"]
     assert np.isclose(reported.astype(float), value).any(), (
         f"{key}: the statistics saved with '{name}' give a global score of {value:.6g}, "
         f"but the analysis reported the global scores {reported.tolist()}. Compute "
         "each regional score from the statistics passed to scoring.add_score, as "
-        "scoring.score(scoring.aggregate(stats, region)), not from the score map."
+        "scoring.score(scoring.aggregate(stats, region), method), not from the score "
+        "map."
     )
 
 

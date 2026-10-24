@@ -168,8 +168,7 @@ class nbp_analysis(ILAMBAnalysis):
         ).clip(0)
         # Aggregate the statistics over years before scoring, rather than averaging
         # yearly scores, so that the result does not depend on the score function
-        stats = scoring.statistics(eps, uncert)
-        traj_score = float(scoring.score(scoring.aggregate(stats, dim="year")))
+        stats = scoring.aggregate(scoring.statistics(eps, uncert), dim="year")
 
         # Difference score
         ref_val = float(ref["nbp"].sel(year=self.evaluation_year))
@@ -230,9 +229,9 @@ class nbp_analysis(ILAMBAnalysis):
                     "region": str(ilamb3.conf["global_region"]),
                     "analysis": "nbp",
                     "name": "Trajectory Score",
-                    "type": "score",
-                    "units": "1",
-                    "value": traj_score,
+                    **scoring.score_row(
+                        stats, normalizer=scoring.REFERENCE_UNCERTAINTY
+                    ),
                 },
             ]
         )

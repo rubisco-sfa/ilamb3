@@ -8,11 +8,12 @@ from math import isnan
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from jinja2 import Template
 
 import ilamb3.regions as ilr
-from ilamb3.analysis import add_overall_score
+from ilamb3.analysis import add_overall_score, scoring
 from ilamb3.run import _clean_pathname, parse_benchmark_setup
 
 
@@ -86,7 +87,7 @@ def dataframe_to_cmec(df: pd.DataFrame) -> dict[str, Any]:
         for (region, model, section, name), grp in df.groupby(
             ["region", "source", sec, "name"]
         ):
-            value = grp["value"].mean()
+            value = _roll_up(grp)
             cmec_results[region][model][section][name.replace(" [1]", "")] = (
                 None if isnan(value) else value
             )
@@ -105,6 +106,22 @@ def dataframe_to_cmec(df: pd.DataFrame) -> dict[str, Any]:
         "RESULTS": cmec_results,
     }
     return bundle
+
+
+def _roll_up(scores: pd.DataFrame) -> float:
+    """
+    Return the value of a group of scores, such as the datasets of a variable.
+
+    A single score is shown as is. A group is scored once from the mean of the
+    normalized errors of its scores, each dataset with equal weight, so that the
+    ranking does not depend on the score function. Diagnostics, which have no
+    normalized error, are not rolled up.
+    """
+    if len(scores) == 1:
+        return float(scores["value"].iloc[0])
+    if "nmse" not in scores or scores["nmse"].isna().any():
+        return np.nan
+    return float(scoring.score_nmse(scores["nmse"].mean()))
 
 
 def _sortby_categories(df: pd.DataFrame, output_path: Path) -> pd.DataFrame:
