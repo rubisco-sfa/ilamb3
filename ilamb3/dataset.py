@@ -518,6 +518,9 @@ def compute_cell_measures(
     delx = earth_radius * delx.diff(other_dims).squeeze()
     dely = earth_radius * dely.diff(other_dims).squeeze()  # type: ignore
     msr = dely * delx
+    # cf-xarray now puts bounds as coords and they are carried through in
+    # operations. This causes some strange behavior downstream.
+    msr = msr.drop_vars([latb_name, lonb_name], errors="ignore")
     msr.attrs["units"] = "m2"
     return msr
 
