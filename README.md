@@ -3,6 +3,7 @@
 [![Continuous Integration][ci-badge]][ci-link]
 [![Documentation Status][rtd-badge]][rtd-link]
 [![Code Coverage Status][codecov-badge]][codecov-link]
+[![Zenodo][zenodo-badge]][zenodo-link]
 
 # ILAMB - International Land Model Benchmarking
 
@@ -15,8 +16,8 @@ Eventually this package will replace the current [ILAMB](https://github.com/rubi
 
 ## Funding
 
-This research was performed for the *Reducing Uncertainties in
-Biogeochemical Interactions through Synthesis and Computation*
+This research was performed for the _Reducing Uncertainties in
+Biogeochemical Interactions through Synthesis and Computation_
 (RUBISCO) Scientific Focus Area, which is sponsored by the Regional
 and Global Climate Modeling (RGCM) Program in the Climate and
 Environmental Sciences Division (CESD) of the Biological and
@@ -29,3 +30,5 @@ Office of Science.
 [rtd-link]: https://ilamb3.readthedocs.io/en/latest/?badge=latest
 [codecov-badge]: https://img.shields.io/codecov/c/github/rubisco-sfa/ilamb3.svg?logo=codecov
 [codecov-link]: https://codecov.io/gh/rubisco-sfa/ilamb3
+[zenodo-badge]: https://zenodo.org/badge/DOI/10.5281/zenodo.23890986.svg
+[zenodo-link]: https://doi.org/10.5281/zenodo.23890986

@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this tool, please cite using the information below!"
+authors:
+  - family-names: Collier
+    given-names: Nathan
+    orcid: https://orcid.org/0000-0002-7367-3981
+    website: https://github.com/nocollier
+    affiliation: Oak Ridge National Laboratory
+  - family-names: Steckler
+    given-names: Morgan
+    orcid: https://orcid.org/0000-0002-5620-6716
+    website: https://github.com/msteckle
+    affiliation: Oak Ridge National Laboratory
+  - family-names: Xu
+    given-names: Min
+    orcid: https://orcid.org/0000-0003-3443-0300
+    website: https://github.com/minxu74
+    affiliation: Oak Ridge National Laboratory
+title: "ilamb3"
+abstract: "Earth system model benchmarking"
