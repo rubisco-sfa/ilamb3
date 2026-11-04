@@ -125,4 +125,4 @@ Docs say which is meant.
   Skill scores based on the mean square error
   and their relationships to the correlation coefficient.
   *Monthly Weather Review*, 116(12), 2417–2424.
-  https://doi.org/10.1175/1520-0493(1988)116<2417:SSBOTM>2.0.CO;2
+  [https://doi.org/10.1175/1520-0493(1988)116<2417:SSBOTM>2.0.CO;2](https://doi.org/10.1175/1520-0493(1988)116<2417:SSBOTM>2.0.CO;2)

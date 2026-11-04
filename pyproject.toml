@@ -46,7 +46,7 @@ dev = [
     "pytest-cov",
 ]
 docs = [
-  "intake-esgf>=2025.10.22",
+  "intake-esgf>=2026.11.28",
   "ipykernel>=7.2.0",
   "jupyter>=1.1.1",
   "jupyterlab-myst>=2.6.0",
@@ -55,7 +55,7 @@ docs = [
   "rst-to-myst>=0.4.0",
 ]
 esgf = [
-    "intake-esgf>=2026.6.4",
+    "intake-esgf>=2026.11.28",
 ]
 gcb = ["gsw>=3.6.19"]
 parallel = ["mpi4py>=4.1.0"]

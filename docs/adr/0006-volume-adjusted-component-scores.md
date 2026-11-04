@@ -162,7 +162,7 @@ with population shares as the coefficients (Foster, Greer, & Thorbecke, 1984).
   Skill scores based on the mean square error
   and their relationships to the correlation coefficient.
   *Monthly Weather Review*, 116(12), 2417–2424.
-  https://doi.org/10.1175/1520-0493(1988)116<2417:SSBOTM>2.0.CO;2
+  [https://doi.org/10.1175/1520-0493(1988)116<2417:SSBOTM>2.0.CO;2](https://doi.org/10.1175/1520-0493(1988)116<2417:SSBOTM>2.0.CO;2)
 - Vartia, Y. O. (1976).
   Ideal log-change index numbers. *Scandinavian Journal of Statistics*, 3(3),
   121–126.

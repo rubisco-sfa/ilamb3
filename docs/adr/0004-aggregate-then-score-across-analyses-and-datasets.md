@@ -296,7 +296,7 @@ ILAMB v2 weighted the RMSE score twice and weighted datasets and variables throu
 - Murphy, A. H. (1988).
   Skill scores based on the mean square error
   and their relationships to the correlation coefficient.
-  *Monthly Weather Review*, 116(12), 2417–2424. https://doi.org/10.1175/1520-0493(1988)116<2417:SSBOTM>2.0.CO;2
+  *Monthly Weather Review*, 116(12), 2417–2424. [https://doi.org/10.1175/1520-0493(1988)116<2417:SSBOTM>2.0.CO;2](https://doi.org/10.1175/1520-0493(1988)116<2417:SSBOTM>2.0.CO;2)
 - Nash, J. E., & Sutcliffe, J. V. (1970).
   River flow forecasting through conceptual models part I —
   A discussion of principles.
