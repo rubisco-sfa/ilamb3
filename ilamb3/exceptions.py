@@ -1,5 +1,7 @@
 """Exceptions for ilamb."""
 
+from collections.abc import Hashable
+
 
 class ILAMBException(Exception):
     """Exceptions from the ilamb package."""
@@ -55,3 +57,27 @@ class AnalysisFailure(ILAMBException):
 
     def __str__(self):  # numpydoc ignore=GL08
         return f"The '{self.analysis}' analysis failed for '{self.model}'"
+
+
+class ScoreAggregationError(ILAMBException):
+    """
+    A per-cell score was passed to a function that would aggregate it.
+
+    Parameters
+    ----------
+    name : hashable, optional
+        The name of the score map.
+    """
+
+    def __init__(self, name: Hashable | None = None):  # numpydoc ignore=GL08
+        self.name = "NAME" if name is None else str(name)
+
+    def __str__(self):  # numpydoc ignore=GL08
+        return (
+            f"'{self.name}' is a local score and cannot be aggregated, because ilamb3 "
+            "scores a region by aggregating the error, then scoring the result once. If "
+            "the score map was saved with its statistics, compute the regional score "
+            f"with scoring.regional_score(ds, '{self.name}', region), where scoring is "
+            "ilamb3.analysis.scoring. Otherwise, aggregate the error map that the score "
+            "was computed from, then score the result."
+        )

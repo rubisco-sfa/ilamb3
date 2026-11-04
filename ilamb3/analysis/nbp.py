@@ -18,6 +18,7 @@ import ilamb3
 import ilamb3.plot as ilplt
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
+from ilamb3.analysis import scoring
 from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name
 from ilamb3.exceptions import NoUncertainty, TemporalOverlapIssue
 
@@ -165,8 +166,9 @@ class nbp_analysis(ILAMBAnalysis):
         eps = (com["nbp"] - bounds.min(dim=bnd_dim)).clip(0) + (
             bounds.max(dim=bnd_dim) - com["nbp"]
         ).clip(0)
-        traj_score = np.exp(-eps / uncert)
-        traj_score = float(traj_score.mean())
+        # Aggregate the statistics over years before scoring, rather than averaging
+        # yearly scores, so that the result does not depend on the score function
+        stats = scoring.aggregate(scoring.statistics(eps, uncert), dim="year")
 
         # Difference score
         ref_val = float(ref["nbp"].sel(year=self.evaluation_year))
@@ -227,9 +229,9 @@ class nbp_analysis(ILAMBAnalysis):
                     "region": str(ilamb3.conf["global_region"]),
                     "analysis": "nbp",
                     "name": "Trajectory Score",
-                    "type": "score",
-                    "units": "1",
-                    "value": traj_score,
+                    **scoring.score_row(
+                        stats, normalizer=scoring.REFERENCE_UNCERTAINTY
+                    ),
                 },
             ]
         )

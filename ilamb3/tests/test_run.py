@@ -133,9 +133,9 @@ def generate_test_dset(
 @pytest.mark.parametrize(
     "reference_key,registry_name,score",
     [
-        ("test/Site/tas.nc", "ilamb", 0.1310922449190615),
-        ("test/Grid/gpp.nc", "ilamb", 0.0128094224567734),
-        ("test/thetao.nc", "test", 0.0622860516334433),
+        ("test/Site/tas.nc", "ilamb", 0.12867804721851264),
+        ("test/Grid/gpp.nc", "ilamb", 9.476806015723096e-05),
+        ("test/thetao.nc", "test", 0.0006894364193257209),
     ],
 )
 def test_run(reference_key: str, registry_name: str, score: float):

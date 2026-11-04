@@ -17,9 +17,48 @@ import xarray as xr
 import ilamb3.plot as ilp
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
+from ilamb3.analysis import scoring
 from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name, scalarify
 from ilamb3.analysis.quantiles import check_quantile_database, create_quantile_map
 from ilamb3.exceptions import NoDatabaseEntry, NoUncertainty
+
+
+def nested_difference(
+    ref: xr.Dataset, com: xr.Dataset, varname: str, *others: xr.DataArray
+) -> tuple[xr.DataArray, xr.Dataset, list[xr.DataArray]]:
+    """
+    Return the difference between the datasets on their nested grid.
+
+    Parameters
+    ----------
+    ref : xr.Dataset
+        The reference dataset containing the variable to compare.
+    com : xr.Dataset
+        The comparison dataset containing the variable to compare.
+    varname : str
+        The name of the variable to compare in both datasets.
+    *others : xr.DataArray
+        Data arrays on the grid of ref or com, such as a normalizer, to put on the
+        nested grid as well.
+
+    Returns
+    -------
+    xr.DataArray
+        The difference ``com - ref``.
+    xr.Dataset
+        The comparison on the nested grid, whose bounds give the area of each cell.
+    list of xr.DataArray
+        The other data arrays on the same grid.
+    """
+    # Regrid ref and com in place. The others are on the grid of ref or com, so
+    # including them does not change the nested grid.
+    if dset.is_gridded(ref[varname]) and dset.is_gridded(com[varname]):
+        ref, com, *nested = cmp.nest_spatial_grids(ref, com, *others)
+        # Datasets are returned, select the da
+        others = tuple(ds[next(iter(ds))] for ds in nested)
+    diff = com[varname] - ref[varname]
+    diff.attrs["units"] = ref[varname].attrs["units"]
+    return diff, com, list(others)
 
 
 def evaluate_difference(
@@ -28,10 +67,9 @@ def evaluate_difference(
     varname: str,
     error_normalization: xr.DataArray,
     ref_uncertainty: xr.DataArray,
-    method: Literal["Collier2018", "RegionalQuantiles"],
-) -> xr.Dataset:
+) -> tuple[xr.Dataset, xr.Dataset]:
     """
-    Compute the difference and score between the reference and comparison datasets.
+    Compute the difference between the datasets and the statistics of its error.
 
     Parameters
     ----------
@@ -47,51 +85,26 @@ def evaluate_difference(
     ref_uncertainty : xr.DataArray
         The uncertainty associated with the reference dataset variable, used to discount
         the error.
-    method : str
-        The name of the scoring methodology to use, either `Collier2018` or
-        `RegionalQuantiles`.
 
     Returns
     -------
     xr.Dataset
-        A dataset containing diff_{varname} and "score_{varname}"
+        A dataset containing "diff_{varname}".
+    xr.Dataset
+        The statistics of the error, see `ilamb3.analysis.scoring.statistics`.
     """
-
-    # Regrid ref and com in place
-    if dset.is_gridded(ref[varname]) and dset.is_gridded(com[varname]):
-        ref, com, error_normalization, ref_uncertainty = cmp.nest_spatial_grids(
-            ref, com, error_normalization, ref_uncertainty
-        )
-        # Datasets are returned, select the da
-        error_normalization = error_normalization[next(iter(error_normalization))]
-        ref_uncertainty = ref_uncertainty[next(iter(ref_uncertainty))]
-
-    # Get per-pixel difference scalars for the variable of interest
-    diff = com[varname] - ref[varname]
-    diff.attrs["units"] = ref[varname].attrs["units"]
-
-    # Calculate per-pixel bias score using specified method
-    discounted_diff = (np.abs(diff) - ref_uncertainty).clip(0)
-    relative_error = discounted_diff / np.abs(error_normalization)
-    match method:
-        case "Collier2018":
-            score = np.exp(-relative_error)
-        case "RegionalQuantiles":
-            score = (1.0 - relative_error).clip(0, 1)
-        case _:
-            raise ValueError(f"Unknown method: {method}")
-
-    # Create the output dataset with diff scalar, score scalar
-    out = xr.Dataset({f"diff_{varname}": diff, f"score_{varname}": score})
-    out[f"score_{varname}"].attrs["units"] = 1
-    return out
+    diff, grid, (norm, uncert) = nested_difference(
+        ref, com, varname, error_normalization, ref_uncertainty
+    )
+    # The error outside the uncertainty, relative to the normalizer
+    error = (np.abs(diff) - uncert).clip(0).assign_attrs(diff.attrs)
+    stats = scoring.statistics(error, norm, grid=grid)
+    return xr.Dataset({f"diff_{varname}": diff}), stats
 
 
-def get_weights(
-    ref: xr.Dataset, com: xr.Dataset, varname: str, scorename: str, nested: xr.Dataset
-) -> xr.DataArray:
-    """Get the weights for score spatial integration if mass weighting is enabled."""
-    if dset.is_gridded(com[scorename]):
+def get_weights(ref: xr.Dataset, varname: str, nested: xr.Dataset) -> xr.DataArray:
+    """Get the weight of each cell of the nested grid, if mass weighting is enabled."""
+    if dset.is_gridded(nested):
         weight = (
             ref[varname]
             .rename(
@@ -286,6 +299,8 @@ class bias_analysis(ILAMBAnalysis):
 
         # Create error normalizer xr.DataArray depending on chosen method
         error_norm = out_ref["mean"]  # Default error normalizer if no time dim
+        # A label for the normalizer, so the Overall Score adds only errors that share it
+        norm_label = scoring.REFERENCE_MEAN
 
         # If RegionalQuantiles, use the quantile map on the comparison grid
         if self.method == "RegionalQuantiles" and quantile_map is not None:
@@ -299,6 +314,7 @@ class bias_analysis(ILAMBAnalysis):
                     ),
                 }
             ).interp_like(out_com, method="nearest")
+            norm_label = scoring.REGIONAL_QUANTILE
 
         # Otherwise, if temporal, normalize by the standard deviation of the reference
         elif (
@@ -306,6 +322,7 @@ class bias_analysis(ILAMBAnalysis):
             and ref[dset.get_dim_name(ref[varname], "time")].size > 1
         ):
             error_norm = dset.std_time(ref, varname)
+            norm_label = scoring.TIME_VARIANCE
 
         # Get the reference data uncertainty if present and desired
         uncert = xr.zeros_like(out_ref["mean"])  # Default uncertainty is 0
@@ -328,22 +345,21 @@ class bias_analysis(ILAMBAnalysis):
         # ------------------------------------------------------------------------------
 
         # Now score the difference and merge with the comparison output
-        out_nested = evaluate_difference(
+        out_nested, stats = evaluate_difference(
             out_ref,
             out_com,
             "mean",
             error_norm,  # type: ignore
             uncert,
-            self.method,  # type: ignore
         )
-        # Rename diff_{varname} and score_{varname} to bias and biasscore
-        out_nested = out_nested.rename(
-            {
-                k: k.split("_")[0]
-                .replace("diff", "bias", 1)
-                .replace("score", "biasscore", 1)
-                for k in out_nested
-            }
+        # Weight the statistics, so the saved statistics reproduce the weighted scores
+        if self.mass_weighting:
+            stats = scoring.weighted(stats, get_weights(out_ref, "mean", stats))
+        out_nested = scoring.add_score(
+            out_nested.rename({"diff_mean": "bias"}),
+            "biasscore",
+            stats,
+            self.method,  # type: ignore
         )
         out_com = xr.merge([out_com, out_nested], compat="override")
 
@@ -352,11 +368,6 @@ class bias_analysis(ILAMBAnalysis):
             out_ref["cell_measures"] = ref["cell_measures"]
         if "cell_measures" in com:
             out_com["cell_measures"] = com["cell_measures"]
-
-        # Get the weights for score spatial integration if mass weighting is enabled
-        weight = None
-        if self.mass_weighting:
-            weight = get_weights(out_ref, out_com, "mean", "biasscore", out_nested)
 
         # ------------------------------------------------------------------------------
         # 3.a. Create mean Datasets and uncertainty/norm DataArrays for seasons
@@ -404,36 +415,16 @@ class bias_analysis(ILAMBAnalysis):
                 out_ref_season[f"mean{season}"] = da_ref
                 out_com_season[f"mean{season}"] = da_com
 
-            # Set dummy normalizer and uncertainty because they are used for score
-            # And we won't bother with scores for seasonal means
-            error_norm_season = xr.ones_like(out_ref_season[f"mean{self.seasons[0]}"])
-            uncert_season = xr.zeros_like(out_ref_season[f"mean{self.seasons[0]}"])
-
             # --------------------------------------------------------------------------
             # 3.b. Calculate scalars
             # --------------------------------------------------------------------------
 
             per_season_dfs = []
             for season in self.seasons:
-                out_season_nested = evaluate_difference(
-                    out_ref_season,
-                    out_com_season,
-                    f"mean{season}",
-                    error_norm_season,
-                    uncert_season,
-                    self.method,  # type: ignore
+                diff, _, _ = nested_difference(
+                    out_ref_season, out_com_season, f"mean{season}"
                 )
-
-                # Rename diff_{varname} and score_{varname} to bias{varname} and biasscore{varname}
-                out_season_nested = out_season_nested.rename(
-                    {
-                        k: ("bias" if k.startswith("diff") else "biasscore")
-                        + "".join(k.split("_")[1:]).replace("mean", "")
-                        for k in out_season_nested
-                    }
-                )
-
-                per_season_dfs.append(out_season_nested)
+                per_season_dfs.append(diff.to_dataset(name=f"bias{season}"))
 
             # Combine so that each season is a different variable in the same dataset
             out_season_nested = xr.merge(per_season_dfs, compat="override")
@@ -454,6 +445,7 @@ class bias_analysis(ILAMBAnalysis):
 
         # Compute scalars over all regions
         dfs = []
+        scores = []
         for region in self.regions:
             # Period mean
             for src, var in zip(["Reference", "Comparison"], [out_ref, out_com]):
@@ -534,25 +526,19 @@ class bias_analysis(ILAMBAnalysis):
                         ]
                     )
 
-            # Bias Score
-            val, unit = scalarify(
-                out_com,
-                "biasscore",
-                region,
-                True,
-                weight=weight if self.mass_weighting else None,
-                unit=None,  # bias score is unitless
-            )
-            dfs.append(
-                [
-                    "Comparison",
-                    str(region),
-                    self.name(),
-                    "Bias Score",
-                    "score",
-                    unit,
-                    val,
-                ]
+            # Bias Score, aggregating the statistics over the region before scoring
+            scores.append(
+                {
+                    "source": "Comparison",
+                    "region": str(region),
+                    "analysis": self.name(),
+                    "name": "Bias Score",
+                    **scoring.score_row(
+                        scoring.aggregate(stats, region),
+                        self.method,  # type: ignore
+                        normalizer=norm_label,
+                    ),
+                }
             )
 
         # Convert to dataframe
@@ -568,6 +554,7 @@ class bias_analysis(ILAMBAnalysis):
                 "value",
             ],
         )
+        dfs = pd.concat([dfs, pd.DataFrame(scores)], ignore_index=True)
 
         # Now that we have the scalars, we can drop the cell measures
         out_ref = out_ref.drop_vars("cell_measures", errors="ignore")

@@ -31,7 +31,7 @@ def test_nbp():
         df[df["name"] == "Difference Score"].iloc[0]["value"], 0.8815878925867227
     )
     assert np.allclose(
-        df[df["name"] == "Trajectory Score"].iloc[0]["value"], 1.2568309976103773e-06
+        df[df["name"] == "Trajectory Score"].iloc[0]["value"], 2.903430375901988e-07
     )
 
 

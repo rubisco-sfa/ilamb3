@@ -11,6 +11,7 @@ from loguru import logger
 import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 import ilamb3.plot as ilp
+from ilamb3.analysis import scoring
 from ilamb3.analysis.base import ILAMBAnalysis, scalarify
 
 
@@ -63,6 +64,9 @@ def metric_maps(
 
 
 def score_difference(ref: xr.Dataset, com: xr.Dataset) -> xr.Dataset:
+    """
+    Return the comparison with differences, per-cell scores, and their statistics.
+    """
     # Compute differences and scores
     ref_, com_ = cmp.nest_spatial_grids(ref, com)
     diff = com_ - ref_
@@ -72,22 +76,18 @@ def score_difference(ref: xr.Dataset, com: xr.Dataset) -> xr.Dataset:
         diff[var].attrs["units"] = ref_[var].attrs["units"]
 
     diff = diff.rename_vars({v: f"{v}_difference" for v in diff})
-    # Add scores to the means that also have std's
-    diff = diff.merge(
-        {
-            v.replace("_difference", "_score"): np.exp(
-                -np.abs(diff[v])
-                / ref_[v.replace("_mean", "_std").replace("_difference", "")]
-            )
-            for v in diff
-            if "mean" in v and v.replace("_mean_", "_std_") in diff
-        }
-    )
-    # Set the units of these scores
-    for var, da in diff.items():
-        if "score" not in var:
-            continue
-        diff[var].attrs["units"] = "1"
+    # Score the means that also have std's
+    stats = {
+        v.replace("_difference", "_score"): scoring.statistics(
+            np.abs(diff[v]),
+            ref_[v.replace("_mean", "_std").replace("_difference", "")],
+            grid=ref_,
+        )
+        for v in diff
+        if "mean" in v and v.replace("_mean_", "_std_") in diff
+    }
+    for name, s in stats.items():
+        diff = scoring.add_score(diff, name, s)
     # Rename the lat dimension for merging with the comparison on return
     lat_name = dset.get_dim_name(diff, "lat")
     lon_name = dset.get_dim_name(diff, "lon")
@@ -253,21 +253,34 @@ class hydro_analysis(ILAMBAnalysis):
         df = []
         for source, ds in {"Reference": ref, "Comparison": com}.items():
             for vname, da in ds.items():
-                if vname.startswith("mean_"):
+                if vname.startswith("mean_") or vname.endswith(
+                    scoring.STATISTICS_SUFFIX
+                ):
                     continue
+                is_score = dset.is_local_score(da)
+                if is_score:
+                    stats = scoring.get_statistics(ds, vname)
                 for region in self.regions:
-                    scalar, unit = scalarify(da, vname, region=region, mean=True)
-                    df.append(
-                        [
-                            source,
-                            str(region),
-                            self._get_analysis_section(vname),
-                            generate_titles(vname),
-                            "score" if "score" in vname else "scalar",
-                            unit,
-                            scalar,
-                        ]
-                    )
+                    row = {
+                        "source": source,
+                        "region": str(region),
+                        "analysis": self._get_analysis_section(vname),
+                        "name": generate_titles(vname),
+                    }
+                    if is_score:
+                        # Aggregate the statistics over the region before scoring. Only
+                        # the annual score is a component of the error; the seasonal
+                        # scores overlap it, so they are diagnostics.
+                        row |= scoring.score_row(
+                            scoring.aggregate(stats, region),
+                            normalizer=(
+                                scoring.ANNUAL_VARIANCE if vname == "annual_mean_score" else None
+                            ),
+                        )
+                    else:
+                        scalar, unit = scalarify(da, vname, region=region, mean=True)
+                        row |= {"type": "scalar", "units": unit, "value": scalar}
+                    df.append(row)
 
         # Compute the regional means
         for region in self.regions:
@@ -290,18 +303,7 @@ class hydro_analysis(ILAMBAnalysis):
             )
 
         # Convert to dataframe
-        df = pd.DataFrame(
-            df,
-            columns=[
-                "source",
-                "region",
-                "analysis",
-                "name",
-                "type",
-                "units",
-                "value",
-            ],
-        )
+        df = pd.DataFrame(df)
         df.attrs = self.__dict__.copy()
         return df, ref, com
 

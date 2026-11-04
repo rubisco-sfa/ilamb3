@@ -17,7 +17,8 @@ import xarray as xr
 import ilamb3.plot as ilp
 from ilamb3 import compare as cmp
 from ilamb3 import dataset as dset
-from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name, scalarify
+from ilamb3.analysis import scoring
+from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name
 from ilamb3.exceptions import AnalysisNotAppropriate
 
 
@@ -34,9 +35,9 @@ def _compute_binned_distribution(ds: xr.Dataset, varname: str, bins) -> xr.DataA
     return out
 
 
-def _hellinger_score(ds1: xr.Dataset, ds2: xr.Dataset) -> xr.Dataset:
+def _hellinger_distance(ds1: xr.Dataset, ds2: xr.Dataset) -> xr.Dataset:
     """
-    Compute the Hellinger score (1-distance) between two distributions.
+    Compute the Hellinger distance between two distributions, and its score.
 
     Note
     ----
@@ -46,7 +47,9 @@ def _hellinger_score(ds1: xr.Dataset, ds2: xr.Dataset) -> xr.Dataset:
     https://en.wikipedia.org/wiki/Hellinger_distance
 
     In ILAMB we seek to synthesize performance in the reciprocal sense, where 1 is
-    perfect and 0 is poor so we return 1-distance and call it a score.
+    perfect and 0 is poor so we score 1-distance. The score is linear in the distance,
+    so it is saved with the statistics of the distance, from which regional scores are
+    formed.
     """
     if "dist" not in ds1 or "dist" not in ds2:
         raise ValueError(
@@ -55,41 +58,13 @@ def _hellinger_score(ds1: xr.Dataset, ds2: xr.Dataset) -> xr.Dataset:
     ds1, ds2 = cmp.nest_spatial_grids(ds1, ds2)
     da1_norm = ds1["dist"] / ds1["dist"].sum(dim="bin")
     da2_norm = ds2["dist"] / ds2["dist"].sum(dim="bin")
-    score = 1 - np.sqrt(
+    distance = np.sqrt(
         ((np.sqrt(da1_norm) - np.sqrt(da2_norm)) ** 2).sum(dim="bin")
     ) / np.sqrt(2)
-    score.attrs["units"] = "1"
-    ds2["hellingerscore"] = score
+    ds2["hellinger"] = distance.assign_attrs(units="1")
     ds2 = ds2.drop_vars(["dist", "cell_measures"], errors="ignore")
-    return ds2
-
-
-def _create_scalar_dataframe(
-    ref: xr.Dataset,
-    com: xr.Dataset,
-    regions: list[str | None],
-    plot_to_name: dict[str, str],
-    analysis_name: str,
-) -> pd.DataFrame:
-    df = []
-    for region in regions:
-        for var_name, scalar_name in plot_to_name.items():
-            for src, ds in zip(["Reference", "Comparison"], [ref, com]):
-                if var_name not in ds:
-                    continue
-                val, unit = scalarify(ds, str(var_name), region, mean=True)
-                df += [
-                    {
-                        "source": src,
-                        "region": str(region),
-                        "analysis": analysis_name,
-                        "name": scalar_name,
-                        "type": "score" if "score" in var_name else "scalar",
-                        "units": unit,
-                        "value": val,
-                    },
-                ]
-    return pd.DataFrame(df)
+    stats = scoring.statistics(ds2["hellinger"], 1.0, grid=ds2, power=1)
+    return scoring.add_score(ds2, "hellingerscore", stats, "Linear")
 
 
 def _time_extent_years(ds) -> float:
@@ -193,18 +168,23 @@ class dispersion_analysis(ILAMBAnalysis):
         com["dist"] = _compute_binned_distribution(com, varname, bins)
         ref = ref.drop_vars(varname)
         com = com.drop_vars(varname)
-        com_nested = _hellinger_score(ref, com)
+        com_nested = _hellinger_distance(ref, com)
         com = xr.merge([com, com_nested])
 
-        # Compute scalars
-        df = _create_scalar_dataframe(
-            ref,
-            com,
-            self.regions,
-            {
-                "hellingerscore": "Dispersion Score",
-            },
-            self.name(),
+        # Score the regional mean distance. The score is not a component of the
+        # error, so it carries no normalizer.
+        stats = scoring.get_statistics(com_nested, "hellingerscore")
+        df = pd.DataFrame(
+            [
+                {
+                    "source": "Comparison",
+                    "region": str(region),
+                    "analysis": self.name(),
+                    "name": "Dispersion Score",
+                    **scoring.score_row(scoring.aggregate(stats, region), "Linear"),
+                }
+                for region in self.regions
+            ]
         )
 
         return df, ref, com
