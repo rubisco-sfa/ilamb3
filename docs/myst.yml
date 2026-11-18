@@ -43,7 +43,7 @@ project:
         - file: contribute/datasets.md
         - file: contribute/replicate-docs.md
 site:
-  template: book-theme
+  template: https://github.com/jupyter-book/myst-theme/releases/download/myst-to-react%401.3.1/book-theme.zip
   options:
     #   favicon: favicon.ico
     folders: true
