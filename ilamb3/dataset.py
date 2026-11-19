@@ -10,8 +10,10 @@ import xarray as xr
 from scipy.interpolate import NearestNDInterpolator
 
 import ilamb3.regions as ilreg
-from ilamb3.exceptions import NoSiteDimension, NoUncertainty
+from ilamb3.exceptions import NoSiteDimension, NoUncertainty, ScoreAggregationError
 
+# The attribute marking a per-cell score, see mark_local_score
+LOCAL_SCORE = "local_score"
 CMIP_TIME_FREQUENCY = {"3hr": 0.125, "6hr": 0.25, "day": 1.0, "mon": 30.0, "yr": 365.0}
 
 
@@ -544,6 +546,7 @@ def coarsen_dataset(dset: xr.Dataset, varname: str, res: float = 0.5) -> xr.Data
         The coarsened dataset.
     """
     assert varname in dset
+    check_aggregable(dset, varname)
     # This coarsening does not permit you to give the lats/lons, only the resolution
     lat_name = get_dim_name(dset, "lat")
     lon_name = get_dim_name(dset, "lon")
@@ -583,6 +586,60 @@ def coarsen_dataset(dset: xr.Dataset, varname: str, res: float = 0.5) -> xr.Data
     dset[varname] /= dset["cell_measures"]
     dset_coarse[varname] /= dset_coarse["cell_measures"]
     return dset_coarse
+
+
+def mark_local_score(score: xr.DataArray) -> xr.DataArray:
+    """
+    Flag a per-cell score so that `ilamb3` refuses to aggregate it.
+
+    A score is a nonlinear function of an error, so the mean of a score map depends on
+    the score function and its parameters, and can reorder models as those parameters
+    change. A score map is valid for showing performance cell by cell. A regional score
+    must instead aggregate the error and then score the result once.
+
+    Parameters
+    ----------
+    score : xarray.DataArray
+        The per-cell score.
+
+    Returns
+    -------
+    xarray.DataArray
+        The input score, flagged and given units of 1.
+    """
+    score.attrs["units"] = "1"
+    score.attrs[LOCAL_SCORE] = 1
+    return score
+
+
+def is_local_score(da: xr.DataArray) -> bool:
+    """Return whether the input is flagged as a local score by `mark_local_score`."""
+    return bool(da.attrs.get(LOCAL_SCORE))
+
+
+def check_aggregable(
+    data: xr.Dataset | xr.DataArray, varname: str | None = None
+) -> None:
+    """
+    Raise if the input is a local score, which must not be aggregated.
+
+    Parameters
+    ----------
+    data : xarray.Dataset or xarray.DataArray
+        The data about to be reduced.
+    varname : str, optional
+        If `data` is a dataset, the variable about to be reduced. If not given, every
+        variable in the dataset is checked.
+    """
+    if isinstance(data, xr.DataArray):
+        arrays = [data]
+    elif varname is not None:
+        arrays = [data[varname]]
+    else:
+        arrays = list(data.data_vars.values())
+    for da in arrays:
+        if is_local_score(da):
+            raise ScoreAggregationError(da.name)
 
 
 def integrate_time(
@@ -639,6 +696,7 @@ def integrate_time(
     else:
         da = data
         msr = compute_time_measures(data)
+    check_aggregable(da)
 
     # If mean, weight the var by time measures then take the mean
     if mean:
@@ -671,6 +729,7 @@ def accumulate_time(
     xr.DataArray
         The accumulation.
     """
+    check_aggregable(dset, varname)
     time_name = get_dim_name(dset, "time")
     if isinstance(dset, xr.Dataset):
         assert varname is not None
@@ -706,6 +765,7 @@ def std_time(
     xr.DataArray
         The weighted standard deviation.
     """
+    check_aggregable(dset, varname)
     time_name = get_dim_name(dset, "time")
     if isinstance(dset, xr.Dataset):
         var = dset[varname]
@@ -759,6 +819,7 @@ def integrate_space(
     However, as of `v2023.6.0`, this does not handle the `pint` units correctly, and can
     only be done in a single dimension at a time.
     """
+    check_aggregable(dset, varname)
     dset = dset.pint.dequantify()
     if region is not None:
         regions = ilreg.Regions()
@@ -878,6 +939,7 @@ def integrate_depth(
     xr.DataArray
         The depth integral or sum.
     """
+    check_aggregable(dset, varname)
     if isinstance(dset, xr.DataArray):
         varname = str(dset.name)
         dset = dset.to_dataset(name=varname)
@@ -1002,6 +1064,7 @@ def coarsen_annual(dset: xr.Dataset) -> xr.Dataset:
     xr.Dataset
         The coarsened dataset.
     """
+    check_aggregable(dset)
     # Can't sum time objects so find them and remove
     time_dim = get_dim_name(dset, "time")
     dset = dset.resample({time_dim: xr.groupers.TimeResampler("YS")}).mean()
@@ -1270,6 +1333,7 @@ def compute_monthly_mean(ds: xr.Dataset) -> xr.Dataset:
 
     For example, given 5 years of daily input, the result has 60 (12*5) timesteps.
     """
+    check_aggregable(ds)
     if not is_temporal(ds):
         raise ValueError("Input dataset has no temporal dimension.")
     freq = get_mean_time_frequency(ds)
@@ -1297,6 +1361,7 @@ def compute_annual_mean(ds: xr.Dataset) -> xr.Dataset:
 
     For example, given 5 years of daily input, the result has 5 timesteps.
     """
+    check_aggregable(ds)
     if not is_temporal(ds):
         raise ValueError("Input dataset has no temporal dimension.")
     freq = get_mean_time_frequency(ds)
@@ -1416,6 +1481,7 @@ def compute_seasonal_climatology(
     the first day of the season rather than the midpoint. Providing a variable name,
     which drops all other variables, is safer.
     """
+    check_aggregable(data, varname)
 
     # Ensure data is temporal and not already coarser than seasonal
     if not is_temporal(data):

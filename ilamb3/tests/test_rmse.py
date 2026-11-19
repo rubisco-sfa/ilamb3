@@ -9,8 +9,8 @@ from ilamb3.tests.test_dataset import generate_test_site_dset
 @pytest.mark.parametrize(
     "use_uncertainty,rmse,score",
     [
-        (True, 4.054071846722371e-09, 0.5253398932130192),
-        (False, 4.054071846722371e-09, 0.2438115935402378),
+        (True, 4.073107607390326e-09, 0.5109148218446624),
+        (False, 4.073107607390326e-09, 0.24147193185215576),
     ],
 )
 def test_rmse_collier2018(use_uncertainty: bool, rmse: float, score: float):
@@ -40,4 +40,4 @@ def test_rmse_site_collier2018():
     df, _, _ = analysis(ref, com)
     df = df[df["type"] == "score"]
     assert len(df) == 1
-    assert np.allclose(df.iloc[0].value, 0.2527023684081725)
+    assert np.allclose(df.iloc[0].value, 0.24970445504024902)

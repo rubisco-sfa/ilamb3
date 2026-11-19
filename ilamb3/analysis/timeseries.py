@@ -9,6 +9,7 @@ import xarray as xr
 import ilamb3.compare as cmp
 import ilamb3.dataset as dset
 import ilamb3.plot as ilplt
+from ilamb3.analysis import scoring
 from ilamb3.analysis.base import ILAMBAnalysis, get_plot_name
 
 
@@ -36,8 +37,11 @@ class timeseries_analysis(ILAMBAnalysis):
         ref_mean = dset.integrate_time(ref, varname, mean=True)
         com_mean = dset.integrate_time(com, varname, mean=True)
 
-        # score the difference as a bias
-        bias_score = np.exp(-np.abs((com_mean - ref_mean) / ref_mean))
+        # score the difference as a bias, relative to the reference mean
+        bias = scoring.score_row(
+            scoring.statistics(com_mean - ref_mean, ref_mean),
+            normalizer=scoring.REFERENCE_MEAN,
+        )
 
         # taylor score the time series
         ref_std = float(dset.std_time(ref, varname))
@@ -72,9 +76,7 @@ class timeseries_analysis(ILAMBAnalysis):
                     "region": "None",
                     "analysis": self.name(),
                     "name": "Bias Score",
-                    "type": "score",
-                    "units": "1",
-                    "value": float(bias_score),
+                    **bias,
                 },
                 {
                     "source": "Comparison",

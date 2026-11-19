@@ -24,7 +24,8 @@ import ilamb3.dataset as ild
 import ilamb3.load as ill
 import ilamb3.plot as ilp
 import ilamb3.regions as ilr
-from ilamb3.analysis.base import ILAMBAnalysis, add_overall_score
+from ilamb3.analysis.base import ILAMBAnalysis
+from ilamb3.analysis.scoring import add_overall_score
 from ilamb3.exceptions import AnalysisNotAppropriate
 from ilamb3.transform import ALL_TRANSFORMS
 from ilamb3.transform.base import ILAMBTransform
@@ -700,7 +701,12 @@ def generate_html_page(
         "analyses": analyses,
         "data_information": data_information,
         "table_data": str(
-            [row.to_dict() for _, row in df.drop(columns="units").iterrows()]
+            [
+                row.to_dict()
+                for _, row in df.drop(
+                    columns=["units", "nmse", "normalizer"], errors="ignore"
+                ).iterrows()
+            ]
         ).replace("nan", "NaN"),
     }
 
