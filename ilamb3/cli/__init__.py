@@ -267,6 +267,10 @@ def debug(
 @app.command(help="Search/download model data from ESGF.")
 def esgf(
     config: Annotated[Path, typer.Argument(help="The benchmark study yaml file.")],
+    project: Annotated[
+        str,
+        typer.Option(help="The project for which you would like to limit the search."),
+    ] = "CMIP7",
     source_id: Annotated[
         list[str] | None,
         typer.Option(
@@ -291,7 +295,7 @@ def esgf(
     intake_esgf.conf.set(print_log_on_error=True, additional_df_cols=["frequency"])
 
     df_info = ile.get_configure_variables(config)
-    cat = ile.get_esgf_catalog(df_info, source_id)
+    cat = ile.get_esgf_catalog(df_info, project, source_id)
     if info:
         print(f"\nThese variables are required by {str(config)}...")
         print(df_info)

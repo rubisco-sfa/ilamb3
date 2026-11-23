@@ -107,9 +107,21 @@ def esgf_remove_duplicate_tables(cat: ESGFCatalog, df: pd.DataFrame) -> ESGFCata
     """
     df = df.set_index(["variable_id", "frequency"])
     to_remove = []
-    for (_, _, _, variable_id, frequency), grp in cat.df.groupby(
-        cat.project.modelgroup_facets() + [cat.project.variable_facet(), "frequency"]
-    ):
+    # which columns do we group by?
+    prj = cat.project
+    project = type(prj).__name__
+    group_cols = [prj.model_facet(), prj.variant_facet()]
+    try:
+        group_cols += [prj.grid_facet()]
+    except Exception:
+        pass
+    group_cols += [
+        prj.variable_facet(),
+        "time_frequency" if project == "CMIP5" else "frequency",
+    ]
+    for vals, grp in cat.df.groupby(group_cols):
+        variable_id = vals[-2]
+        frequency = vals[-1]
         # Our search could find too many variables, if this variable/frequency pair
         # isn't in the information dataframe, remove these from our catalog
         try:
@@ -139,14 +151,20 @@ def esgf_remove_nonmax(cat: ESGFCatalog) -> ESGFCatalog:
     remove all members that are less than this maximum.
     """
 
-    def _remove_nonmax(max_ensembles: pd.Series, df: pd.DataFrame) -> bool:
-        max_count = max_ensembles.loc[df.iloc[0]["source_id"]]
+    def _remove_nonmax(
+        max_ensembles: pd.Series, project: str, df: pd.DataFrame
+    ) -> bool:
+        max_count = max_ensembles.loc[
+            df.iloc[0]["model" if project == "CMIP5" else "source_id"]
+        ]
         if len(df) < max_count:
             return False
         return True
 
     max_ensembles = cat.model_groups().groupby(level=0).max()
-    cat.remove_incomplete(partial(_remove_nonmax, max_ensembles))
+    cat.remove_incomplete(
+        partial(_remove_nonmax, max_ensembles, type(cat.project).__name__)
+    )
     return cat
 
 
@@ -181,7 +199,7 @@ def esgf_prefer_regridded(cat: ESGFCatalog) -> ESGFCatalog:
 
 
 def get_esgf_catalog(
-    df: pd.DataFrame, source_ids: list[str] | None = None
+    df: pd.DataFrame, project: str, source_ids: list[str] | None = None
 ) -> ESGFCatalog:
     """
     Given the dataframe of variable info populated from the configure file, use
@@ -194,18 +212,23 @@ def get_esgf_catalog(
     fix problems like variables existing in multiple tables.
     """
     kwargs = dict(
-        experiment_id="historical",
-        variable_id=list(df["variable_id"].unique()),
-        frequency=list(df["frequency"].unique()),
         file_start=str(df["tmin"].min()),
         file_end=str(df["tmax"].max()),
     )
+    kwargs["experiment" if project == "CMIP5" else "experiment_id"] = "historical"
+    kwargs["variable" if project == "CMIP5" else "variable_id"] = list(
+        df["variable_id"].unique()
+    )
+    kwargs["time_frequency" if project == "CMIP5" else "frequency"] = list(
+        df["frequency"].unique()
+    )
     if source_ids is not None:
-        kwargs["source_id"] = source_ids
-    cat = ESGFCatalog().search(project="CMIP6", **kwargs)
+        kwargs["model" if project == "CMIP5" else "source_id"] = source_ids
+    cat = ESGFCatalog().search(project=project, **kwargs)
     cat = esgf_remove_duplicate_tables(cat, df)
     cat = esgf_remove_nonmax(cat)
-    cat = esgf_prefer_regridded(cat)
+    if project == "CMIP6":
+        cat = esgf_prefer_regridded(cat)
     cat.remove_ensembles()
     return cat
 
