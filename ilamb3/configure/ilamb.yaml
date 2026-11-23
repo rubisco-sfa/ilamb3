@@ -117,7 +117,7 @@ Ecosystem and Carbon Cycle:
   Global Net Ecosystem Carbon Balance:
     Hoffman-1-0:
       sources:
-        nbp: Hoffman-1-0/obs4MIPs_UCI-ORNL_Hoffman-1-0_yr_nbp_gm_v20260302.nc
+        nbp: Hoffman-1-0/ILAMB_UCI-ORNL_Hoffman-1-0_yr_nbp_gm_v20260904.nc
       transforms:
         - integrate_space:
             varname: nbp
@@ -330,7 +330,7 @@ Hydrology Cycle:
   Surface Soil Moisture:
     WangMao:
       sources:
-        mrsol: mrsol/WangMao/mrsol_olc.nc
+        mrsol: WangMao-2021/ILAMB_ORNL_WangMao-2021_mon_mrsol_OLC-ORS_gn_v20260907.nc
       variable_cmap: Blues
       transforms:
         - soil_moisture_to_vol_fraction
@@ -342,7 +342,7 @@ Hydrology Cycle:
   Soil Moisture 1m:
     WangMao:
       sources:
-        mrsol: mrsol/WangMao/mrsol_olc.nc
+        mrsol: WangMao-2021/ILAMB_ORNL_WangMao-2021_mon_mrsol_OLC-ORS_gn_v20260907.nc
       variable_cmap: Blues
       transforms:
         - soil_moisture_to_vol_fraction
