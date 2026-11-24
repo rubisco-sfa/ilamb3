@@ -4,6 +4,7 @@ from typing import Any
 
 import pandas as pd
 from intake_esgf import ESGFCatalog
+from intake_esgf.exceptions import NoSearchResults
 from rich.progress import track
 
 import ilamb3.dataset as ild
@@ -267,14 +268,16 @@ def download_esgf_catalog(
     for source_id, _, grid_label in grps.index:
         for var in ["areacella", "sftlf"]:
             tmp = cat.clone()
-            tmp.search(
-                project=type(cat.project).__name__,
-                source_id=source_id,
-                grid_label=grid_label,
-                variable=var,
-                frequency="fx",
-            )
-            tmp.df = tmp.df.iloc[:1]
-            path_dict.update(tmp.to_path_dict(minimal_keys=False))
-
+            try:
+                tmp.search(
+                    project=type(cat.project).__name__,
+                    source_id=source_id,
+                    grid_label=grid_label,
+                    variable=var,
+                    frequency="fx",
+                )
+                tmp.df = tmp.df.iloc[:1]
+                path_dict.update(tmp.to_path_dict(minimal_keys=False))
+            except NoSearchResults:
+                continue
     return path_dict
