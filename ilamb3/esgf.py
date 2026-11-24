@@ -268,7 +268,7 @@ def download_esgf_catalog(
         for var in ["areacella", "sftlf"]:
             tmp = cat.clone()
             tmp.search(
-                project="CMIP6",
+                project=type(cat.project).__name__,
                 source_id=source_id,
                 grid_label=grid_label,
                 variable=var,
